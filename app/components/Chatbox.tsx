@@ -3,7 +3,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { MessageCircle, X } from "lucide-react";
+import { MessageCircle, X, Mic } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -63,13 +63,48 @@ export function Chatbot() {
     {
       id: 1,
       from: "bot",
-      text: "Hi 👶, I'm the Natural Baby assistant. Ask me anything about our baby products!",
+      text: "Hi 🐢, I'm the Oogway assistant. Ask me anything about our baby products!",
     },
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [isListening, setIsListening] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+
+  const toggleListening = () => {
+    if (isListening) return;
+
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Speech recognition is not supported in this browser.");
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+
+    recognition.onstart = () => {
+      setIsListening(true);
+    };
+
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      setInput(transcript);
+    };
+
+    recognition.onerror = (event: any) => {
+      console.error("Speech recognition error", event.error);
+      setIsListening(false);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognition.start();
+  };
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -107,7 +142,7 @@ export function Chatbot() {
         from: "bot",
         text:
           data.answer ??
-          "Sorry, something went wrong. Please try asking again about Natural Baby products.",
+          "Sorry, something went wrong. Please try asking again about Oogway products.",
       };
 
       setMessages((prev) => [...prev, botMsg]);
@@ -152,7 +187,7 @@ export function Chatbot() {
             <div className="flex items-center justify-between px-4 py-2 border-b">
               <div className="flex flex-col">
                 <span className="text-sm font-semibold">
-                  Natural Baby Assistant
+                  Oogway Assistant
                 </span>
                 <span className="text-xs text-muted-foreground">
                   Ask about our baby products
@@ -198,9 +233,18 @@ export function Chatbot() {
               </div>
             </ScrollArea>
 
-            <div className="border-t px-3 pt-2 flex gap-2 items-center">
+            <div className="border-t px-3 pt-2 pb-2 flex gap-2 items-center">
+              <Button 
+                variant="outline" 
+                size="icon" 
+                onClick={toggleListening} 
+                className={`shrink-0 ${isListening ? "text-red-500 border-red-500 animate-pulse" : "text-neutral-500"}`}
+                title="Voice Input"
+              >
+                <Mic className="h-4 w-4" />
+              </Button>
               <Input
-                placeholder="Ask about Natural Baby products..."
+                placeholder="Ask about Oogway products..."
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}

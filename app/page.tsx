@@ -66,10 +66,10 @@ export default function HomePage() {
             </div>
 
             <div className="hidden md:flex space-x-8">
-              <a href="#" className="text-sm font-medium text-emerald-700 border-b-2 border-emerald-600 pb-1 hover:text-emerald-800 transition-colors">Shop All</a>
-              <a href="#" className="text-sm font-medium text-neutral-500 hover:text-emerald-600 hover:-translate-y-0.5 transform transition-all">Best Sellers</a>
-              <a href="#" className="text-sm font-medium text-neutral-500 hover:text-emerald-600 hover:-translate-y-0.5 transform transition-all">Our Story</a>
-              <a href="#" className="text-sm font-medium text-neutral-500 hover:text-emerald-600 hover:-translate-y-0.5 transform transition-all">Journal</a>
+              <a href="#products" className="text-sm font-medium text-emerald-700 border-b-2 border-emerald-600 pb-1 hover:text-emerald-800 transition-colors">Shop All</a>
+              <a href="#products" onClick={() => setActiveCategory("All")} className="text-sm font-medium text-neutral-500 hover:text-emerald-600 hover:-translate-y-0.5 transform transition-all">Best Sellers</a>
+              <a href="#story" className="text-sm font-medium text-neutral-500 hover:text-emerald-600 hover:-translate-y-0.5 transform transition-all">Our Story</a>
+              <a href="#journal" className="text-sm font-medium text-neutral-500 hover:text-emerald-600 hover:-translate-y-0.5 transform transition-all">Journal</a>
             </div>
 
             <div className="flex items-center gap-2 sm:gap-4">
@@ -130,7 +130,7 @@ export default function HomePage() {
             <Button size="lg" className="rounded-full px-8 text-base shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300 bg-emerald-600 hover:bg-emerald-700 text-white border-none">
               Shop Essentials
             </Button>
-            <Button size="lg" variant="outline" className="rounded-full px-8 text-base bg-white/50 backdrop-blur-sm border-neutral-300 hover:bg-white hover:-translate-y-1 hover:shadow-md transition-all duration-300">
+            <Button size="lg" variant="outline" className="rounded-full px-8 text-base bg-white/50 backdrop-blur-sm border-neutral-300 text-neutral-900 hover:bg-white hover:-translate-y-1 hover:shadow-md transition-all duration-300">
               Take the Quiz
             </Button>
           </div>
@@ -142,21 +142,21 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 flex flex-wrap justify-center gap-8 sm:gap-16 opacity-70">
           <div className="flex items-center gap-2">
             <Leaf className="w-5 h-5 text-green-600" />
-            <span className="text-sm font-medium uppercase tracking-wider">100% Organic</span>
+            <span className="text-sm font-medium uppercase tracking-wider text-neutral-900">100% Organic</span>
           </div>
           <div className="flex items-center gap-2">
             <ShieldCheck className="w-5 h-5 text-blue-600" />
-            <span className="text-sm font-medium uppercase tracking-wider">Dermatologist Tested</span>
+            <span className="text-sm font-medium uppercase tracking-wider text-neutral-900">Dermatologist Tested</span>
           </div>
           <div className="flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-amber-500" />
-            <span className="text-sm font-medium uppercase tracking-wider">Hypoallergenic</span>
+            <span className="text-sm font-medium uppercase tracking-wider text-neutral-900">Hypoallergenic</span>
           </div>
         </div>
       </section>
 
       {/* Main Content Area */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+      <div id="products" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 scroll-mt-20">
         
         {/* Header & Filters */}
         <div className="flex flex-col md:flex-row justify-between items-end mb-8 gap-6">
@@ -201,8 +201,40 @@ export default function HomePage() {
         )}
       </div>
 
+      {/* Our Story Section */}
+      <section id="story" className="py-16 bg-white border-t border-neutral-200 scroll-mt-16">
+        <div className="max-w-4xl mx-auto px-4 text-center">
+          <h2 className="text-3xl font-bold text-neutral-900 mb-6">Our Story</h2>
+          <p className="text-lg text-neutral-600 leading-relaxed">
+            Founded with a passion for natural care, Oogway believes that every baby deserves the purest start in life. Our journey began with a simple mission: to provide eco-conscious, gentle products that nurture your little one and protect our planet.
+          </p>
+        </div>
+      </section>
+
+      {/* Journal Section */}
+      <section id="journal" className="py-16 bg-neutral-50 border-t border-neutral-200 scroll-mt-16">
+        <div className="max-w-4xl mx-auto px-4 text-center">
+          <h2 className="text-3xl font-bold text-neutral-900 mb-6">Journal</h2>
+          <p className="text-lg text-neutral-600 leading-relaxed mb-8">
+            Tips, guides, and stories for mindful parenting.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-left">
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-neutral-100 hover:shadow-md transition-shadow cursor-pointer">
+              <Badge className="mb-3 bg-emerald-100 text-emerald-800 hover:bg-emerald-100 border-none">Guide</Badge>
+              <h3 className="text-xl font-semibold text-neutral-900 mb-2">The Ultimate Organic Skincare Routine</h3>
+              <p className="text-neutral-500 text-sm">Learn how to protect your baby's sensitive skin with our natural regimen.</p>
+            </div>
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-neutral-100 hover:shadow-md transition-shadow cursor-pointer">
+              <Badge className="mb-3 bg-amber-100 text-amber-800 hover:bg-amber-100 border-none">Tips</Badge>
+              <h3 className="text-xl font-semibold text-neutral-900 mb-2">Eco-Friendly Diapering 101</h3>
+              <p className="text-neutral-500 text-sm">Everything you need to know about transitioning to sustainable diapering.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Footer */}
-      <footer className="bg-white border-t border-neutral-200 py-12 mt-12">
+      <footer className="bg-white border-t border-neutral-200 py-12">
         <div className="max-w-7xl mx-auto px-4 text-center text-sm text-neutral-500">
           <p>© 2026 Oogway. All rights reserved. Gentle care for little ones.</p>
         </div>
