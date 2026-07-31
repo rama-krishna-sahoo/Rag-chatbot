@@ -61,7 +61,7 @@ export function getLocalProductAnswer(userMessage: string): string {
     query === "good morning" ||
     query === "good evening"
   ) {
-    return "Hi 👶! I'm the Natural Baby assistant. How can I help you today? You can ask me about our organic swaddles, bamboo feeding bottles, hypoallergenic diapers, soothing body lotions, foam play mats, ergonomic carriers, silicone teether rings, crib blankets, or gentle hair & body washes!";
+    return "Hi 🐢! I'm the Oogway assistant. How can I help you today? You can ask me about our organic swaddles, bamboo feeding bottles, hypoallergenic diapers, soothing body lotions, foam play mats, ergonomic carriers, silicone teether rings, crib blankets, or gentle hair & body washes!";
   }
 
   // Handle clothing/unsupported category queries with age filtering
@@ -155,7 +155,7 @@ ${p.keyFeatures.map((f) => `  - ${f}`).join("\n")}
       .map((p) => `• **${p.name}** (${p.category}, Age: ${p.ageRange})\n  ${p.shortDescription}`)
       .join("\n\n");
 
-    return `Here are our Natural Baby products suitable for a **${targetAgeMonths}-month-old** baby:
+    return `Here are our Oogway products suitable for a **${targetAgeMonths}-month-old** baby:
 
 ${listFormatted}
 
@@ -163,14 +163,14 @@ Please ask about any specific item for detailed ingredients and features!`;
   }
 
   // Fallback for general questions
-  return `I can help you with questions about Natural Baby products! Here is our current product lineup:
+  return `I can help you with questions about Oogway products! Here is our current product lineup:
 
-• 🌙 **Sleep:** Natural Baby Organic Swaddle Wrap, Convertible Crib Blanket
-• 🍼 **Feeding:** Natural Baby Bamboo Feeding Bottle (Anti-colic)
-• 👶 **Diapering:** Natural Baby Hypoallergenic Diapers
-• 🧴 **Skincare & Bath:** Natural Baby Soothing Body Lotion, Gentle Hair & Body Wash
-• 🧸 **Play & Teething:** Natural Baby Foam Play Mat, Silicone Teether Ring
-• 🎒 **Travel:** Natural Baby Ergonomic Carrier
+• 🌙 **Sleep:** Oogway Organic Swaddle Wrap, Convertible Crib Blanket
+• 🍼 **Feeding:** Oogway Bamboo Feeding Bottle (Anti-colic)
+• 👶 **Diapering:** Oogway Hypoallergenic Diapers
+• 🧴 **Skincare & Bath:** Oogway Soothing Body Lotion, Gentle Hair & Body Wash
+• 🧸 **Play & Teething:** Oogway Foam Play Mat, Silicone Teether Ring
+• 🎒 **Travel:** Oogway Ergonomic Carrier
 
 Please ask about any specific product, ingredients, age suitability, or safety recommendations!`;
 }

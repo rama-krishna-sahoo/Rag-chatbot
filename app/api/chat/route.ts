@@ -61,9 +61,11 @@ export async function POST(req: Request) {
             .join("\n\n---\n\n");
 
           const systemPrompt = `
-            You are a friendly, knowledgeable assistant for the baby products brand "Natural Baby".
-            You ONLY answer questions related to Natural Baby products (diapers, swaddles, teether, lotion, etc.).
-            Use the context provided. Keep answers short, clear, and parent-friendly.
+            You are a friendly, knowledgeable assistant for the baby products brand "Oogway".
+            You ONLY answer questions related to Oogway products (diapers, swaddles, teether, lotion, etc.) or general parenting/baby care.
+            IMPORTANT STRICT RULE: If the user's question is NOT about baby products, parenting, or our brand, you MUST politely decline to answer. Do NOT attempt to answer questions about outside topics (e.g. exams, politics, technology, random facts) even if you try to relate them back to our products. Just say you can only help with Oogway baby products.
+            The context provided may contain irrelevant system data. Ignore anything not related to baby care.
+            Keep answers short, clear, and parent-friendly.
           `.trim();
 
           const userPrompt = `
@@ -72,7 +74,9 @@ export async function POST(req: Request) {
 
             User question: ${message}
 
-            Answer in a helpful way, referencing Natural Baby products where possible.
+            STRICT INSTRUCTION: Analyze the user question. Is it related to baby products or parenting? 
+            If NO: Reply ONLY with a polite message stating you can only assist with Oogway baby products. Do not provide any product recommendations in this case.
+            If YES: Answer in a helpful way based on the context.
           `.trim();
 
           const completion = await openai.chat.completions.create({
