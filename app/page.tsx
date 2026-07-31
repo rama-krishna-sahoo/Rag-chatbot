@@ -1,0 +1,220 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import Image from "next/image";
+import { createClient } from "@/utils/supabase/client";
+import { products } from "../data/products";
+import { ProductCard } from "./components/ProductCards";
+import { Chatbot } from "./components/Chatbox";
+import { Search, ShoppingBag, Menu, Sparkles, ShieldCheck, Leaf } from "lucide-react";
+import { Button } from "@/components/ui/button";
+
+export default function HomePage() {
+  const [activeCategory, setActiveCategory] = useState("All");
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleLogin = async () => {
+    const supabase = createClient();
+    await supabase.auth.signInWithOAuth({
+      provider: 'github',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      }
+    });
+  };
+
+  const handleLogout = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+  };
+
+  const categories = ["All", "Sleep", "Feeding", "Diapering", "Skincare", "Play", "Travel"];
+
+  const filteredProducts = activeCategory === "All" 
+    ? products 
+    : products.filter(p => p.category === activeCategory);
+
+  return (
+    <main className="min-h-screen bg-neutral-50 font-sans selection:bg-primary/20">
+      {/* Navigation Bar */}
+      <nav className="sticky top-0 z-30 w-full bg-white/80 backdrop-blur-md border-b border-neutral-200 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" size="icon" className="md:hidden">
+                <Menu className="w-5 h-5" />
+              </Button>
+              <div className="flex items-center gap-2 cursor-pointer">
+                <span className="text-2xl">👶</span>
+                <span className="font-bold text-xl tracking-tight text-neutral-800 hidden sm:block">
+                  Natural Baby
+                </span>
+              </div>
+            </div>
+
+            <div className="hidden md:flex space-x-8">
+              <a href="#" className="text-sm font-medium text-neutral-900 border-b-2 border-primary pb-1">Shop All</a>
+              <a href="#" className="text-sm font-medium text-neutral-500 hover:text-neutral-900 transition-colors">Best Sellers</a>
+              <a href="#" className="text-sm font-medium text-neutral-500 hover:text-neutral-900 transition-colors">Our Story</a>
+              <a href="#" className="text-sm font-medium text-neutral-500 hover:text-neutral-900 transition-colors">Journal</a>
+            </div>
+
+            <div className="flex items-center gap-2 sm:gap-4">
+              <div className="relative hidden sm:block">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+                <input 
+                  type="text" 
+                  placeholder="Search products..." 
+                  className="pl-9 pr-4 py-1.5 text-sm rounded-full bg-neutral-100 border-transparent focus:bg-white focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all w-48 lg:w-64 outline-none"
+                />
+              </div>
+              <Button variant="ghost" size="icon" className="relative">
+                <ShoppingBag className="w-5 h-5 text-neutral-700" />
+                <span className="absolute top-1 right-1 w-2 h-2 bg-primary rounded-full"></span>
+              </Button>
+              
+              {user ? (
+                <div className="flex items-center gap-3 ml-2">
+                  {user.user_metadata?.avatar_url && (
+                    <img src={user.user_metadata.avatar_url} alt="Avatar" className="w-8 h-8 rounded-full border border-neutral-200" />
+                  )}
+                  <Button variant="outline" size="sm" onClick={handleLogout} className="hidden sm:inline-flex text-xs h-8">
+                    Sign Out
+                  </Button>
+                </div>
+              ) : (
+                <Button onClick={handleLogin} size="sm" className="ml-2 bg-neutral-900 text-white hover:bg-neutral-800 text-xs h-8 px-4">
+                  GitHub Login
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      {/* Hero Section */}
+      <section className="relative w-full h-[70vh] min-h-[500px] flex items-center justify-center overflow-hidden">
+        <Image
+          src="/images/natural_baby_hero.png"
+          alt="Natural Baby Premium Products"
+          fill
+          className="object-cover object-center"
+          priority
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-white/90 via-white/50 to-transparent"></div>
+        
+        <div className="relative z-10 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 flex flex-col items-start">
+          <Badge className="mb-4 bg-primary/10 text-primary border-primary/20 hover:bg-primary/20 py-1 px-3 text-xs uppercase tracking-widest font-semibold rounded-full shadow-sm">
+            New Arrival
+          </Badge>
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-neutral-900 max-w-2xl leading-[1.15] tracking-tight">
+            Pure, Gentle & <br/> Eco-Conscious Care
+          </h1>
+          <p className="mt-4 text-lg sm:text-xl text-neutral-700 max-w-xl leading-relaxed">
+            Discover our dermatologist-tested, 100% organic essentials designed to nurture your little one's sensitive skin.
+          </p>
+          <div className="mt-8 flex gap-4">
+            <Button size="lg" className="rounded-full px-8 text-base shadow-lg hover:shadow-xl transition-all">
+              Shop Essentials
+            </Button>
+            <Button size="lg" variant="outline" className="rounded-full px-8 text-base bg-white/50 backdrop-blur-sm border-neutral-300">
+              Take the Quiz
+            </Button>
+          </div>
+        </div>
+      </section>
+
+      {/* Trust Badges */}
+      <section className="border-y border-neutral-200 bg-white py-6">
+        <div className="max-w-7xl mx-auto px-4 flex flex-wrap justify-center gap-8 sm:gap-16 opacity-70">
+          <div className="flex items-center gap-2">
+            <Leaf className="w-5 h-5 text-green-600" />
+            <span className="text-sm font-medium uppercase tracking-wider">100% Organic</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="w-5 h-5 text-blue-600" />
+            <span className="text-sm font-medium uppercase tracking-wider">Dermatologist Tested</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-amber-500" />
+            <span className="text-sm font-medium uppercase tracking-wider">Hypoallergenic</span>
+          </div>
+        </div>
+      </section>
+
+      {/* Main Content Area */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+        
+        {/* Header & Filters */}
+        <div className="flex flex-col md:flex-row justify-between items-end mb-8 gap-6">
+          <div>
+            <h2 className="text-2xl sm:text-3xl font-bold text-neutral-900 tracking-tight">
+              Our Products
+            </h2>
+            <p className="mt-2 text-neutral-500 max-w-xl">
+              Carefully crafted for every stage of your baby's journey. Not sure what you need? Ask our AI assistant in the corner!
+            </p>
+          </div>
+          
+          <div className="flex gap-2 overflow-x-auto pb-2 w-full md:w-auto hide-scrollbar">
+            {categories.map(cat => (
+              <Button
+                key={cat}
+                variant={activeCategory === cat ? "default" : "outline"}
+                className={`rounded-full whitespace-nowrap ${activeCategory !== cat && "bg-white text-neutral-600 border-neutral-200"}`}
+                onClick={() => setActiveCategory(cat)}
+                size="sm"
+              >
+                {cat}
+              </Button>
+            ))}
+          </div>
+        </div>
+
+        {/* Product Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 xl:gap-8">
+          {filteredProducts.map((product) => (
+            <ProductCard key={product.id} product={product} />
+          ))}
+        </div>
+        
+        {filteredProducts.length === 0 && (
+          <div className="py-20 text-center">
+            <p className="text-neutral-500">No products found in this category.</p>
+            <Button variant="link" onClick={() => setActiveCategory("All")} className="mt-2">
+              View all products
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {/* Footer */}
+      <footer className="bg-white border-t border-neutral-200 py-12 mt-12">
+        <div className="max-w-7xl mx-auto px-4 text-center text-sm text-neutral-500">
+          <p>© 2026 Natural Baby. All rights reserved. Gentle care for little ones.</p>
+        </div>
+      </footer>
+
+      {/* Floating Chatbot */}
+      <Chatbot />
+    </main>
+  );
+}
+
+// Temporary workaround for missing Badge component in this file since we use it in the hero
+function Badge({ children, className }: { children: React.ReactNode, className?: string }) {
+  return <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${className}`}>{children}</span>;
+}
