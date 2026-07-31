@@ -57,19 +57,19 @@ export default function HomePage() {
               <Button variant="ghost" size="icon" className="md:hidden">
                 <Menu className="w-5 h-5" />
               </Button>
-              <div className="flex items-center gap-2 cursor-pointer">
-                <span className="text-2xl">👶</span>
-                <span className="font-bold text-xl tracking-tight text-neutral-800 hidden sm:block">
-                  Natural Baby
+              <div className="flex items-center gap-2 cursor-pointer group">
+                <span className="text-3xl group-hover:rotate-12 transition-transform duration-300">🐢</span>
+                <span className="font-extrabold text-2xl tracking-tight bg-gradient-to-r from-emerald-500 to-teal-700 bg-clip-text text-transparent hidden sm:block group-hover:from-emerald-600 group-hover:to-teal-800 transition-all duration-300">
+                  Oogway
                 </span>
               </div>
             </div>
 
             <div className="hidden md:flex space-x-8">
-              <a href="#" className="text-sm font-medium text-neutral-900 border-b-2 border-primary pb-1">Shop All</a>
-              <a href="#" className="text-sm font-medium text-neutral-500 hover:text-neutral-900 transition-colors">Best Sellers</a>
-              <a href="#" className="text-sm font-medium text-neutral-500 hover:text-neutral-900 transition-colors">Our Story</a>
-              <a href="#" className="text-sm font-medium text-neutral-500 hover:text-neutral-900 transition-colors">Journal</a>
+              <a href="#" className="text-sm font-medium text-emerald-700 border-b-2 border-emerald-600 pb-1 hover:text-emerald-800 transition-colors">Shop All</a>
+              <a href="#" className="text-sm font-medium text-neutral-500 hover:text-emerald-600 hover:-translate-y-0.5 transform transition-all">Best Sellers</a>
+              <a href="#" className="text-sm font-medium text-neutral-500 hover:text-emerald-600 hover:-translate-y-0.5 transform transition-all">Our Story</a>
+              <a href="#" className="text-sm font-medium text-neutral-500 hover:text-emerald-600 hover:-translate-y-0.5 transform transition-all">Journal</a>
             </div>
 
             <div className="flex items-center gap-2 sm:gap-4">
@@ -127,10 +127,10 @@ export default function HomePage() {
             Discover our dermatologist-tested, 100% organic essentials designed to nurture your little one's sensitive skin.
           </p>
           <div className="mt-8 flex gap-4">
-            <Button size="lg" className="rounded-full px-8 text-base shadow-lg hover:shadow-xl transition-all">
+            <Button size="lg" className="rounded-full px-8 text-base shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300 bg-emerald-600 hover:bg-emerald-700 text-white border-none">
               Shop Essentials
             </Button>
-            <Button size="lg" variant="outline" className="rounded-full px-8 text-base bg-white/50 backdrop-blur-sm border-neutral-300">
+            <Button size="lg" variant="outline" className="rounded-full px-8 text-base bg-white/50 backdrop-blur-sm border-neutral-300 hover:bg-white hover:-translate-y-1 hover:shadow-md transition-all duration-300">
               Take the Quiz
             </Button>
           </div>
@@ -174,7 +174,7 @@ export default function HomePage() {
               <Button
                 key={cat}
                 variant={activeCategory === cat ? "default" : "outline"}
-                className={`rounded-full whitespace-nowrap ${activeCategory !== cat && "bg-white text-neutral-600 border-neutral-200"}`}
+                className={`rounded-full whitespace-nowrap transition-all duration-300 hover:-translate-y-1 hover:shadow-md ${activeCategory === cat ? "bg-emerald-600 hover:bg-emerald-700 text-white" : "bg-white text-neutral-600 border-neutral-200 hover:border-emerald-300 hover:text-emerald-600"}`}
                 onClick={() => setActiveCategory(cat)}
                 size="sm"
               >
@@ -204,7 +204,7 @@ export default function HomePage() {
       {/* Footer */}
       <footer className="bg-white border-t border-neutral-200 py-12 mt-12">
         <div className="max-w-7xl mx-auto px-4 text-center text-sm text-neutral-500">
-          <p>© 2026 Natural Baby. All rights reserved. Gentle care for little ones.</p>
+          <p>© 2026 Oogway. All rights reserved. Gentle care for little ones.</p>
         </div>
       </footer>
 

@@ -59,11 +59,11 @@ export function ProductCard({ product }: { product: Product }) {
 
         {/* Action Buttons */}
         <div className="mt-5 flex gap-2">
-          <Button className="flex-1 rounded-full shadow-sm" variant="default">
+          <Button className="flex-1 rounded-full shadow-sm bg-emerald-600 hover:bg-emerald-700 text-white hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 border-none" variant="default">
             <ShoppingBag className="w-4 h-4 mr-2" />
             Add to Bag
           </Button>
-          <Button variant="outline" size="icon" className="rounded-full shadow-sm text-muted-foreground" title="Ask Assistant about this product">
+          <Button variant="outline" size="icon" className="rounded-full shadow-sm text-muted-foreground hover:text-emerald-600 hover:border-emerald-300 hover:-translate-y-0.5 transition-all duration-300" title="Ask Assistant about this product">
             <MessageCircleQuestion className="w-4 h-4" />
           </Button>
         </div>
