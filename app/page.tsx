@@ -117,7 +117,7 @@ export default function HomePage() {
         <div className="absolute inset-0 bg-gradient-to-r from-white/90 via-white/50 to-transparent"></div>
         
         <div className="relative z-10 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 flex flex-col items-start">
-          <Badge className="mb-4 bg-primary/10 text-primary border-primary/20 hover:bg-primary/20 py-1 px-3 text-xs uppercase tracking-widest font-semibold rounded-full shadow-sm">
+          <Badge className="mb-4 bg-emerald-100 text-emerald-800 border-emerald-200 hover:bg-emerald-200 py-1 px-3 text-xs uppercase tracking-widest font-bold rounded-full shadow-sm">
             New Arrival
           </Badge>
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-neutral-900 max-w-2xl leading-[1.15] tracking-tight">
