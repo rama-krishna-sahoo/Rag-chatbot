@@ -7,7 +7,7 @@ import { Product } from "../../data/products";
 import { ShoppingBag, MessageCircleQuestion } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-export function ProductCard({ product }: { product: Product }) {
+export function ProductCard({ product, onAddToCart }: { product: Product; onAddToCart?: (product: Product) => void }) {
   // Use generated images where applicable, otherwise fallback to a styled placeholder
   const getProductImage = (slug: string) => {
     if (slug === "organic-swaddle-wrap") return "/images/organic_swaddle.png";
@@ -47,8 +47,13 @@ export function ProductCard({ product }: { product: Product }) {
         </div>
         
         <div className="mt-2 space-y-2 flex-1">
-          <div className="flex items-center text-xs text-muted-foreground">
-            <span className="font-medium text-foreground mr-1">Age:</span> {product.ageRange}
+          <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center text-xs text-muted-foreground">
+              <span className="font-medium text-foreground mr-1">Age:</span> {product.ageRange}
+            </div>
+            <div className="font-extrabold text-emerald-700 text-sm">
+              ${product.price.toFixed(2)}
+            </div>
           </div>
           <ul className="text-xs text-muted-foreground space-y-1 mt-1 pl-4 list-disc">
             {product.keyFeatures.slice(0, 2).map((f) => (
@@ -59,7 +64,11 @@ export function ProductCard({ product }: { product: Product }) {
 
         {/* Action Buttons */}
         <div className="mt-5 flex gap-2">
-          <Button className="flex-1 rounded-full shadow-sm bg-emerald-600 hover:bg-emerald-700 text-white hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 border-none" variant="default">
+          <Button 
+            onClick={() => onAddToCart?.(product)}
+            className="flex-1 rounded-full shadow-sm bg-emerald-600 hover:bg-emerald-700 text-white hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 border-none" 
+            variant="default"
+          >
             <ShoppingBag className="w-4 h-4 mr-2" />
             Add to Bag
           </Button>

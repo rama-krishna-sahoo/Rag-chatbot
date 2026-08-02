@@ -61,7 +61,7 @@ export function getLocalProductAnswer(userMessage: string): string {
     query === "good morning" ||
     query === "good evening"
   ) {
-    return "Hi 🐢! I'm the Oogway assistant. How can I help you today? You can ask me about our organic swaddles, bamboo feeding bottles, hypoallergenic diapers, soothing body lotions, foam play mats, ergonomic carriers, silicone teether rings, crib blankets, or gentle hair & body washes!";
+    return "Hello! Welcome to Oogway 🐢. How can I help you today?";
   }
 
   // Handle clothing/unsupported category queries with age filtering
@@ -104,8 +104,10 @@ Please ask if you would like more details about any of these items!`;
       }
     }
 
-    // Check full query and cleaned query against product text
-    const searchTerms = [cleanQuery, ...cleanQuery.split(" ").filter((w) => w.length > 2)];
+    // Filter out common brand terms and generic filler words to prevent false positive matches
+    const stopWords = ["natural", "baby", "oogway", "product", "products", "item", "items", "info", "details", "about", "show", "tell", "need", "want"];
+    const searchTerms = [cleanQuery, ...cleanQuery.split(" ")]
+      .filter((w) => w.length > 2 && !stopWords.includes(w.toLowerCase()));
 
     for (const term of searchTerms) {
       if (!term) continue;
@@ -163,14 +165,5 @@ Please ask about any specific item for detailed ingredients and features!`;
   }
 
   // Fallback for general questions
-  return `I can help you with questions about Oogway products! Here is our current product lineup:
-
-• 🌙 **Sleep:** Oogway Organic Swaddle Wrap, Convertible Crib Blanket
-• 🍼 **Feeding:** Oogway Bamboo Feeding Bottle (Anti-colic)
-• 👶 **Diapering:** Oogway Hypoallergenic Diapers
-• 🧴 **Skincare & Bath:** Oogway Soothing Body Lotion, Gentle Hair & Body Wash
-• 🧸 **Play & Teething:** Oogway Foam Play Mat, Silicone Teether Ring
-• 🎒 **Travel:** Oogway Ergonomic Carrier
-
-Please ask about any specific product, ingredients, age suitability, or safety recommendations!`;
+  return "I'm here to help you with questions about Oogway's organic baby products and baby care. Could you please specify which product or topic you would like to know more about?";
 }

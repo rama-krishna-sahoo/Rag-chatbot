@@ -11,6 +11,7 @@ export type Product = {
   keyFeatures: string[];
   safetyNotes: string;
   category: string;
+  price: number;
 };
 
 export const products: Product[] = [
@@ -31,7 +32,8 @@ export const products: Product[] = [
     ],
     safetyNotes:
       "Always place baby on their back to sleep. Stop using swaddles once baby shows signs of rolling over.",
-    category: "Sleep"
+    category: "Sleep",
+    price: 24.99
   },
   {
     id: "nb-2",
@@ -50,7 +52,8 @@ export const products: Product[] = [
     ],
     safetyNotes:
       "Check nipple regularly for wear or damage. Do not microwave milk in the bottle to avoid uneven heating.",
-    category: "Feeding"
+    category: "Feeding",
+    price: 19.99
   },
   {
     id: "nb-3",
@@ -69,7 +72,8 @@ export const products: Product[] = [
     ],
     safetyNotes:
       "Change diapers frequently to avoid rashes. Do not flush diapers; dispose of in household waste.",
-    category: "Diapering"
+    category: "Diapering",
+    price: 34.99
   },
   {
     id: "nb-4",
@@ -88,7 +92,8 @@ export const products: Product[] = [
     ],
     safetyNotes:
       "For external use only. Avoid contact with eyes. Discontinue use if irritation occurs.",
-    category: "Skincare"
+    category: "Skincare",
+    price: 14.99
   },
   {
     id: "nb-5",
@@ -107,7 +112,8 @@ export const products: Product[] = [
     ],
     safetyNotes:
       "Always supervise baby during play. Do not use on top of stairs or uneven surfaces.",
-    category: "Play"
+    category: "Play",
+    price: 59.99
   },
   {
     id: "nb-6",
@@ -126,7 +132,8 @@ export const products: Product[] = [
     ],
     safetyNotes:
       "Ensure baby’s airways are always clear and visible. Follow weight limits strictly.",
-    category: "Travel"
+    category: "Travel",
+    price: 89.99
   },
   {
     id: "nb-7",
@@ -145,7 +152,8 @@ export const products: Product[] = [
     ],
     safetyNotes:
       "Inspect regularly for damage. Do not tie teether around baby’s neck or crib.",
-    category: "Teething"
+    category: "Teething",
+    price: 9.99
   },
   {
     id: "nb-8",
@@ -164,7 +172,8 @@ export const products: Product[] = [
     ],
     safetyNotes:
       "Follow safe sleep guidelines. Do not use loose blankets with infants unable to roll and reposition themselves.",
-    category: "Sleep"
+    category: "Sleep",
+    price: 29.99
   },
   {
     id: "nb-9",
@@ -183,6 +192,7 @@ export const products: Product[] = [
     ],
     safetyNotes:
       "Avoid contact with eyes. Rinse thoroughly with water. Keep out of reach of children when not in use.",
-    category: "Bath"
+    category: "Bath",
+    price: 12.99
   }
 ];
