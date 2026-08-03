@@ -21,6 +21,14 @@ export async function POST(req: Request) {
     const queryEmbedding = await generateEmbedding(query);
 
     // 2. Perform match_knowledge search
+    console.log("TEST SEARCH ARGS:", {
+      workspaceId,
+      matchCount: matchCount || 5,
+      category: category || null,
+      status: status || null,
+      query
+    });
+
     const { data: matches, error: rpcError } = await supabase.rpc(
       "match_knowledge",
       {
@@ -33,7 +41,13 @@ export async function POST(req: Request) {
     );
 
     if (rpcError) {
+      console.error("RPC Error:", rpcError);
       return NextResponse.json({ error: rpcError.message }, { status: 500 });
+    }
+
+    console.log("MATCHES LENGTH:", matches?.length);
+    if (matches && matches.length > 0) {
+      console.log("FIRST MATCH SIMILARITY:", matches[0].similarity);
     }
 
     let answer = "No chunks found or similarity below threshold.";

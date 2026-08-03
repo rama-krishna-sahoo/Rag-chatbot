@@ -151,7 +151,7 @@ export async function processUrlForWorkspace(
           metadata,
           source_url: url,
           source_type: "website",
-          status: "draft",
+          status: "published", // auto-publish for now since approval UI is not implemented
           workspace_id: workspaceId
         });
 

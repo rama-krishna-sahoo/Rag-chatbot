@@ -41,14 +41,23 @@ export function SettingsTab({ setActiveTab }: SettingsTabProps) {
   const paymentStatus = searchParams?.get("payment");
 
   useEffect(() => {
+    if (typeof window !== "undefined" && localStorage.getItem("oogway_premium_unlocked") === "true") {
+      setIsPremiumUnlocked(true);
+    }
+  }, []);
+
+  useEffect(() => {
     if (paymentStatus === "success") {
       setIsPremiumUnlocked(true);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("oogway_premium_unlocked", "true");
+      }
       if (!expandedSections.includes("branding")) {
         setExpandedSections(prev => [...prev, "branding"]);
       }
-      window.history.replaceState({}, '', '/admin');
+      window.history.replaceState({}, '', '/dashboard/settings');
     } else if (paymentStatus === "cancelled") {
-      window.history.replaceState({}, '', '/admin');
+      window.history.replaceState({}, '', '/dashboard/settings');
     }
   }, [paymentStatus]);
 
@@ -115,18 +124,31 @@ export function SettingsTab({ setActiveTab }: SettingsTabProps) {
     }, 800);
   };
 
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
+
   const handlePurchasePremium = async () => {
+    if (isCheckingOut) return;
     try {
+      setIsCheckingOut(true);
       const res = await fetch("/api/stripe/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: 540, currency: "inr" }),
+        body: JSON.stringify({ 
+          amount: 540, 
+          currency: "inr",
+          successUrl: `${window.location.origin}/dashboard/settings?payment=success`,
+          cancelUrl: `${window.location.origin}/dashboard/settings?payment=cancelled`
+        }),
       });
       const data = await res.json();
       if (data.url) {
         window.location.href = data.url;
+      } else {
+        setIsCheckingOut(false);
+        alert("Failed to create Stripe session.");
       }
     } catch (err) {
+      setIsCheckingOut(false);
       alert("Failed to initiate checkout. Please try again.");
     }
   };
@@ -283,9 +305,18 @@ export function SettingsTab({ setActiveTab }: SettingsTabProps) {
               <p className="text-slate-300 text-sm max-w-md mb-6 leading-relaxed">
                 Unlock Custom Branding for a one-time payment of ₹540 (≈ US$6). Personalize your chatbot with your own name and logo instantly.
               </p>
-              <Button onClick={handlePurchasePremium} className="bg-amber-500 hover:bg-amber-600 text-amber-950 font-bold px-8 h-10 shadow-lg shadow-amber-500/20">
-                <Star className="w-4 h-4 mr-2" fill="currentColor" />
-                Upgrade Now - ₹540
+              <Button onClick={handlePurchasePremium} disabled={isCheckingOut} className="bg-amber-500 hover:bg-amber-600 text-amber-950 font-bold px-8 h-10 shadow-lg shadow-amber-500/20">
+                {isCheckingOut ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 rounded-full border-2 border-amber-950 border-t-transparent animate-spin" />
+                    <span>Processing...</span>
+                  </div>
+                ) : (
+                  <>
+                    <Star className="w-4 h-4 mr-2" fill="currentColor" />
+                    Upgrade Now - ₹540
+                  </>
+                )}
               </Button>
             </div>
           )}

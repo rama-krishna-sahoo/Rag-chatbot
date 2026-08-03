@@ -4,9 +4,10 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
+import { createClient } from "@/utils/supabase/client";
 import { 
   Sparkles, CheckCircle2, ChevronRight, ArrowRight, 
-  Loader2, Globe, Building2, ShieldCheck, HeartPulse
+  Loader2, Globe, Building2, ShieldCheck, HeartPulse, Mail, Lock
 } from "lucide-react";
 
 type SetupStep = "welcome" | "info" | "analysis" | "complete";
@@ -49,7 +50,10 @@ export default function OnboardingWizard() {
   const [companyName, setCompanyName] = useState("");
   const [websiteUrl, setWebsiteUrl] = useState("");
   const [industry, setIndustry] = useState("E-commerce");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [authError, setAuthError] = useState("");
 
   // Analysis Animation States
   const [completedItems, setCompletedItems] = useState<number[]>([]);
@@ -57,17 +61,48 @@ export default function OnboardingWizard() {
 
   const handleInfoSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!companyName || !websiteUrl) return;
+    if (!companyName || !websiteUrl || !email || !password) return;
+    
+    setAuthError("");
     setIsSubmitting(true);
 
     try {
+      const supabase = createClient();
+      
+      // 1. Sign Up the User
+      const { data: authData, error: authErr } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+
+      if (authErr && !authErr.message.includes("already registered")) {
+        setAuthError(authErr.message);
+        setIsSubmitting(false);
+        return;
+      }
+      
+      // Try to sign them in immediately so the browser gets the session cookie
+      const { error: signInErr } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (signInErr && signInErr.message.includes("Invalid login credentials")) {
+        setAuthError("Account exists, but password was incorrect.");
+        setIsSubmitting(false);
+        return;
+      }
+
+      // 2. Provision / Update Workspace
       const res = await fetch("/api/onboarding/setup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           companyName,
           websiteUrl,
-          industry
+          industry,
+          email,
+          password
         })
       });
       const data = await res.json();
@@ -180,13 +215,52 @@ export default function OnboardingWizard() {
           {/* Step 2: Business Information */}
           {step === "info" && (
             <Card className="p-8 shadow-xl border-neutral-200/60 bg-white/80 backdrop-blur-xl rounded-2xl animate-in slide-in-from-bottom-4 duration-300">
-              <h2 className="text-2xl font-bold text-neutral-900 mb-2">Business Information</h2>
-              <p className="text-neutral-500 text-sm mb-6">Tell us about your company so Oogway can configure itself.</p>
+              <h2 className="text-2xl font-bold text-neutral-900 mb-2">Create Account & Business Info</h2>
+              <p className="text-neutral-500 text-sm mb-6">Create your admin account and tell us about your company.</p>
+              
+              {authError && (
+                <div className="mb-4 p-3 bg-red-50 text-red-600 border border-red-100 rounded-lg text-sm font-medium">
+                  {authError}
+                </div>
+              )}
               
               <form 
                 onSubmit={handleInfoSubmit}
                 className="space-y-4"
               >
+                <div>
+                  <label className="text-xs font-bold text-neutral-700 uppercase tracking-widest mb-1.5 block">Admin Email</label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
+                    <Input 
+                      type="email"
+                      value={email}
+                      onChange={e => setEmail(e.target.value)}
+                      className="pl-10 h-11 bg-neutral-50/50 border-neutral-200 focus-visible:ring-neutral-900" 
+                      placeholder="admin@company.com" 
+                      required 
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-neutral-700 uppercase tracking-widest mb-1.5 block">Password</label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
+                    <Input 
+                      type="password"
+                      value={password}
+                      onChange={e => setPassword(e.target.value)}
+                      className="pl-10 h-11 bg-neutral-50/50 border-neutral-200 focus-visible:ring-neutral-900" 
+                      placeholder="••••••••" 
+                      required 
+                      minLength={6}
+                    />
+                  </div>
+                </div>
+                
+                <hr className="border-neutral-100 my-2" />
+
                 <div>
                   <label className="text-xs font-bold text-neutral-700 uppercase tracking-widest mb-1.5 block">Company Name</label>
                   <div className="relative">

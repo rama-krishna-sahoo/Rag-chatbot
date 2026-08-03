@@ -27,11 +27,11 @@ export async function verifyAdminAccess(allowedRoles?: AdminRole[]) {
   try {
     const cookieClient = await createServerClient();
     const { data: { user } } = await cookieClient.auth.getUser();
-    
+
     if (user) {
       userId = user.id;
       email = user.email || "";
-      
+
       const { data: userRoleRecord } = await supabase
         .from("user_roles")
         .select("role, workspace_id")
@@ -43,6 +43,10 @@ export async function verifyAdminAccess(allowedRoles?: AdminRole[]) {
       if (userRoleRecord) {
         role = userRoleRecord.role as AdminRole;
         workspaceId = userRoleRecord.workspace_id || workspaceId;
+      } else {
+        // SAFETY NET: If an authenticated user has no role record (e.g. legacy user before trigger),
+        // DO NOT let them fall back to the shared 00000000-0000-0000-0000-000000000000 workspace.
+        workspaceId = "ffffffff-ffff-ffff-ffff-ffffffffffff";
       }
 
       if (email === "superadmin@yopmail.com") {
@@ -62,7 +66,7 @@ export async function verifyAdminAccess(allowedRoles?: AdminRole[]) {
   // Regular authenticated users must use their actual database role.
   const isGuest = userId === "00000000-0000-0000-0000-000000000000";
   const isGlobalSuperAdmin = email === "superadmin@yopmail.com";
-  
+
   if (simulatedRole && !isGuest && !isGlobalSuperAdmin) {
     simulatedRole = null;
   }
@@ -78,7 +82,7 @@ export async function verifyAdminAccess(allowedRoles?: AdminRole[]) {
     }
   }
 
-  if (simulatedWorkspaceId) {
+  if (simulatedWorkspaceId && (isGuest || isGlobalSuperAdmin)) {
     workspaceId = simulatedWorkspaceId;
   }
 

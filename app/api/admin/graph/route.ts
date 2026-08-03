@@ -19,7 +19,7 @@ function getCosineSimilarity(vecA: number[], vecB: number[]): number {
 
 export async function GET(req: Request) {
   try {
-    const { authorized, supabase } = await verifyAdminAccess();
+    const { authorized, workspaceId, supabase } = await verifyAdminAccess();
     if (!authorized) {
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
@@ -27,10 +27,11 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const minSimThreshold = parseFloat(searchParams.get("minSimilarity") || "0.45");
 
-    // Fetch all knowledge chunks
+    // Fetch all knowledge chunks for the active workspace
     const { data: chunks, error } = await supabase
       .from("knowledge_base")
       .select("id, document_id, title, category, chunk_id, chunk_text, embedding, keywords, source_url, source_type, created_at, status, metadata")
+      .eq("workspace_id", workspaceId)
       .order("created_at", { ascending: true });
 
     if (error) {

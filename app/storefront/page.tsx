@@ -11,14 +11,26 @@ export default function StorefrontPreview() {
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    // Load from local storage which was set during dashboard/login
-    const url = localStorage.getItem("oogway_simulated_website");
-    if (url) {
-      setWebsiteUrl(url);
-    } else {
-      // Fallback if not found
-      setWebsiteUrl("https://example.com");
+    async function fetchWorkspaceInfo() {
+      try {
+        const res = await fetch("/api/auth/role");
+        if (res.ok) {
+          const data = await res.json();
+          if (data.workspaceInfo && data.workspaceInfo.website_url) {
+            setWebsiteUrl(data.workspaceInfo.website_url);
+            return;
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch workspace info for storefront:", err);
+      }
+      
+      // Fallback to local storage for guests
+      const url = typeof window !== "undefined" ? localStorage.getItem("oogway_simulated_website") : null;
+      setWebsiteUrl(url || "https://example.com");
     }
+    
+    fetchWorkspaceInfo();
   }, []);
 
   if (!websiteUrl) {

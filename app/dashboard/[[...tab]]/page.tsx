@@ -84,7 +84,7 @@ export default function WorkspaceDashboard() {
     return "Knowledge Admin";
   });
   const [role, setRole] = useState<string | null>(null);
-  const [workspaceId, setWorkspaceId] = useState<string>("00000000-0000-0000-0000-000000000000");
+  const [workspaceId, setWorkspaceId] = useState<string>("ffffffff-ffff-ffff-ffff-ffffffffffff");
   const [loadingAuth, setLoadingAuth] = useState(true); // check credentials silently in the background
   const [isRealAuth, setIsRealAuth] = useState(false);
   const [industry, setIndustry] = useState<string>(() => {
@@ -96,6 +96,7 @@ export default function WorkspaceDashboard() {
     return "Oogway";
   });
   const [website, setWebsite] = useState<string>("");
+  const [workspaceLogo, setWorkspaceLogo] = useState<string>("");
   const [showSuccessBanner, setShowSuccessBanner] = useState<boolean>(false);
   const [pagesCount, setPagesCount] = useState<string>("0");
   const [docsCount, setDocsCount] = useState<string>("0");
@@ -170,7 +171,7 @@ export default function WorkspaceDashboard() {
   const [testQuery, setTestQuery] = useState("");
   const [matchCount, setMatchCount] = useState(4);
   const [filterCategory, setFilterCategory] = useState("");
-  const [searchStatus, setSearchStatus] = useState("published");
+  const [searchStatus, setSearchStatus] = useState("");
   const [searchResults, setSearchResults] = useState<any>(null);
   const [searching, setSearching] = useState(false);
 
@@ -201,7 +202,7 @@ export default function WorkspaceDashboard() {
     window.fetch = async (input, init) => {
       const headers = new Headers(init?.headers || {});
       const storedRole = localStorage.getItem("oogway_simulated_role") || "Knowledge Admin";
-      const storedWorkspace = localStorage.getItem("oogway_simulated_workspace_id") || "00000000-0000-0000-0000-000000000000";
+      const storedWorkspace = localStorage.getItem("oogway_simulated_workspace_id") || "ffffffff-ffff-ffff-ffff-ffffffffffff";
       headers.set("x-simulated-role", storedRole);
       headers.set("x-simulated-workspace-id", storedWorkspace);
       return originalFetch(input, {
@@ -235,11 +236,23 @@ export default function WorkspaceDashboard() {
           return;
         }
         setRole(data.role);
-        setWorkspaceId(data.workspaceId || "00000000-0000-0000-0000-000000000000");
+        setWorkspaceId(data.workspaceId || "ffffffff-ffff-ffff-ffff-ffffffffffff");
         if (data.email) {
           setUser((prev: any) => ({ ...prev, email: data.email }));
         }
+        if (data.workspaceInfo) {
+          setCompanyName(data.workspaceInfo.name || "Oogway AI");
+          setWebsite(data.workspaceInfo.website_url || "");
+          setIndustry(data.workspaceInfo.industry || "AI Company");
+          setWorkspaceLogo(data.workspaceInfo.logo_url || "💼");
+        }
         setIsRealAuth(!data.isSimulated);
+        
+        if (!data.isSimulated) {
+          localStorage.removeItem("oogway_simulated_pages_count");
+          localStorage.removeItem("oogway_simulated_docs_count");
+          localStorage.removeItem("oogway_simulated_sync_time");
+        }
       }
     } catch (err) {
       console.error("Failed to fetch role:", err);
@@ -908,17 +921,21 @@ export default function WorkspaceDashboard() {
                   <Card className="bg-slate-900 border-slate-800 p-6 rounded-xl relative overflow-hidden group">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                       <div className="flex items-center gap-4">
-                        <div className="w-16 h-16 rounded-xl bg-teal-500/10 text-teal-400 border border-teal-500/20 flex items-center justify-center text-3xl shadow-lg shrink-0 select-none">
-                          {localStorage.getItem("oogway_simulated_logo") || "💼"}
+                        <div className="w-14 h-14 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center shrink-0 shadow-inner">
+                          <span className="text-2xl">{workspaceLogo || "💼"}</span>
                         </div>
                         <div>
-                          <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                          <h2 className="text-xl font-bold text-white flex items-center gap-3">
                             {companyName}
-                            <span className="text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded border border-slate-700 uppercase font-mono tracking-widest">{industry}</span>
-                          </h3>
-                          <a href={website} target="_blank" rel="noopener noreferrer" className="text-xs text-teal-400 hover:underline flex items-center gap-1 mt-1">
-                            {website} <ExternalLink className="w-3.5 h-3.5" />
-                          </a>
+                            <span className="text-[9px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 font-extrabold tracking-widest uppercase border border-slate-700">
+                              {industry}
+                            </span>
+                          </h2>
+                          {website && (
+                            <a href={website} target="_blank" rel="noreferrer" className="text-xs text-teal-400 hover:text-teal-300 flex items-center gap-1 mt-1 transition-colors">
+                              {website} <ExternalLink className="w-3 h-3" />
+                            </a>
+                          )}
                         </div>
                       </div>
                       <div className="text-left md:text-right shrink-0">
@@ -931,13 +948,13 @@ export default function WorkspaceDashboard() {
                     </div>
 
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 mt-6 pt-6 border-t border-slate-800/80">
-                      <div>
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Pages Processed</span>
-                        <p className="text-xl font-extrabold text-white mt-1">{pagesCount} pages</p>
+                      <div className="col-span-2 space-y-1">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Pages Processed</p>
+                        <p className="text-xl font-extrabold text-white mt-1">{stats?.totalChunks ?? pagesCount} pages</p>
                       </div>
-                      <div>
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Documents Indexed</span>
-                        <p className="text-xl font-extrabold text-white mt-1">{docsCount} docs</p>
+                      <div className="col-span-2 space-y-1">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Documents Indexed</p>
+                        <p className="text-xl font-extrabold text-white mt-1">{stats?.totalDocuments ?? docsCount} docs</p>
                       </div>
                       <div>
                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Knowledge Base Status</span>
@@ -1035,6 +1052,19 @@ export default function WorkspaceDashboard() {
                           {["Sleep", "Feeding", "Diapering", "Skincare", "Play", "Travel", "Bath", "Teething", "general"].map((cat) => (
                             <option key={cat} value={cat}>{cat}</option>
                           ))}
+                        </select>
+                      </div>
+
+                      <div className="w-44">
+                        <label className="text-xs text-slate-300 font-medium">Status</label>
+                        <select
+                          value={searchStatus}
+                          onChange={(e) => setSearchStatus(e.target.value)}
+                          className="mt-1 w-full bg-slate-950 border border-slate-800 text-sm text-slate-200 p-2.5 rounded-lg focus:outline-none"
+                        >
+                          <option value="">All Statuses</option>
+                          <option value="published">Published Only</option>
+                          <option value="draft">Drafts Only</option>
                         </select>
                       </div>
 

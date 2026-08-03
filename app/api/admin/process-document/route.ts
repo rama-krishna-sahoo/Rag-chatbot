@@ -153,7 +153,7 @@ export async function POST(req: Request) {
           metadata,
           source_url: storage_path,
           source_type: "file",
-          status: "draft", // default to draft, requires publishing approval
+          status: "published", // auto-publish for now since approval UI is not implemented
           workspace_id: activeWorkspaceId
         });
 
