@@ -119,7 +119,7 @@ const getRecommendationsForQuery = (query: string, sourceChunks?: any[]): Produc
   return found.slice(0, 2);
 };
 
-export function Chatbot({ onAddToCart }: { onAddToCart?: (product: Product) => void }) {
+export function Chatbot({ onAddToCart, positionStrategy = "fixed", isMobilePreview = false, embeddedWorkspaceId }: { onAddToCart?: (product: Product) => void, positionStrategy?: "fixed" | "absolute", isMobilePreview?: boolean, embeddedWorkspaceId?: string }) {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -132,7 +132,7 @@ export function Chatbot({ onAddToCart }: { onAddToCart?: (product: Product) => v
   const [loading, setLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [customerId, setCustomerId] = useState<string>("");
-  const [workspaceId, setWorkspaceId] = useState<string>("00000000-0000-0000-0000-000000000000");
+  const [workspaceId, setWorkspaceId] = useState<string>(embeddedWorkspaceId || "00000000-0000-0000-0000-000000000000");
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const recognitionRef = useRef<any>(null);
@@ -145,6 +145,16 @@ export function Chatbot({ onAddToCart }: { onAddToCart?: (product: Product) => v
       }
     }
   }, []);
+
+  // Tell parent window (if in an iframe) to resize when chat opens/closes
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.parent) {
+      window.parent.postMessage(
+        { type: "OOGWAY_CHATBOT_STATE", isOpen: open },
+        "*"
+      );
+    }
+  }, [open]);
 
   const toggleListening = () => {
     if (isListening) {
@@ -281,7 +291,7 @@ export function Chatbot({ onAddToCart }: { onAddToCart?: (product: Product) => v
   return (
     <>
       {/* Floating trigger button utilizing branded turtle logo */}
-      <div className="fixed bottom-4 right-4 z-40">
+      <div className={`${positionStrategy} bottom-4 right-4 z-40`}>
         {!open && (
           <Button
             className="rounded-full h-14 w-14 shadow-lg p-0 overflow-hidden border border-emerald-100 hover:scale-105 transition-all duration-300 bg-white"
@@ -293,8 +303,8 @@ export function Chatbot({ onAddToCart }: { onAddToCart?: (product: Product) => v
       </div>
 
       {open && (
-        <div className="fixed bottom-4 right-4 z-50 w-80 sm:w-96">
-          <Card className="flex flex-col h-[520px] shadow-2xl border border-neutral-200/90 py-2 bg-white">
+        <div className={`${positionStrategy} z-50 bottom-4 right-4 h-[520px] ${isMobilePreview ? 'w-[calc(100%-2rem)]' : 'w-[calc(100%-2rem)] sm:w-96'}`}>
+          <Card className="flex flex-col h-full bg-white overflow-hidden shadow-2xl border border-neutral-200/90 rounded-xl py-2">
             {/* Header displaying Oogway Logo and Brand */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-100 bg-white">
               <div className="flex items-center gap-2.5">

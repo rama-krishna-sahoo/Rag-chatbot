@@ -76,16 +76,16 @@ export default function WorkspaceDashboard() {
     router.push(`/dashboard/${urlSegment}`);
   };
 
-  const [user, setUser] = useState<any>({ id: "mock-dev-id", email: "admin@oogway.com" });
+  const [user, setUser] = useState<any>(null);
   const [simulatedRole, setSimulatedRole] = useState<string>(() => {
     if (typeof window !== "undefined") {
-      return localStorage.getItem("oogway_simulated_role") || "Super Admin";
+      return localStorage.getItem("oogway_simulated_role") || "Knowledge Admin";
     }
-    return "Super Admin";
+    return "Knowledge Admin";
   });
-  const [role, setRole] = useState<string | null>("Super Admin");
+  const [role, setRole] = useState<string | null>(null);
   const [workspaceId, setWorkspaceId] = useState<string>("00000000-0000-0000-0000-000000000000");
-  const [loadingAuth, setLoadingAuth] = useState(false); // check credentials silently in the background
+  const [loadingAuth, setLoadingAuth] = useState(true); // check credentials silently in the background
   const [isRealAuth, setIsRealAuth] = useState(false);
   const [industry, setIndustry] = useState<string>(() => {
     if (typeof window !== "undefined") return localStorage.getItem("oogway_simulated_industry") || "E-commerce";
@@ -117,6 +117,11 @@ export default function WorkspaceDashboard() {
     });
 
     if (typeof window !== "undefined") {
+      if (localStorage.getItem("oogway_simulated_role") === "Super Admin" && user?.email !== "superadmin@yopmail.com") {
+        localStorage.setItem("oogway_simulated_role", "Knowledge Admin");
+        setSimulatedRole("Knowledge Admin");
+      }
+      
       const site = localStorage.getItem("oogway_simulated_website") || "";
       const onboarded = localStorage.getItem("oogway_onboarded") === "true";
       setWebsite(site);
@@ -195,7 +200,7 @@ export default function WorkspaceDashboard() {
     const originalFetch = window.fetch;
     window.fetch = async (input, init) => {
       const headers = new Headers(init?.headers || {});
-      const storedRole = localStorage.getItem("oogway_simulated_role") || "Super Admin";
+      const storedRole = localStorage.getItem("oogway_simulated_role") || "Knowledge Admin";
       const storedWorkspace = localStorage.getItem("oogway_simulated_workspace_id") || "00000000-0000-0000-0000-000000000000";
       headers.set("x-simulated-role", storedRole);
       headers.set("x-simulated-workspace-id", storedWorkspace);
@@ -599,7 +604,7 @@ export default function WorkspaceDashboard() {
     return (
       <div className="dark min-h-screen bg-slate-950 text-white flex items-center justify-center flex-col gap-4 font-sans">
         <RefreshCw className="w-10 h-10 animate-spin text-teal-400" />
-        <p className="text-slate-400 text-sm tracking-widest animate-pulse">VERIFYING CREDENTIALS...</p>
+        <p className="text-slate-300 text-sm tracking-widest animate-pulse">VERIFYING CREDENTIALS...</p>
       </div>
     );
   }
@@ -613,7 +618,7 @@ export default function WorkspaceDashboard() {
             <ShieldAlert className="w-8 h-8 text-rose-500 animate-bounce" />
           </div>
           <h1 className="text-2xl font-bold tracking-tight mb-2 text-white">Admin Control Center</h1>
-          <p className="text-slate-400 text-sm leading-relaxed mb-8">
+          <p className="text-slate-300 text-sm leading-relaxed mb-8">
             {!user 
               ? "You must be signed in with an authorized account to access the administrative tools." 
               : `Your current role (${role || "None"}) does not grant administrative access. Please contact a Super Admin.`}
@@ -627,14 +632,14 @@ export default function WorkspaceDashboard() {
             <div className="flex flex-col gap-3 w-full">
               {!isRealAuth && user?.email?.endsWith("@oogway.com") && (
                 <div className="bg-slate-950 border border-slate-850 rounded-xl p-3 text-left w-full">
-                  <label className="text-[8px] font-bold text-slate-500 uppercase tracking-widest block mb-1 font-mono">Simulate Role</label>
+                  <label className="text-[8px] font-bold text-slate-400 uppercase tracking-widest block mb-1 font-mono">Simulate Role</label>
                   <select
                     value={simulatedRole}
                     onChange={(e) => handleSimulatedRoleChange(e.target.value)}
                     className="w-full bg-slate-900 border border-slate-800 text-xs font-bold text-teal-400 rounded px-2 py-1.5 focus:outline-none focus:border-teal-500 cursor-pointer"
                   >
-                    {["Super Admin", "Knowledge Admin", "Content Editor", "Reviewer", "Viewer", "Chatbot User"].map((r) => (
-                      <option key={r} value={r} className="bg-slate-950 text-slate-300 text-xs">{r}</option>
+                    {["Knowledge Admin", "Content Editor", "Reviewer", "Viewer", "Chatbot User"].map((r) => (
+                      <option key={r} value={r} className="bg-slate-950 text-slate-300 text-xs">{r === "Knowledge Admin" ? "Admin" : r}</option>
                     ))}
                   </select>
                 </div>
@@ -644,7 +649,7 @@ export default function WorkspaceDashboard() {
                 Log Out
               </Button>
               <a href="/">
-                <Button variant="ghost" className="w-full text-slate-400 hover:text-white">
+                <Button variant="ghost" className="w-full text-slate-300 hover:text-white">
                   Back to Store
                 </Button>
               </a>
@@ -679,18 +684,18 @@ export default function WorkspaceDashboard() {
             <p className="text-xs font-semibold text-white truncate font-mono">{user.email}</p>
             {isRealAuth || user?.email === "superadmin@yopmail.com" || (user?.email && !user.email.endsWith("@oogway.com")) ? (
               <span className="text-[9px] font-bold text-teal-400 bg-teal-500/10 border border-teal-500/20 px-1.5 py-0.5 rounded uppercase tracking-wider mt-1 inline-block">
-                {user?.email === "superadmin@yopmail.com" ? "Super Admin" : role}
+                {user?.email === "superadmin@yopmail.com" ? "Super Admin" : (role === "Knowledge Admin" ? "Admin" : role)}
               </span>
             ) : (
               <div className="mt-1">
-                <label className="text-[8px] font-bold text-slate-500 uppercase tracking-widest block font-mono">Dev Mode Role</label>
+                <label className="text-[8px] font-bold text-slate-400 uppercase tracking-widest block font-mono">Dev Mode Role</label>
                 <select
                   value={simulatedRole}
                   onChange={(e) => handleSimulatedRoleChange(e.target.value)}
                   className="mt-0.5 block w-full bg-slate-900 border border-slate-800 text-[10px] font-bold text-teal-400 rounded px-1.5 py-0.5 focus:outline-none focus:border-teal-500 cursor-pointer font-mono"
                 >
-                  {["Super Admin", "Knowledge Admin", "Content Editor", "Reviewer", "Viewer", "Chatbot User"].map((r) => (
-                    <option key={r} value={r} className="bg-slate-950 text-slate-300 text-[10px]">{r}</option>
+                  {["Knowledge Admin", "Content Editor", "Reviewer", "Viewer", "Chatbot User"].map((r) => (
+                    <option key={r} value={r} className="bg-slate-950 text-slate-300 text-[10px]">{r === "Knowledge Admin" ? "Admin" : r}</option>
                   ))}
                 </select>
               </div>
@@ -705,7 +710,7 @@ export default function WorkspaceDashboard() {
             className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
               activeTab === "overview"
                 ? "bg-teal-500/15 text-teal-400 border-l-2 border-teal-400"
-                : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+                : "text-slate-300 hover:bg-slate-800 hover:text-slate-200"
             }`}
           >
             <LayoutDashboard className="w-4 h-4" />
@@ -717,7 +722,7 @@ export default function WorkspaceDashboard() {
             className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
               activeTab === "chatbot"
                 ? "bg-teal-500/15 text-teal-400 border-l-2 border-teal-400"
-                : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+                : "text-slate-300 hover:bg-slate-800 hover:text-slate-200"
             }`}
           >
             <Bot className="w-4 h-4 text-teal-400" />
@@ -729,7 +734,7 @@ export default function WorkspaceDashboard() {
             className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
               activeTab === "knowledge_base"
                 ? "bg-teal-500/15 text-teal-400 border-l-2 border-teal-400"
-                : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+                : "text-slate-300 hover:bg-slate-800 hover:text-slate-200"
             }`}
           >
             <Globe className="w-4 h-4" />
@@ -741,7 +746,7 @@ export default function WorkspaceDashboard() {
             className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
               activeTab === "website_sync"
                 ? "bg-teal-500/15 text-teal-400 border-l-2 border-teal-400"
-                : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+                : "text-slate-300 hover:bg-slate-800 hover:text-slate-200"
             }`}
           >
             <RefreshCw className="w-4 h-4" />
@@ -753,7 +758,7 @@ export default function WorkspaceDashboard() {
             className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
               activeTab === "documents"
                 ? "bg-teal-500/15 text-teal-400 border-l-2 border-teal-400"
-                : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+                : "text-slate-300 hover:bg-slate-800 hover:text-slate-200"
             }`}
           >
             <UploadCloud className="w-4 h-4" />
@@ -765,7 +770,7 @@ export default function WorkspaceDashboard() {
             className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
               activeTab === "conversations"
                 ? "bg-teal-500/15 text-teal-400 border-l-2 border-teal-400"
-                : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+                : "text-slate-300 hover:bg-slate-800 hover:text-slate-200"
             }`}
           >
             <FileSpreadsheet className="w-4 h-4" />
@@ -777,7 +782,7 @@ export default function WorkspaceDashboard() {
             className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
               activeTab === "analytics"
                 ? "bg-teal-500/15 text-teal-400 border-l-2 border-teal-400"
-                : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+                : "text-slate-300 hover:bg-slate-800 hover:text-slate-200"
             }`}
           >
             <Activity className="w-4 h-4" />
@@ -789,7 +794,7 @@ export default function WorkspaceDashboard() {
             className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
               activeTab === "team"
                 ? "bg-teal-500/15 text-teal-400 border-l-2 border-teal-400"
-                : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+                : "text-slate-300 hover:bg-slate-800 hover:text-slate-200"
             }`}
           >
             <Users className="w-4 h-4" />
@@ -801,7 +806,7 @@ export default function WorkspaceDashboard() {
             className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
               activeTab === "settings"
                 ? "bg-teal-500/15 text-teal-400 border-l-2 border-teal-400"
-                : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+                : "text-slate-300 hover:bg-slate-800 hover:text-slate-200"
             }`}
           >
             <Settings className="w-4 h-4" />
@@ -811,21 +816,13 @@ export default function WorkspaceDashboard() {
 
         {/* Back to store */}
         <div className="p-4 border-t border-slate-800 flex flex-col gap-2">
-          {isSuperAdmin && (
-            <a href="/super-admin" className="w-full">
-              <Button variant="outline" size="sm" className="w-full flex items-center justify-center gap-2 border-amber-500/20 text-amber-400 hover:bg-amber-500/10 hover:text-amber-300 text-xs h-9 font-bold">
-                <ShieldAlert className="w-3.5 h-3.5" />
-                Super Admin Panel
-              </Button>
-            </a>
-          )}
-          <a href="/" className="w-full">
-            <Button variant="outline" size="sm" className="w-full flex items-center justify-center gap-2 border-slate-800 text-slate-400 hover:bg-slate-800 hover:text-white text-xs h-9">
+          <a href="/storefront" className="w-full">
+            <Button variant="outline" size="sm" className="w-full flex items-center justify-center gap-2 border-slate-800 text-slate-300 hover:bg-slate-800 hover:text-white text-xs h-9">
               <ExternalLink className="w-3.5 h-3.5" />
               Storefront
             </Button>
           </a>
-          <Button variant="ghost" size="sm" onClick={handleLogout} className="w-full text-slate-500 hover:text-rose-400 justify-start text-xs h-9 gap-2">
+          <Button variant="ghost" size="sm" onClick={handleLogout} className="w-full text-slate-400 hover:text-rose-400 justify-start text-xs h-9 gap-2">
             <LogOut className="w-3.5 h-3.5" />
             Log Out
           </Button>
@@ -860,7 +857,7 @@ export default function WorkspaceDashboard() {
               else if (activeTab === "documents") fetchDocuments();
               else if (activeTab === "team") fetchUsers();
               else if (activeTab === "conversations") fetchLogs();
-            }} className="h-9 w-9 border-slate-800 hover:bg-slate-800 text-slate-400 hover:text-white" title="Refresh data">
+            }} className="h-9 w-9 border-slate-800 hover:bg-slate-800 text-slate-300 hover:text-white" title="Refresh data">
               <RefreshCw className="w-4 h-4" />
             </Button>
           </div>
@@ -874,7 +871,7 @@ export default function WorkspaceDashboard() {
                 <Globe className="w-6 h-6 animate-pulse" />
               </div>
               <h3 className="text-xl font-bold text-white">Connect your website</h3>
-              <p className="text-slate-400 text-sm leading-relaxed">
+              <p className="text-slate-300 text-sm leading-relaxed">
                 Before Oogway can assist your customers, it needs to analyze your website. We'll automatically identify products, FAQs, brand colors, and configure your chatbot.
               </p>
               <Button onClick={() => window.location.href = "/setup"} className="bg-teal-500 hover:bg-teal-600 text-slate-950 font-bold px-6 h-11 rounded-xl">
@@ -917,7 +914,7 @@ export default function WorkspaceDashboard() {
                         <div>
                           <h3 className="text-xl font-bold text-white flex items-center gap-2">
                             {companyName}
-                            <span className="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded border border-slate-700 uppercase font-mono tracking-widest">{industry}</span>
+                            <span className="text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded border border-slate-700 uppercase font-mono tracking-widest">{industry}</span>
                           </h3>
                           <a href={website} target="_blank" rel="noopener noreferrer" className="text-xs text-teal-400 hover:underline flex items-center gap-1 mt-1">
                             {website} <ExternalLink className="w-3.5 h-3.5" />
@@ -929,25 +926,25 @@ export default function WorkspaceDashboard() {
                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                           AI Chatbot Ready
                         </span>
-                        <p className="text-[10px] text-slate-500 mt-2">Last website sync: {syncTime}</p>
+                        <p className="text-[10px] text-slate-400 mt-2">Last website sync: {syncTime}</p>
                       </div>
                     </div>
 
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 mt-6 pt-6 border-t border-slate-800/80">
                       <div>
-                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Pages Processed</span>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Pages Processed</span>
                         <p className="text-xl font-extrabold text-white mt-1">{pagesCount} pages</p>
                       </div>
                       <div>
-                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Documents Indexed</span>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Documents Indexed</span>
                         <p className="text-xl font-extrabold text-white mt-1">{docsCount} docs</p>
                       </div>
                       <div>
-                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Knowledge Base Status</span>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Knowledge Base Status</span>
                         <p className="text-xl font-extrabold text-emerald-400 mt-1">Healthy</p>
                       </div>
                       <div>
-                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Auto Sync</span>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Auto Sync</span>
                         <p className="text-xl font-extrabold text-slate-300 mt-1">Enabled</p>
                       </div>
                     </div>
@@ -961,8 +958,8 @@ export default function WorkspaceDashboard() {
                           <Database className="w-6 h-6" />
                         </div>
                         <div>
-                          <h4 className="text-sm font-semibold text-slate-400">Database connection</h4>
-                          <p className="text-xs text-slate-500 mt-0.5">Supabase Postgres Engine</p>
+                          <h4 className="text-sm font-semibold text-slate-300">Database connection</h4>
+                          <p className="text-xs text-slate-400 mt-0.5">Supabase Postgres Engine</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
@@ -977,8 +974,8 @@ export default function WorkspaceDashboard() {
                           <Sparkles className="w-6 h-6" />
                         </div>
                         <div>
-                          <h4 className="text-sm font-semibold text-slate-400">Gemini LLM & Embeddings</h4>
-                          <p className="text-xs text-slate-500 mt-0.5">Google AI Dev Suite</p>
+                          <h4 className="text-sm font-semibold text-slate-300">Gemini LLM & Embeddings</h4>
+                          <p className="text-xs text-slate-400 mt-0.5">Google AI Dev Suite</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
@@ -995,15 +992,15 @@ export default function WorkspaceDashboard() {
                 <div className="space-y-6 animate-mac-page">
                   <div className="border-b border-slate-800 pb-4">
                     <h3 className="text-lg font-bold text-white">Chatbot Playground</h3>
-                    <p className="text-slate-400 text-xs mt-1">Test search queries, verify grounded AI answers, and fine-tune your chatbot responses.</p>
+                    <p className="text-slate-300 text-xs mt-1">Test search queries, verify grounded AI answers, and fine-tune your chatbot responses.</p>
                   </div>
                   {/* Search Sandbox */}
                   <Card className="bg-slate-900/50 backdrop-blur border-slate-800 p-6 rounded-xl">
                     <div className="flex flex-wrap items-end gap-6">
                       <div className="flex-1 min-w-[280px]">
-                        <label className="text-xs text-slate-400 font-medium">Vector Query Search</label>
+                        <label className="text-xs text-slate-300 font-medium">Vector Query Search</label>
                         <div className="relative mt-1">
-                          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                           <Input
                             placeholder="Enter testing query..."
                             value={testQuery}
@@ -1015,7 +1012,7 @@ export default function WorkspaceDashboard() {
                       </div>
 
                       <div className="w-36">
-                        <label className="text-xs text-slate-400 font-medium">Top-K Results</label>
+                        <label className="text-xs text-slate-300 font-medium">Top-K Results</label>
                         <select
                           value={matchCount}
                           onChange={(e) => setMatchCount(Number(e.target.value))}
@@ -1028,7 +1025,7 @@ export default function WorkspaceDashboard() {
                       </div>
 
                       <div className="w-44">
-                        <label className="text-xs text-slate-400 font-medium">Category</label>
+                        <label className="text-xs text-slate-300 font-medium">Category</label>
                         <select
                           value={filterCategory}
                           onChange={(e) => setFilterCategory(e.target.value)}
@@ -1084,7 +1081,7 @@ export default function WorkspaceDashboard() {
                       <Code className="w-5 h-5 text-teal-400" />
                       <div>
                         <h3 className="text-sm font-bold text-white uppercase tracking-wider">Embed Chatbot on Your Website</h3>
-                        <p className="text-[11px] text-slate-500">Copy and paste this script tag into the HTML body or head of your website to launch the chat widget directly.</p>
+                        <p className="text-[11px] text-slate-400">Copy and paste this script tag into the HTML body or head of your website to launch the chat widget directly.</p>
                       </div>
                     </div>
                     
@@ -1092,7 +1089,7 @@ export default function WorkspaceDashboard() {
                       <div className="relative">
                         <pre className="bg-slate-950 border border-slate-850 p-4 rounded-lg text-xs font-mono text-slate-300 overflow-x-auto leading-relaxed select-all">
 {`<script 
-  src="${typeof window !== 'undefined' ? window.location.origin : 'https://oogway.ai'}/embed.js" 
+  src="https://oogway-chatbot-chakadola.vercel.app/embed.js" 
   data-workspace-id="${workspaceId}"
   data-brand-color="#14b8a6"
   integrity="sha384-mockSriHashOogwayAIWidgetForSecuredIntegrity"
@@ -1102,7 +1099,7 @@ export default function WorkspaceDashboard() {
                         </pre>
                         <Button 
                           onClick={() => {
-                            const snippet = `<script \n  src="${typeof window !== 'undefined' ? window.location.origin : 'https://oogway.ai'}/embed.js" \n  data-workspace-id="${workspaceId}"\n  data-brand-color="#14b8a6"\n  integrity="sha384-mockSriHashOogwayAIWidgetForSecuredIntegrity"\n  crossorigin="anonymous"\n  defer>\n</script>`;
+                            const snippet = `<script \n  src="https://oogway-chatbot-chakadola.vercel.app/embed.js" \n  data-workspace-id="${workspaceId}"\n  data-brand-color="#14b8a6"\n  integrity="sha384-mockSriHashOogwayAIWidgetForSecuredIntegrity"\n  crossorigin="anonymous"\n  defer>\n</script>`;
                             navigator.clipboard.writeText(snippet);
                             alert("Integration script copied to clipboard!");
                           }}
@@ -1113,7 +1110,7 @@ export default function WorkspaceDashboard() {
                       </div>
                     </div>
 
-                    <div className="text-[11px] text-slate-400 flex flex-col gap-2 bg-slate-900/30 p-4 rounded-lg border border-slate-850">
+                    <div className="text-[11px] text-slate-300 flex flex-col gap-2 bg-slate-900/30 p-4 rounded-lg border border-slate-850">
                       <div className="flex items-start gap-2">
                         <div className="w-1.5 h-1.5 rounded-full bg-teal-400 mt-1 shrink-0 animate-pulse" />
                         <span>The widget automatically adapts to your workspace brand colors, logo, products, and FAQs dynamically resolved from your active knowledge base.</span>
@@ -1131,7 +1128,7 @@ export default function WorkspaceDashboard() {
                 <div className="space-y-6 animate-mac-page">
                   <div className="border-b border-slate-800 pb-4">
                     <h3 className="text-lg font-bold text-white">Knowledge Universe</h3>
-                    <p className="text-slate-400 text-xs mt-1">3D interactive vector cluster visualization of your database chunks.</p>
+                    <p className="text-slate-300 text-xs mt-1">3D interactive vector cluster visualization of your database chunks.</p>
                   </div>
                   <KnowledgeUniverse />
                 </div>
@@ -1142,7 +1139,7 @@ export default function WorkspaceDashboard() {
                 <div className="space-y-6 animate-mac-page">
                   <div className="border-b border-slate-800 pb-4">
                     <h3 className="text-lg font-bold text-white">Website Sync Engine</h3>
-                    <p className="text-slate-400 text-xs mt-1">Configure automated crawling and manually trigger sync tasks.</p>
+                    <p className="text-slate-300 text-xs mt-1">Configure automated crawling and manually trigger sync tasks.</p>
                   </div>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -1150,14 +1147,14 @@ export default function WorkspaceDashboard() {
                     <Card className="bg-slate-900/50 backdrop-blur border-slate-800 p-8 rounded-xl border flex flex-col gap-6">
                       <div>
                         <h4 className="text-white font-bold text-base">Automatic Sync Status</h4>
-                        <p className="text-slate-400 text-xs mt-1">Schedule automatic periodic scans of your website for updates.</p>
+                        <p className="text-slate-300 text-xs mt-1">Schedule automatic periodic scans of your website for updates.</p>
                       </div>
                       
                       <div className="space-y-4">
                         <div className="flex items-center justify-between bg-slate-950 p-4 rounded-xl border border-slate-800">
                           <div>
                             <span className="text-xs font-semibold text-slate-300">Enabled Status</span>
-                            <p className="text-[10px] text-slate-500 mt-0.5">Scans periodically for content changes</p>
+                            <p className="text-[10px] text-slate-400 mt-0.5">Scans periodically for content changes</p>
                           </div>
                           <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2.5 py-0.5 rounded-full text-xs font-bold">Active</span>
                         </div>
@@ -1165,7 +1162,7 @@ export default function WorkspaceDashboard() {
                         <div className="flex items-center justify-between bg-slate-950 p-4 rounded-xl border border-slate-800">
                           <div>
                             <span className="text-xs font-semibold text-slate-300">Sync Frequency</span>
-                            <p className="text-[10px] text-slate-500 mt-0.5">Current automation interval</p>
+                            <p className="text-[10px] text-slate-400 mt-0.5">Current automation interval</p>
                           </div>
                           <span className="bg-slate-800 text-slate-300 border border-slate-700 px-2.5 py-0.5 rounded text-xs font-mono font-bold capitalize">Weekly</span>
                         </div>
@@ -1176,12 +1173,12 @@ export default function WorkspaceDashboard() {
                     <Card className="bg-slate-900/50 backdrop-blur border-slate-800 p-8 rounded-xl border flex flex-col justify-between">
                       <div className="w-full mb-4">
                         <h3 className="text-white font-bold text-base">Trigger Manual Sync</h3>
-                        <p className="text-slate-400 text-xs mt-1">Force Oogway to crawl and re-index your URL immediately.</p>
+                        <p className="text-slate-300 text-xs mt-1">Force Oogway to crawl and re-index your URL immediately.</p>
                       </div>
 
                       <div className="flex flex-col gap-4 w-full">
                         <div>
-                          <label className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Website URL to crawl</label>
+                          <label className="text-[10px] text-slate-300 uppercase tracking-wider font-bold">Website URL to crawl</label>
                           <Input
                             type="url"
                             placeholder="https://example.com"
@@ -1197,7 +1194,7 @@ export default function WorkspaceDashboard() {
                             <RefreshCw className="w-8 h-8 text-amber-500 animate-spin" />
                             <div>
                               <p className="text-white text-xs font-semibold">Crawl In Progress...</p>
-                              <p className="text-slate-400 text-[10px] mt-0.5 animate-pulse">{uploadProgress}</p>
+                              <p className="text-slate-300 text-[10px] mt-0.5 animate-pulse">{uploadProgress}</p>
                             </div>
                           </div>
                         ) : (
@@ -1220,7 +1217,7 @@ export default function WorkspaceDashboard() {
                 <div className="space-y-6 animate-mac-page">
                   <div className="border-b border-slate-800 pb-4">
                     <h3 className="text-lg font-bold text-white">Reference Documents</h3>
-                    <p className="text-slate-400 text-xs mt-1">Browse, upload, and edit files that form your AI chatbot's knowledge base.</p>
+                    <p className="text-slate-300 text-xs mt-1">Browse, upload, and edit files that form your AI chatbot's knowledge base.</p>
                   </div>
 
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -1229,7 +1226,7 @@ export default function WorkspaceDashboard() {
                       <Card className="bg-slate-900/50 backdrop-blur border-slate-800 p-6 rounded-xl border flex items-center justify-between">
                         <div>
                           <h4 className="text-sm font-bold text-white">Upload New Reference Document</h4>
-                          <p className="text-slate-400 text-xs mt-0.5">Supports PDF, DOCX, TXT, MD, CSV, JSON.</p>
+                          <p className="text-slate-300 text-xs mt-0.5">Supports PDF, DOCX, TXT, MD, CSV, JSON.</p>
                         </div>
                         <input
                           type="file"
@@ -1258,7 +1255,7 @@ export default function WorkspaceDashboard() {
                             {documents.map((doc) => (
                               <tr key={doc.id} className="hover:bg-slate-900/20">
                                 <td className="px-4 py-3 font-semibold text-white truncate max-w-xs">{doc.filename}</td>
-                                <td className="px-4 py-3 text-slate-400">{formatBytes(doc.file_size)}</td>
+                                <td className="px-4 py-3 text-slate-300">{formatBytes(doc.file_size)}</td>
                                 <td className="px-4 py-3">
                                   <span className={`px-2 py-0.5 rounded-full border text-[10px] ${
                                     doc.status === "completed" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-amber-500/10 text-amber-400 border-amber-500/20 animate-pulse"
@@ -1292,11 +1289,11 @@ export default function WorkspaceDashboard() {
                         {loadingChunks ? (
                           <div className="flex items-center justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-teal-400" /></div>
                         ) : chunks.length === 0 ? (
-                          <p className="text-slate-500 text-center py-20 text-xs">No chunks loaded. Select a document on the left.</p>
+                          <p className="text-slate-400 text-center py-20 text-xs">No chunks loaded. Select a document on the left.</p>
                         ) : (
                           chunks.map(chunk => (
                             <div key={chunk.id} className="bg-slate-950 border border-slate-850 p-3 rounded-lg space-y-2">
-                              <span className="text-[9px] font-bold bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded">CHUNK #{chunk.chunk_id}</span>
+                              <span className="text-[9px] font-bold bg-slate-800 text-slate-300 px-1.5 py-0.5 rounded">CHUNK #{chunk.chunk_id}</span>
                               <p className="text-[11px] text-slate-300 font-mono line-clamp-3 leading-relaxed">{chunk.chunk_text}</p>
                             </div>
                           ))
@@ -1313,7 +1310,7 @@ export default function WorkspaceDashboard() {
                   <div className="border-b border-slate-800 pb-4 flex items-center justify-between">
                     <div>
                       <h3 className="text-lg font-bold text-white">Customer Conversations</h3>
-                      <p className="text-slate-400 text-xs mt-1">Real-time transcripts of RAG customer interactions and grounded AI replies.</p>
+                      <p className="text-slate-300 text-xs mt-1">Real-time transcripts of RAG customer interactions and grounded AI replies.</p>
                     </div>
                   </div>
 
@@ -1323,7 +1320,7 @@ export default function WorkspaceDashboard() {
                       <Card className="bg-slate-900/50 backdrop-blur border-slate-800 rounded-xl overflow-hidden">
                         <div className="overflow-x-auto">
                           <table className="w-full text-left text-sm text-slate-300">
-                            <thead className="bg-slate-900 text-slate-400 text-xs font-semibold uppercase border-b border-slate-800">
+                            <thead className="bg-slate-900 text-slate-300 text-xs font-semibold uppercase border-b border-slate-800">
                               <tr>
                                 <th className="px-6 py-4">Timestamp</th>
                                 <th className="px-6 py-4">Customer</th>
@@ -1334,7 +1331,7 @@ export default function WorkspaceDashboard() {
                             <tbody className="divide-y divide-slate-800">
                               {logs.length === 0 ? (
                                 <tr>
-                                  <td colSpan={4} className="text-center py-20 text-slate-500 text-xs font-mono">
+                                  <td colSpan={4} className="text-center py-20 text-slate-400 text-xs font-mono">
                                     No customer conversations logged yet.
                                   </td>
                                 </tr>
@@ -1347,7 +1344,7 @@ export default function WorkspaceDashboard() {
                                       selectedConversation?.id === log.id ? "bg-teal-500/5 border-l-2 border-teal-400" : ""
                                     }`}
                                   >
-                                    <td className="px-6 py-4 text-slate-400 text-xs font-mono">{new Date(log.created_at).toLocaleString()}</td>
+                                    <td className="px-6 py-4 text-slate-300 text-xs font-mono">{new Date(log.created_at).toLocaleString()}</td>
                                     <td className="px-6 py-4 font-semibold text-white truncate max-w-[120px]">
                                       {log.details?.customerId || "Anonymous Guest"}
                                     </td>
@@ -1392,19 +1389,19 @@ export default function WorkspaceDashboard() {
 
                         <ScrollArea className="flex-1 p-4 bg-slate-950/20">
                           {!selectedConversation ? (
-                            <div className="h-full flex flex-col items-center justify-center py-20 text-center text-slate-500 text-xs">
+                            <div className="h-full flex flex-col items-center justify-center py-20 text-center text-slate-400 text-xs">
                               <Bot className="w-8 h-8 text-slate-700 mb-2" />
                               Select a conversation row to view the full chat transcript.
                             </div>
                           ) : (
                             <div className="space-y-4">
-                              <div className="text-[10px] text-slate-500 text-center font-mono border-b border-slate-900 pb-2">
+                              <div className="text-[10px] text-slate-400 text-center font-mono border-b border-slate-900 pb-2">
                                 Customer Session: {selectedConversation.details?.customerId || "Anonymous Guest"}
                               </div>
                               
                               {/* Customer message bubble */}
                               <div className="space-y-1">
-                                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block font-mono">Customer Message</span>
+                                <span className="text-[9px] font-bold text-slate-300 uppercase tracking-widest block font-mono">Customer Message</span>
                                 <div className="bg-slate-800/80 border border-slate-700 text-xs text-slate-100 p-3 rounded-2xl rounded-tl-none leading-relaxed">
                                   {selectedConversation.details?.message}
                                 </div>
@@ -1431,7 +1428,7 @@ export default function WorkspaceDashboard() {
                 <div className="space-y-6 animate-mac-page">
                   <div className="border-b border-slate-800 pb-4">
                     <h3 className="text-lg font-bold text-white">System Analytics</h3>
-                    <p className="text-slate-400 text-xs mt-1">Health metrics, database capacities, and AI request statistics.</p>
+                    <p className="text-slate-300 text-xs mt-1">Health metrics, database capacities, and AI request statistics.</p>
                   </div>
 
                   {/* System Health */}
@@ -1442,8 +1439,8 @@ export default function WorkspaceDashboard() {
                           <Database className="w-6 h-6" />
                         </div>
                         <div>
-                          <h4 className="text-sm font-semibold text-slate-400">Database connection</h4>
-                          <p className="text-xs text-slate-500 mt-0.5">Supabase Postgres Engine</p>
+                          <h4 className="text-sm font-semibold text-slate-300">Database connection</h4>
+                          <p className="text-xs text-slate-400 mt-0.5">Supabase Postgres Engine</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
@@ -1458,8 +1455,8 @@ export default function WorkspaceDashboard() {
                           <Sparkles className="w-6 h-6" />
                         </div>
                         <div>
-                          <h4 className="text-sm font-semibold text-slate-400">Gemini LLM & Embeddings</h4>
-                          <p className="text-xs text-slate-500 mt-0.5">Google AI Dev Suite</p>
+                          <h4 className="text-sm font-semibold text-slate-300">Gemini LLM & Embeddings</h4>
+                          <p className="text-xs text-slate-400 mt-0.5">Google AI Dev Suite</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
@@ -1476,7 +1473,7 @@ export default function WorkspaceDashboard() {
                 <div className="space-y-6 animate-mac-page">
                   <div className="border-b border-slate-800 pb-4">
                     <h3 className="text-lg font-bold text-white">Team Management</h3>
-                    <p className="text-slate-400 text-xs mt-1">Manage platform roles, access control levels, and invite team members.</p>
+                    <p className="text-slate-300 text-xs mt-1">Manage platform roles, access control levels, and invite team members.</p>
                   </div>
                   
                   {/* Invite Form */}
@@ -1485,13 +1482,13 @@ export default function WorkspaceDashboard() {
                       <Users className="w-5 h-5 text-teal-400" />
                       <div>
                         <h3 className="text-sm font-bold text-white uppercase tracking-wider">Invite & Assign New Team Member</h3>
-                        <p className="text-[11px] text-slate-500">Register a new login email and provision their initial authorization role.</p>
+                        <p className="text-[11px] text-slate-400">Register a new login email and provision their initial authorization role.</p>
                       </div>
                     </div>
 
                     <form onSubmit={handleInviteUser} className="flex flex-wrap gap-4 items-end">
                       <div className="flex-1 min-w-[240px]">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5 font-mono">User Email Address</label>
+                        <label className="text-[10px] font-bold text-slate-300 uppercase tracking-widest block mb-1.5 font-mono">User Email Address</label>
                         <Input
                           type="email"
                           required
@@ -1503,7 +1500,7 @@ export default function WorkspaceDashboard() {
                       </div>
 
                       <div className="w-52">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5 font-mono">Initial Access Role</label>
+                        <label className="text-[10px] font-bold text-slate-300 uppercase tracking-widest block mb-1.5 font-mono">Initial Access Role</label>
                         <select
                           value={newUserRole}
                           onChange={(e) => setNewUserRole(e.target.value)}
@@ -1531,9 +1528,9 @@ export default function WorkspaceDashboard() {
                     <div className="flex items-center justify-between">
                       <div>
                         <h3 className="text-base font-bold text-white">Visual Access Board</h3>
-                        <p className="text-slate-400 text-xs mt-1">Drag and drop team cards between columns to change their authorization level.</p>
+                        <p className="text-slate-300 text-xs mt-1">Drag and drop team cards between columns to change their authorization level.</p>
                       </div>
-                      <Button size="icon" variant="outline" onClick={fetchUsers} disabled={loadingUsers} className="h-9 w-9 bg-slate-900 border-slate-800 text-slate-400 hover:text-white">
+                      <Button size="icon" variant="outline" onClick={fetchUsers} disabled={loadingUsers} className="h-9 w-9 bg-slate-900 border-slate-800 text-slate-300 hover:text-white">
                         <RefreshCw className={`w-4 h-4 ${loadingUsers ? "animate-spin" : ""}`} />
                       </Button>
                     </div>
@@ -1541,7 +1538,7 @@ export default function WorkspaceDashboard() {
                     {loadingUsers ? (
                       <div className="py-20 text-center">
                         <Loader2 className="w-8 h-8 animate-spin text-teal-400 mx-auto" />
-                        <span className="text-slate-500 text-xs mt-3 block font-mono">Synchronizing RBAC Board...</span>
+                        <span className="text-slate-400 text-xs mt-3 block font-mono">Synchronizing RBAC Board...</span>
                       </div>
                     ) : (
                       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -1562,7 +1559,7 @@ export default function WorkspaceDashboard() {
                             title: "Consumers & Viewers",
                             roles: ["Viewer", "Chatbot User"],
                             color: "border-slate-500/20 bg-slate-500/5",
-                            badge: "bg-slate-500/10 text-slate-400 border border-slate-500/20"
+                            badge: "bg-slate-500/10 text-slate-300 border border-slate-500/20"
                           }
                         ].map((col, colIdx) => (
                           <div
@@ -1602,7 +1599,7 @@ export default function WorkspaceDashboard() {
                                     }`}
                                   >
                                     <div className="flex items-center justify-between pb-1 border-b border-slate-900">
-                                      <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">{roleName}</span>
+                                      <span className="text-[10px] font-extrabold text-slate-300 uppercase tracking-widest">{roleName}</span>
                                       <span className="text-[9px] font-mono text-slate-600 font-bold">{roleUsers.length}</span>
                                     </div>
 
@@ -1646,7 +1643,7 @@ export default function WorkspaceDashboard() {
                                                     {usr.email}
                                                     {isMe && <span className="text-[8px] bg-amber-500/10 text-amber-400 px-1 py-0.2 rounded border border-amber-500/20">YOU</span>}
                                                   </p>
-                                                  <p className="text-[9px] text-slate-500 mt-0.5 font-mono">
+                                                  <p className="text-[9px] text-slate-400 mt-0.5 font-mono">
                                                     Added: {new Date(usr.created_at).toLocaleDateString()}
                                                   </p>
                                                 </div>
@@ -1670,7 +1667,7 @@ export default function WorkspaceDashboard() {
 
               {/* TAB 9: SETTINGS */}
               {activeTab === "settings" && (
-                <Suspense fallback={<div className="p-8 text-center text-slate-500">Loading settings...</div>}>
+                <Suspense fallback={<div className="p-8 text-center text-slate-400">Loading settings...</div>}>
                   <SettingsTab setActiveTab={setActiveTab} />
                 </Suspense>
               )}

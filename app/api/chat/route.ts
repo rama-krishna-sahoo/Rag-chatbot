@@ -105,21 +105,22 @@ export async function POST(req: Request) {
         console.error("Supabase match_knowledge error:", rpcError);
       }
 
+      let contextText = "";
       const THRESHOLD = 0.45; // Similarity threshold for cosine similarity
       const topMatch = matches?.[0];
 
       if (matches && matches.length > 0 && topMatch?.similarity >= THRESHOLD) {
         sourceChunks = matches;
         
-        // 3. Assemble chunks as context
-        const contextText = matches
+        // Assemble chunks as context
+        contextText = matches
           .map((m: any) => `Source: ${m.title || "Document"} (Category: ${m.category})\nContent: ${m.chunk_text}`)
           .join("\n\n---\n\n");
-
-        // 4. Generate grounded answer with gemini-3.5-flash
-        const customerProfile = customerId ? MOCK_CUSTOMERS[customerId] : null;
-        answer = await generateGroundedAnswer(contextText, message, customerProfile, history);
       }
+
+      // 4. Always generate grounded answer (handles greetings, empty context, and personalization)
+      const customerProfile = customerId ? MOCK_CUSTOMERS[customerId] : null;
+      answer = await generateGroundedAnswer(contextText, message, customerProfile, history);
     } catch (aiErr: any) {
       console.warn(
         "Gemini / Supabase RAG request failed, switching to local knowledge fallback:",

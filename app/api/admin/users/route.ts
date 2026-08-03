@@ -27,25 +27,9 @@ export async function GET() {
       console.warn("list_users_for_admin RPC not available, using empty array", e);
     }
 
-    // Mix in default demo users only for the default Oogway Workspace
+    // Remove demo user injection, only return real DB users
     if (workspaceId === "00000000-0000-0000-0000-000000000000") {
-      const demoUsers = [
-        { id: "demo-1", email: "alice.smith@oogway.com", created_at: "2026-07-15T08:30:00Z", role: demoUserRoles["demo-1"] || "Knowledge Admin" },
-        { id: "demo-2", email: "bob.jones@oogway.com", created_at: "2026-07-20T10:15:00Z", role: demoUserRoles["demo-2"] || "Content Editor" },
-        { id: "demo-3", email: "carol.white@oogway.com", created_at: "2026-07-22T14:45:00Z", role: demoUserRoles["demo-3"] || "Reviewer" },
-        { id: "demo-4", email: "david.brown@oogway.com", created_at: "2026-07-25T09:00:00Z", role: demoUserRoles["demo-4"] || "Viewer" },
-        { id: "demo-5", email: "elizabeth.taylor@oogway.com", created_at: "2026-07-28T11:20:00Z", role: demoUserRoles["demo-5"] || "Chatbot User" }
-      ];
-
-      // Combine avoiding duplicate emails
-      const combined = [...dbUsers];
-      demoUsers.forEach(demo => {
-        if (!combined.some(u => u.email === demo.email)) {
-          combined.push(demo);
-        }
-      });
-
-      return NextResponse.json(combined);
+      return NextResponse.json(dbUsers);
     }
 
     return NextResponse.json(dbUsers);

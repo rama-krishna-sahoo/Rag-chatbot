@@ -49,7 +49,6 @@ export default function OnboardingWizard() {
   const [companyName, setCompanyName] = useState("");
   const [websiteUrl, setWebsiteUrl] = useState("");
   const [industry, setIndustry] = useState("E-commerce");
-  const [companyLogo, setCompanyLogo] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Analysis Animation States
@@ -68,8 +67,7 @@ export default function OnboardingWizard() {
         body: JSON.stringify({
           companyName,
           websiteUrl,
-          industry,
-          companyLogo
+          industry
         })
       });
       const data = await res.json();
@@ -106,7 +104,6 @@ export default function OnboardingWizard() {
           localStorage.setItem("oogway_simulated_company", companyName || "My Business");
           localStorage.setItem("oogway_simulated_website", websiteUrl || "https://example.com");
           localStorage.setItem("oogway_simulated_industry", industry);
-          localStorage.setItem("oogway_simulated_logo", companyLogo || "💼");
           localStorage.setItem("oogway_simulated_pages_count", "24");
           localStorage.setItem("oogway_simulated_docs_count", "5");
           localStorage.setItem("oogway_simulated_sync_time", new Date().toLocaleString());
@@ -219,26 +216,15 @@ export default function OnboardingWizard() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-xs font-bold text-neutral-700 uppercase tracking-widest mb-1.5 block">Industry (Optional)</label>
-                    <select 
-                      value={industry}
-                      onChange={e => setIndustry(e.target.value)}
-                      className="w-full h-11 px-3 bg-neutral-50/50 border border-neutral-200 rounded-lg text-sm outline-none focus:border-neutral-900 transition-colors"
-                    >
-                      {INDUSTRIES.map(i => <option key={i} value={i}>{i}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-xs font-bold text-neutral-700 uppercase tracking-widest mb-1.5 block">Company Logo URL (Opt.)</label>
-                    <Input 
-                      value={companyLogo}
-                      onChange={e => setCompanyLogo(e.target.value)}
-                      className="h-11 bg-neutral-50/50 border-neutral-200 focus-visible:ring-neutral-900" 
-                      placeholder="https://acme.com/logo.png" 
-                    />
-                  </div>
+                <div>
+                  <label className="text-xs font-bold text-neutral-700 uppercase tracking-widest mb-1.5 block">Industry (Optional)</label>
+                  <select 
+                    value={industry}
+                    onChange={e => setIndustry(e.target.value)}
+                    className="w-full h-11 px-3 bg-neutral-50/50 border border-neutral-200 rounded-lg text-sm outline-none focus:border-neutral-900 transition-colors"
+                  >
+                    {INDUSTRIES.map(i => <option key={i} value={i}>{i}</option>)}
+                  </select>
                 </div>
 
                 <Button type="submit" disabled={isSubmitting} className="w-full h-11 mt-4 bg-neutral-900 hover:bg-neutral-800 text-white font-medium rounded-xl group transition-all flex items-center justify-center gap-2">

@@ -71,6 +71,7 @@ export default function SuperAdminDashboard() {
   const [clients, setClients] = useState<any[]>([]);
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentUserEmail, setCurrentUserEmail] = useState("");
   const [summary, setSummary] = useState({
     totalClients: 0,
     activeChatbots: 0,
@@ -98,6 +99,9 @@ export default function SuperAdminDashboard() {
           }
           if (data.auditLogs) {
             setAuditLogs(data.auditLogs);
+          }
+          if (data.currentUser?.email) {
+            setCurrentUserEmail(data.currentUser.email);
           }
         }
 
@@ -215,7 +219,7 @@ export default function SuperAdminDashboard() {
                   className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
                     activeTab === item.id
                       ? "bg-teal-500/15 text-teal-400 border-l-2 border-teal-400"
-                      : "text-slate-400 hover:bg-slate-800/40 hover:text-slate-200"
+                      : "text-slate-300 hover:bg-slate-800/40 hover:text-slate-200"
                   }`}
                 >
                   <Icon className="w-4.5 h-4.5" />
@@ -233,14 +237,14 @@ export default function SuperAdminDashboard() {
             </div>
             <div>
               <div className="text-xs font-bold text-white">Owner Portal</div>
-              <div className="text-[9px] text-slate-500 font-mono">superadmin@yopmail.com</div>
+              <div className="text-[9px] text-slate-400 font-mono">{currentUserEmail || "Loading..."}</div>
             </div>
           </div>
           <Button 
             variant="ghost" 
             size="icon" 
             onClick={handleLogout} 
-            className="h-8 w-8 text-slate-500 hover:text-rose-400 hover:bg-slate-800/40 rounded-lg"
+            className="h-8 w-8 text-slate-400 hover:text-rose-400 hover:bg-slate-800/40 rounded-lg"
             title="Log Out"
           >
             <LogOut className="w-4 h-4" />
@@ -256,14 +260,14 @@ export default function SuperAdminDashboard() {
           <div className="space-y-8 animate-in fade-in duration-300">
             <div>
               <h2 className="text-2xl font-bold text-white tracking-tight">Super Admin Dashboard</h2>
-              <p className="text-slate-400 text-sm mt-1">Platform overview, system metrics, and analytics at a glance.</p>
+              <p className="text-slate-300 text-sm mt-1">Platform overview, system metrics, and analytics at a glance.</p>
             </div>
 
             {/* Overview Summary Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <Card className="bg-slate-900/40 border-slate-800 p-5 flex items-center justify-between">
                 <div>
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Total Clients</span>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Clients</span>
                   <span className="text-2xl font-extrabold text-white mt-1 block">{loading ? "..." : summary.totalClients}</span>
                   <span className="text-[10px] text-emerald-400 flex items-center gap-1 mt-1.5 font-bold">
                     <ArrowUpRight className="w-3.5 h-3.5" /> +12% this week
@@ -276,7 +280,7 @@ export default function SuperAdminDashboard() {
 
               <Card className="bg-slate-900/40 border-slate-800 p-5 flex items-center justify-between">
                 <div>
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Active Chatbots</span>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Active Chatbots</span>
                   <span className="text-2xl font-extrabold text-white mt-1 block">{loading ? "..." : summary.activeChatbots}</span>
                   <span className="text-[10px] text-emerald-400 flex items-center gap-1 mt-1.5 font-bold">
                     <ArrowUpRight className="w-3.5 h-3.5" /> +8% this week
@@ -289,9 +293,9 @@ export default function SuperAdminDashboard() {
 
               <Card className="bg-slate-900/40 border-slate-800 p-5 flex items-center justify-between">
                 <div>
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Premium Subscribers</span>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Premium Subscribers</span>
                   <span className="text-2xl font-extrabold text-white mt-1 block">{loading ? "..." : summary.premiumSubscribers}</span>
-                  <span className="text-[10px] text-slate-500 flex items-center gap-1 mt-1.5 font-bold">
+                  <span className="text-[10px] text-slate-400 flex items-center gap-1 mt-1.5 font-bold">
                     {summary.totalClients > 0 ? ((summary.premiumSubscribers / summary.totalClients) * 100).toFixed(1) : "0.0"}% subscription rate
                   </span>
                 </div>
@@ -302,7 +306,7 @@ export default function SuperAdminDashboard() {
 
               <Card className="bg-slate-900/40 border-slate-800 p-5 flex items-center justify-between">
                 <div>
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Monthly Revenue</span>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Monthly Revenue</span>
                   <span className="text-2xl font-extrabold text-white mt-1 block">
                     ${loading ? "..." : summary.monthlyRevenue.toLocaleString()}
                   </span>
@@ -342,7 +346,7 @@ export default function SuperAdminDashboard() {
                       const isHealthy = s.status === "Healthy" || s.status === "0 pending";
                       return (
                         <div key={idx} className="flex justify-between items-center text-xs">
-                          <span className="text-slate-400">{s.name}</span>
+                          <span className="text-slate-300">{s.name}</span>
                           <span className={`font-semibold flex items-center gap-1 ${
                             isHealthy ? "text-emerald-400" : "text-rose-400"
                           }`}>
@@ -367,13 +371,13 @@ export default function SuperAdminDashboard() {
                   <div className="flex justify-between items-center mb-6">
                     <div>
                       <h3 className="text-sm font-bold text-white">Daily Operations Activity</h3>
-                      <p className="text-[10px] text-slate-500 mt-0.5">Website Syncs & Conversations completed over the last 7 days.</p>
+                      <p className="text-[10px] text-slate-400 mt-0.5">Website Syncs & Conversations completed over the last 7 days.</p>
                     </div>
                     <div className="flex items-center gap-3 text-[10px]">
-                      <span className="flex items-center gap-1.5 text-slate-400">
+                      <span className="flex items-center gap-1.5 text-slate-300">
                         <span className="w-2.5 h-2.5 bg-teal-500 rounded"></span> Conversations
                       </span>
-                      <span className="flex items-center gap-1.5 text-slate-400">
+                      <span className="flex items-center gap-1.5 text-slate-300">
                         <span className="w-2.5 h-2.5 bg-indigo-500 rounded"></span> Syncs
                       </span>
                     </div>
@@ -421,7 +425,7 @@ export default function SuperAdminDashboard() {
                               className="w-3.5 bg-teal-500 rounded-t transition-all group-hover:brightness-110"
                             ></div>
                           </div>
-                          <span className="text-[10px] text-slate-500 font-bold">{data.day}</span>
+                          <span className="text-[10px] text-slate-400 font-bold">{data.day}</span>
                         </div>
                       ));
                     })()}
@@ -439,14 +443,14 @@ export default function SuperAdminDashboard() {
             <div className="flex justify-between items-center">
               <div>
                 <h2 className="text-2xl font-bold text-white tracking-tight">Client Accounts</h2>
-                <p className="text-slate-400 text-sm mt-1">Manage tenant configurations, suspend accounts, and view usage metrics.</p>
+                <p className="text-slate-300 text-sm mt-1">Manage tenant configurations, suspend accounts, and view usage metrics.</p>
               </div>
             </div>
 
             {selectedClient ? (
               /* CLIENT DETAILS VIEW */
               <div className="space-y-6">
-                <Button variant="ghost" onClick={() => setSelectedClient(null)} className="h-9 text-slate-400 hover:text-white mb-2">
+                <Button variant="ghost" onClick={() => setSelectedClient(null)} className="h-9 text-slate-300 hover:text-white mb-2">
                   ← Back to client list
                 </Button>
 
@@ -467,7 +471,7 @@ export default function SuperAdminDashboard() {
                               ? "bg-rose-500/10 text-rose-400 border-rose-500/20"
                               : selectedClient.status === "expired"
                                 ? "bg-amber-500/10 text-amber-400 border-amber-500/20"
-                                : "bg-slate-500/10 text-slate-400 border-slate-800"
+                                : "bg-slate-500/10 text-slate-300 border-slate-800"
                         }`}>
                           {selectedClient.status}
                         </span>
@@ -476,21 +480,21 @@ export default function SuperAdminDashboard() {
 
                     <div className="space-y-4">
                       <div>
-                        <span className="text-[10px] font-bold text-slate-500 uppercase block tracking-wider mb-1">Contact Person</span>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase block tracking-wider mb-1">Contact Person</span>
                         <div className="text-sm font-semibold text-slate-200">{selectedClient.contactPerson}</div>
                       </div>
                       <div>
-                        <span className="text-[10px] font-bold text-slate-500 uppercase block tracking-wider mb-1">Email Address</span>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase block tracking-wider mb-1">Email Address</span>
                         <div className="text-sm font-semibold text-slate-200">{selectedClient.email}</div>
                       </div>
                       <div>
-                        <span className="text-[10px] font-bold text-slate-500 uppercase block tracking-wider mb-1">Website URL</span>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase block tracking-wider mb-1">Website URL</span>
                         <a href={selectedClient.website} target="_blank" rel="noreferrer" className="text-sm font-semibold text-teal-400 flex items-center gap-1 hover:underline">
                           {selectedClient.website} <ExternalLink className="w-3.5 h-3.5" />
                         </a>
                       </div>
                       <div>
-                        <span className="text-[10px] font-bold text-slate-500 uppercase block tracking-wider mb-1">Billing Cycle</span>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase block tracking-wider mb-1">Billing Cycle</span>
                         <div className="text-sm font-semibold text-slate-200 capitalize">{selectedClient.billingCycle}</div>
                       </div>
                     </div>
@@ -508,7 +512,7 @@ export default function SuperAdminDashboard() {
                           Activate Account
                         </Button>
                       )}
-                      <Button onClick={() => handleDeleteClient(selectedClient.id)} variant="outline" className="w-full h-9 border-slate-800 text-slate-500 hover:text-rose-400 hover:bg-rose-500/5 text-xs">
+                      <Button onClick={() => handleDeleteClient(selectedClient.id)} variant="outline" className="w-full h-9 border-slate-800 text-slate-400 hover:text-rose-400 hover:bg-rose-500/5 text-xs">
                         Delete Account
                       </Button>
                     </div>
@@ -520,7 +524,7 @@ export default function SuperAdminDashboard() {
                     <div className="space-y-4">
                       <div>
                         <div className="flex justify-between text-xs mb-1">
-                          <span className="text-slate-400">Monthly Conversations</span>
+                          <span className="text-slate-300">Monthly Conversations</span>
                           <span className="font-semibold text-slate-200">{selectedClient.conversationsThisMonth} / 10,000</span>
                         </div>
                         <div className="w-full bg-slate-950 h-2 rounded-full overflow-hidden border border-slate-900">
@@ -529,25 +533,25 @@ export default function SuperAdminDashboard() {
                       </div>
                       <div>
                         <div className="flex justify-between text-xs mb-1">
-                          <span className="text-slate-400">Knowledge Base Vector Size</span>
+                          <span className="text-slate-300">Knowledge Base Vector Size</span>
                           <span className="font-semibold text-slate-200">{selectedClient.kbSize}</span>
                         </div>
                       </div>
                       <div>
                         <div className="flex justify-between text-xs mb-1">
-                          <span className="text-slate-400">Documents Uploaded</span>
+                          <span className="text-slate-300">Documents Uploaded</span>
                           <span className="font-semibold text-slate-200">{selectedClient.docsCount} files</span>
                         </div>
                       </div>
                       <div>
                         <div className="flex justify-between text-xs mb-1">
-                          <span className="text-slate-400">Last Scraper Run</span>
+                          <span className="text-slate-300">Last Scraper Run</span>
                           <span className="font-semibold text-slate-200">{selectedClient.lastSync}</span>
                         </div>
                       </div>
                       <div>
                         <div className="flex justify-between text-xs mb-1">
-                          <span className="text-slate-400">Storage Allocated</span>
+                          <span className="text-slate-300">Storage Allocated</span>
                           <span className="font-semibold text-slate-200">{selectedClient.storageUsage}</span>
                         </div>
                       </div>
@@ -585,7 +589,7 @@ export default function SuperAdminDashboard() {
                 <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
                   {/* Search Bar */}
                   <div className="relative w-full sm:w-80">
-                    <Search className="w-4 h-4 absolute left-3 top-3 text-slate-500" />
+                    <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
                     <Input 
                       value={searchQuery}
                       onChange={e => setSearchQuery(e.target.value)}
@@ -608,7 +612,7 @@ export default function SuperAdminDashboard() {
                         key={f.id}
                         variant={statusFilter === f.id ? "default" : "outline"}
                         onClick={() => setStatusFilter(f.id)}
-                        className={`h-8 text-xs shrink-0 ${statusFilter === f.id ? 'bg-teal-500 text-slate-950 font-bold hover:bg-teal-600' : 'border-slate-850 text-slate-400 bg-slate-900/30'}`}
+                        className={`h-8 text-xs shrink-0 ${statusFilter === f.id ? 'bg-teal-500 text-slate-950 font-bold hover:bg-teal-600' : 'border-slate-850 text-slate-300 bg-slate-900/30'}`}
                       >
                         {f.label}
                       </Button>
@@ -619,7 +623,7 @@ export default function SuperAdminDashboard() {
                 <Card className="bg-slate-900/40 border-slate-800 overflow-hidden">
                   <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm text-slate-300">
-                      <thead className="bg-slate-950 text-slate-400 text-xs font-semibold uppercase tracking-wider border-b border-slate-800">
+                      <thead className="bg-slate-950 text-slate-300 text-xs font-semibold uppercase tracking-wider border-b border-slate-800">
                         <tr>
                           <th className="px-6 py-4">Company Name</th>
                           <th className="px-6 py-4">Contact</th>
@@ -633,14 +637,14 @@ export default function SuperAdminDashboard() {
                       <tbody className="divide-y divide-slate-850">
                         {filteredClients.length === 0 ? (
                           <tr>
-                            <td colSpan={7} className="text-center py-8 text-slate-500 text-xs">No client accounts found matching those filters.</td>
+                            <td colSpan={7} className="text-center py-8 text-slate-400 text-xs">No client accounts found matching those filters.</td>
                           </tr>
                         ) : (
                           filteredClients.map(client => (
                             <tr key={client.id} className="hover:bg-slate-900/10">
                               <td className="px-6 py-4 font-semibold text-white truncate max-w-xs">{client.companyName}</td>
                               <td className="px-6 py-4 text-slate-300 text-xs">{client.contactPerson}</td>
-                              <td className="px-6 py-4 text-slate-400 text-xs">{client.email}</td>
+                              <td className="px-6 py-4 text-slate-300 text-xs">{client.email}</td>
                               <td className="px-6 py-4">
                                 <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${
                                   client.status === "premium" 
@@ -649,13 +653,13 @@ export default function SuperAdminDashboard() {
                                       ? "bg-rose-500/10 text-rose-400 border-rose-500/20"
                                       : client.status === "expired"
                                         ? "bg-amber-500/10 text-amber-400 border-amber-500/20"
-                                        : "bg-slate-500/10 text-slate-400 border-slate-800"
+                                        : "bg-slate-500/10 text-slate-300 border-slate-800"
                                 }`}>
                                   {client.status}
                                 </span>
                               </td>
-                              <td className="px-6 py-4 text-slate-400 text-xs capitalize">{client.billingCycle}</td>
-                              <td className="px-6 py-4 text-slate-500 text-xs">{new Date(client.createdDate).toLocaleDateString()}</td>
+                              <td className="px-6 py-4 text-slate-300 text-xs capitalize">{client.billingCycle}</td>
+                              <td className="px-6 py-4 text-slate-400 text-xs">{new Date(client.createdDate).toLocaleDateString()}</td>
                               <td className="px-6 py-4 text-right space-x-1.5">
                                 <Button size="sm" onClick={() => setSelectedClient(client)} className="h-7 border border-slate-800 bg-slate-950 text-slate-300 hover:bg-slate-850 hover:text-white text-[10px] px-2.5">
                                   View Details
@@ -678,23 +682,23 @@ export default function SuperAdminDashboard() {
           <div className="space-y-6 animate-in fade-in duration-300">
             <div>
               <h2 className="text-2xl font-bold text-white tracking-tight">System Audit Logs</h2>
-              <p className="text-slate-400 text-sm mt-1">Platform-wide event tracking and activity monitoring across all workspaces.</p>
+              <p className="text-slate-300 text-sm mt-1">Platform-wide event tracking and activity monitoring across all workspaces.</p>
             </div>
 
             {loading ? (
               <div className="flex items-center justify-center py-20">
                 <RefreshCw className="w-6 h-6 text-teal-400 animate-spin" />
-                <span className="ml-3 text-slate-400">Loading audit logs...</span>
+                <span className="ml-3 text-slate-300">Loading audit logs...</span>
               </div>
             ) : auditLogs.length === 0 ? (
               <Card className="bg-slate-900/40 border-slate-800 p-12 text-center">
                 <Clock className="w-12 h-12 text-slate-600 mx-auto mb-4" />
-                <p className="text-slate-400 text-sm">No audit events found.</p>
+                <p className="text-slate-300 text-sm">No audit events found.</p>
               </Card>
             ) : (
               <Card className="bg-slate-900/40 border-slate-800 p-6">
-                <p className="text-slate-400 text-sm">Audit log UI components will be added in subsequent tasks.</p>
-                <p className="text-slate-500 text-xs mt-2">
+                <p className="text-slate-300 text-sm">Audit log UI components will be added in subsequent tasks.</p>
+                <p className="text-slate-400 text-xs mt-2">
                   {auditLogs.length} audit log{auditLogs.length !== 1 ? 's' : ''} loaded from API.
                 </p>
               </Card>
@@ -707,7 +711,7 @@ export default function SuperAdminDashboard() {
           <div className="space-y-8 animate-in fade-in duration-300">
             <div>
               <h2 className="text-2xl font-bold text-white tracking-tight font-sans">Platform Infrastructure</h2>
-              <p className="text-slate-400 text-sm mt-1">Live health checks, active scraper job cues, and audit logs.</p>
+              <p className="text-slate-300 text-sm mt-1">Live health checks, active scraper job cues, and audit logs.</p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -722,11 +726,11 @@ export default function SuperAdminDashboard() {
                     <span className="text-xs font-bold text-white block">{sys.name}</span>
                     <span className="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
                   </div>
-                  <div className="flex justify-between items-center text-xs text-slate-400">
+                  <div className="flex justify-between items-center text-xs text-slate-300">
                     <span>Latency</span>
                     <span className="font-mono text-slate-200">{sys.latency}</span>
                   </div>
-                  <div className="flex justify-between items-center text-xs text-slate-400">
+                  <div className="flex justify-between items-center text-xs text-slate-300">
                     <span>Current Load</span>
                     <span className="font-mono text-slate-200">{sys.load}</span>
                   </div>
@@ -743,9 +747,9 @@ export default function SuperAdminDashboard() {
                   <div className="flex-1 text-slate-350">
                     Job <span className="font-mono font-bold text-white">#sync_98a4d</span>: Processing Wayne Enterprises website URL
                   </div>
-                  <span className="text-slate-500 font-mono text-[10px]">Started 4m ago</span>
+                  <span className="text-slate-400 font-mono text-[10px]">Started 4m ago</span>
                 </div>
-                <div className="flex items-center gap-4 text-xs text-slate-500">
+                <div className="flex items-center gap-4 text-xs text-slate-400">
                   <div className="w-2 h-2 rounded-full bg-slate-700"></div>
                   <div className="flex-1">
                     Job <span className="font-mono font-bold">#sync_98a4e</span>: In Queue for Acme Corp
@@ -762,13 +766,13 @@ export default function SuperAdminDashboard() {
           <div className="max-w-4xl space-y-6 animate-in fade-in duration-300 pb-20">
             <div>
               <h2 className="text-2xl font-bold text-white tracking-tight">Platform Configurations</h2>
-              <p className="text-slate-400 text-sm mt-1">Configure email templates, SMTP settings, default parameters, and backups.</p>
+              <p className="text-slate-300 text-sm mt-1">Configure email templates, SMTP settings, default parameters, and backups.</p>
             </div>
 
             <Card className="bg-slate-900/40 border-slate-800 p-6 space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-2">Default Trial Duration (Days)</label>
+                  <label className="text-[11px] font-bold text-slate-300 uppercase tracking-wider block mb-2">Default Trial Duration (Days)</label>
                   <Input 
                     type="number"
                     value={platformSettings.trialDuration}
@@ -777,7 +781,7 @@ export default function SuperAdminDashboard() {
                   />
                 </div>
                 <div>
-                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-2">Default Storage Allocation Limit (MB)</label>
+                  <label className="text-[11px] font-bold text-slate-300 uppercase tracking-wider block mb-2">Default Storage Allocation Limit (MB)</label>
                   <Input 
                     type="number"
                     value={platformSettings.defaultKbSizeLimit}
@@ -786,7 +790,7 @@ export default function SuperAdminDashboard() {
                   />
                 </div>
                 <div className="md:col-span-2">
-                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-2">Default Welcome Message</label>
+                  <label className="text-[11px] font-bold text-slate-300 uppercase tracking-wider block mb-2">Default Welcome Message</label>
                   <Input 
                     value={platformSettings.defaultWelcomeMsg}
                     onChange={e => setPlatformSettings({...platformSettings, defaultWelcomeMsg: e.target.value})}
@@ -794,7 +798,7 @@ export default function SuperAdminDashboard() {
                   />
                 </div>
                 <div>
-                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-2">Email SMTP Server</label>
+                  <label className="text-[11px] font-bold text-slate-300 uppercase tracking-wider block mb-2">Email SMTP Server</label>
                   <Input 
                     value={platformSettings.smtpServer}
                     onChange={e => setPlatformSettings({...platformSettings, smtpServer: e.target.value})}
@@ -802,7 +806,7 @@ export default function SuperAdminDashboard() {
                   />
                 </div>
                 <div>
-                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-2">SMTP User</label>
+                  <label className="text-[11px] font-bold text-slate-300 uppercase tracking-wider block mb-2">SMTP User</label>
                   <Input 
                     value={platformSettings.smtpUser}
                     onChange={e => setPlatformSettings({...platformSettings, smtpUser: e.target.value})}
@@ -812,7 +816,7 @@ export default function SuperAdminDashboard() {
               </div>
 
               <div className="flex gap-3 pt-4 border-t border-slate-800/50 justify-end">
-                <Button variant="ghost" className="text-slate-400 hover:text-white text-xs h-10 px-5">Reset</Button>
+                <Button variant="ghost" className="text-slate-300 hover:text-white text-xs h-10 px-5">Reset</Button>
                 <Button onClick={() => alert("Platform configurations saved!")} className="bg-teal-500 hover:bg-teal-600 text-slate-950 font-bold text-xs h-10 px-8">Save Config</Button>
               </div>
             </Card>

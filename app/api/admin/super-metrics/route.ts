@@ -42,6 +42,26 @@ export async function GET() {
 
     if (logError) throw logError;
 
+    // Fetch user roles and users to map real emails to workspaces
+    const { data: userRoles } = await supabase.from("user_roles").select("user_id, workspace_id");
+    const { data: authData } = await supabase.auth.admin.listUsers();
+    
+    const userEmails: Record<string, string> = {};
+    if (authData?.users) {
+      authData.users.forEach(u => {
+        if (u.email) userEmails[u.id] = u.email;
+      });
+    }
+
+    const wsEmails: Record<string, string> = {};
+    if (userRoles) {
+      userRoles.forEach(ur => {
+        if (ur.workspace_id && ur.user_id && userEmails[ur.user_id]) {
+          wsEmails[ur.workspace_id] = userEmails[ur.user_id];
+        }
+      });
+    }
+
     const docCounts: { [wsId: string]: number } = {};
     const chunkCounts: { [wsId: string]: number } = {};
 
@@ -58,21 +78,13 @@ export async function GET() {
       const docs = docCounts[ws.id] || 0;
       const chks = chunkCounts[ws.id] || 0;
 
-      let emailDomain = "company.com";
-      if (ws.website_url) {
-        try {
-          const urlStr = ws.website_url.startsWith("http") ? ws.website_url : `https://${ws.website_url}`;
-          emailDomain = new URL(urlStr).hostname.replace("www.", "");
-        } catch {
-          // ignore parsing error
-        }
-      }
+      const actualEmail = wsEmails[ws.id] || "N/A";
 
       return {
         id: ws.id,
         companyName: ws.name,
         contactPerson: "Workspace Admin",
-        email: `admin@${emailDomain}`,
+        email: actualEmail,
         status: docs > 0 ? "premium" : "free",
         billingCycle: docs > 0 ? "monthly" : "none",
         website: ws.website_url || "",
@@ -100,7 +112,10 @@ export async function GET() {
         monthlyRevenue
       },
       clients: clientsList,
-      auditLogs: auditLogs || []
+      auditLogs: auditLogs || [],
+      currentUser: {
+        email: user?.email || "No Email"
+      }
     });
   } catch (err: any) {
     console.error("Error in super-metrics:", err);

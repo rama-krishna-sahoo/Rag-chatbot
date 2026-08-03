@@ -55,14 +55,27 @@ export async function verifyAdminAccess(allowedRoles?: AdminRole[]) {
 
   // 2. Check for simulation headers (fallback/override for local testing or demo)
   const reqHeaders = await headers();
-  const simulatedRole = reqHeaders.get("x-simulated-role") as AdminRole | null;
+  let simulatedRole = reqHeaders.get("x-simulated-role") as AdminRole | null;
   const simulatedWorkspaceId = reqHeaders.get("x-simulated-workspace-id");
+
+  // SECURITY FIX: Only allow role simulation if the user is a guest or the global super admin.
+  // Regular authenticated users must use their actual database role.
+  const isGuest = userId === "00000000-0000-0000-0000-000000000000";
+  const isGlobalSuperAdmin = email === "superadmin@yopmail.com";
+  
+  if (simulatedRole && !isGuest && !isGlobalSuperAdmin) {
+    simulatedRole = null;
+  }
 
   if (simulatedRole) {
     role = simulatedRole;
     isSimulated = true;
-    userId = `mock-${role.toLowerCase().replace(/\s+/g, "-")}`;
-    email = `${role.toLowerCase().replace(/\s+/g, "")}@oogway.com`;
+    if (userId === "00000000-0000-0000-0000-000000000000") {
+      userId = `mock-${role.toLowerCase().replace(/\s+/g, "-")}`;
+    }
+    if (email === "guest@oogway.com") {
+      email = `${role.toLowerCase().replace(/\s+/g, "")}@oogway.com`;
+    }
   }
 
   if (simulatedWorkspaceId) {
