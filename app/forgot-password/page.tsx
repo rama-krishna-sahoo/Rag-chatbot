@@ -36,7 +36,7 @@ export default function ForgotPasswordPage() {
         <Card className="p-8 shadow-xl border-neutral-200/60 bg-white/80 backdrop-blur-xl rounded-2xl">
           {sent ? (
             <div className="text-center space-y-4">
-              <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
+              <div className="w-12 h-12 rounded-full bg-emerald-100 text-[#B2EA4D] flex items-center justify-center mx-auto">
                 <ShieldCheck className="w-6 h-6" />
               </div>
               <h2 className="text-xl font-bold text-neutral-900">Check your email</h2>

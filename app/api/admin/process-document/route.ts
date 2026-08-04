@@ -3,7 +3,7 @@
 import { NextResponse } from "next/server";
 import { verifyAdminAccess } from "@/lib/admin-auth";
 import { extractDocumentFeatures, generateEmbedding } from "@/lib/gemini";
-import { chunkMarkdown } from "@/lib/chunker";
+import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import mammoth from "mammoth";
 
 function slugify(text: string): string {
@@ -34,6 +34,31 @@ export async function POST(req: Request) {
     }
     
     docId = documentId;
+
+    // Check if Deno Edge Functions are enabled to process this asynchronously (non-blocking)
+    if (process.env.SUPABASE_EDGE_FUNCTIONS_ENABLED === "true") {
+      try {
+        // Trigger Deno Edge Function in the background
+        supabase.functions.invoke("process-document", {
+          body: { documentId }
+        }).catch(err => {
+          console.error("Asynchronous Edge Function invocation failed:", err);
+        });
+
+        await supabase.rpc("log_audit_event", {
+          p_action: "Edge Function Ingestion Triggered",
+          p_workspace_id: activeWorkspaceId,
+          p_details: { document_id: documentId }
+        });
+
+        return NextResponse.json({
+          success: true,
+          message: "Ingestion started in background via Supabase Edge Function."
+        });
+      } catch (edgeErr: any) {
+        console.warn("Edge function invocation exception, falling back to Next.js inline processing:", edgeErr);
+      }
+    }
 
     // 2. Fetch document details checking workspace isolation
     const { data: document, error: docError } = await supabase
@@ -111,8 +136,12 @@ export async function POST(req: Request) {
       throw new Error("Gemini feature extraction returned empty results.");
     }
 
-    // 6. Perform semantic chunking
-    const chunks = chunkMarkdown(features.text);
+    // 6. Perform semantic chunking via LangChain
+    const splitter = new RecursiveCharacterTextSplitter({
+      chunkSize: 500,
+      chunkOverlap: 80,
+    });
+    const chunks = await splitter.splitText(features.text);
     if (chunks.length === 0) {
       throw new Error("No text chunks generated from the document.");
     }
@@ -153,7 +182,7 @@ export async function POST(req: Request) {
           metadata,
           source_url: storage_path,
           source_type: "file",
-          status: "published", // auto-publish for now since approval UI is not implemented
+          status: "draft",
           workspace_id: activeWorkspaceId
         });
 
@@ -162,10 +191,10 @@ export async function POST(req: Request) {
       }
     }
 
-    // 9. Update status to completed
+    // 9. Update status to draft
     await supabase
       .from("uploaded_documents")
-      .update({ status: "completed" })
+      .update({ status: "draft" })
       .eq("id", documentId)
       .eq("workspace_id", activeWorkspaceId);
 

@@ -67,7 +67,12 @@ export async function verifyAdminAccess(allowedRoles?: AdminRole[]) {
   const isGuest = userId === "00000000-0000-0000-0000-000000000000";
   const isGlobalSuperAdmin = email === "superadmin@yopmail.com";
 
-  if (simulatedRole && !isGuest && !isGlobalSuperAdmin) {
+  // Simulation is only allowed in local development OR if the user is the global super admin.
+  // Guests cannot simulate roles in production to prevent authentication bypass.
+  const isDev = process.env.NODE_ENV === "development";
+  const allowSimulation = isGlobalSuperAdmin || (isDev && isGuest);
+
+  if (simulatedRole && !allowSimulation) {
     simulatedRole = null;
   }
 
@@ -82,12 +87,14 @@ export async function verifyAdminAccess(allowedRoles?: AdminRole[]) {
     }
   }
 
-  if (simulatedWorkspaceId && (isGuest || isGlobalSuperAdmin)) {
+  if (simulatedWorkspaceId && allowSimulation) {
     workspaceId = simulatedWorkspaceId;
   }
 
-  // Enforce access control list
-  const authorized = !allowedRoles || allowedRoles.includes(role);
+  // Enforce access control list:
+  // Must NOT be a guest, unless they are simulated (simulation is verified and secure).
+  const isUserGuest = userId === "00000000-0000-0000-0000-000000000000" || userId.startsWith("mock-");
+  const authorized = (!isUserGuest || isSimulated) && (!allowedRoles || allowedRoles.includes(role));
 
   return {
     user: { id: userId, email },

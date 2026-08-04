@@ -35,7 +35,7 @@ export default function VerifyEmailPage() {
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
+              <div className="w-12 h-12 rounded-full bg-emerald-100 text-[#B2EA4D] flex items-center justify-center mx-auto">
                 <ShieldCheck className="w-6 h-6" />
               </div>
               <h2 className="text-xl font-bold text-neutral-900">Email Verified!</h2>

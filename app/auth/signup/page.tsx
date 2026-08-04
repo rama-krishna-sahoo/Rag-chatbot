@@ -92,7 +92,7 @@ export default function SignUpPage() {
             {errorMsg && (
               <div className={`p-3 rounded-lg leading-relaxed text-xs border ${
                 errorMsg.includes("sent") 
-                  ? "bg-emerald-50 border-emerald-200 text-emerald-600" 
+                  ? "bg-emerald-50 border-emerald-200 text-[#B2EA4D]" 
                   : "bg-rose-50 border-rose-200 text-rose-600"
               }`}>
                 {errorMsg.includes("sent") ? <strong>Success:</strong> : <strong>Error:</strong>} {errorMsg}

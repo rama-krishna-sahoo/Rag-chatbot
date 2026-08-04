@@ -18,42 +18,46 @@ type ChatMessage = {
 };
 
 function FormattedMessage({ text }: { text: string }) {
+  if (!text) return null;
   const lines = text.split("\n");
 
   return (
     <div className="space-y-1.5 text-xs sm:text-sm leading-relaxed">
       {lines.map((line, lineIdx) => {
-        if (!line.trim()) {
-          return <div key={lineIdx} className="h-1" />;
-        }
+        const trimmed = line.trim();
+        if (!trimmed) return <div key={lineIdx} className="h-1" />;
 
-        const isBullet = line.trim().startsWith("•") || line.trim().startsWith("-");
-        const cleanLine = isBullet ? line.trim().replace(/^[•\-]\s*/, "") : line;
+        // Check if bullet point using regex (matches *, -, bullet characters, •)
+        const bulletMatch = trimmed.match(/^([\*\-\u2022\u25E6\u25AA])\s*(.*)$/);
+        const isBullet = !!bulletMatch;
+        const content = isBullet ? bulletMatch[2] : trimmed;
 
-        const parseInline = (str: string) => {
-          const parts = str.split(/(\*\*.*?\*\*)/g);
-          return parts.map((part, pIdx) => {
-            if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
-              return (
-                <strong key={pIdx} className="font-semibold text-neutral-900">
-                  {part.slice(2, -2)}
-                </strong>
-              );
-            }
-            return part;
-          });
-        };
+        const parts = content.split(/(\*\*.*?\*\*)/g);
+        const renderedParts = parts.map((part, pIdx) => {
+          if (part.startsWith("**") && part.endsWith("**")) {
+            return (
+              <strong key={pIdx} className="font-extrabold text-neutral-950">
+                {part.slice(2, -2)}
+              </strong>
+            );
+          }
+          return part;
+        });
 
         if (isBullet) {
           return (
             <div key={lineIdx} className="flex items-start gap-1.5 pl-1 my-0.5">
-              <span className="text-emerald-600 font-bold select-none text-xs">•</span>
-              <div className="flex-1 text-neutral-700">{parseInline(cleanLine)}</div>
+              <span className="text-[#B2EA4D] font-extrabold select-none text-xs">•</span>
+              <span className="text-neutral-700">{renderedParts}</span>
             </div>
           );
         }
 
-        return <div key={lineIdx} className="text-neutral-700">{parseInline(line)}</div>;
+        return (
+          <p key={lineIdx} className="text-neutral-700">
+            {renderedParts}
+          </p>
+        );
       })}
     </div>
   );
@@ -119,7 +123,7 @@ const getRecommendationsForQuery = (query: string, sourceChunks?: any[]): Produc
   return found.slice(0, 2);
 };
 
-export function Chatbot({ onAddToCart, positionStrategy = "fixed", isMobilePreview = false, embeddedWorkspaceId }: { onAddToCart?: (product: Product) => void, positionStrategy?: "fixed" | "absolute", isMobilePreview?: boolean, embeddedWorkspaceId?: string }) {
+export function Chatbot({ onAddToCart, positionStrategy = "fixed", isMobilePreview = false, embeddedWorkspaceId, hideSimulateContext = false }: { onAddToCart?: (product: Product) => void, positionStrategy?: "fixed" | "absolute", isMobilePreview?: boolean, embeddedWorkspaceId?: string, hideSimulateContext?: boolean }) {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -155,6 +159,24 @@ export function Chatbot({ onAddToCart, positionStrategy = "fixed", isMobilePrevi
       );
     }
   }, [open]);
+
+  // Reset chat history and personalize greeting when customer simulated persona changes
+  useEffect(() => {
+    let greetingText = "Hello! Welcome to Oogway 🐢. How can I help you today?";
+    if (customerId === "vip-sarah") {
+      greetingText = "Hello Sarah! Welcome back to Oogway 🐢. Since your last purchase of the Organic Swaddle Wrap, we've got some new organic cotton releases you might love! How can I help you today?";
+    } else if (customerId === "new-parent-john") {
+      greetingText = "Hello John! Welcome to Oogway 🐢. We noticed you were recently looking at the Anti-Colic Bamboo Feeding Bottle. How can I help you today with colic prevention or baby sleep?";
+    }
+    
+    setMessages([
+      {
+        id: 1,
+        from: "bot",
+        text: greetingText
+      }
+    ]);
+  }, [customerId]);
 
   const toggleListening = () => {
     if (isListening) {
@@ -316,7 +338,7 @@ export function Chatbot({ onAddToCart, positionStrategy = "fixed", isMobilePrevi
                     Oogway Assistant
                   </span>
                   <span className="text-[9px] font-bold text-neutral-400 font-mono mt-1 flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#B2EA4D] text-[#203210] animate-pulse" />
                     Online • Live RAG Engine
                   </span>
                 </div>
@@ -331,19 +353,21 @@ export function Chatbot({ onAddToCart, positionStrategy = "fixed", isMobilePrevi
               </Button>
             </div>
 
-            {/* Persona Simulator Dropdown */}
-            <div className="bg-neutral-50 px-4 py-2 border-b border-neutral-100 flex items-center gap-2">
-              <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest">Simulate Context:</span>
-              <select 
-                value={customerId} 
-                onChange={(e) => setCustomerId(e.target.value)}
-                className="flex-1 text-xs bg-white border border-neutral-200 rounded px-1.5 py-1 text-neutral-700 outline-none focus:border-emerald-500 shadow-sm transition-colors"
-              >
-                <option value="">Anonymous Visitor</option>
-                <option value="vip-sarah">VIP Customer (Sarah)</option>
-                <option value="new-parent-john">First-time Parent (John)</option>
-              </select>
-            </div>
+            {/* Persona Simulator Dropdown (Hidden in production embeds) */}
+            {!hideSimulateContext && (
+              <div className="bg-neutral-50 px-4 py-2 border-b border-neutral-100 flex items-center gap-2">
+                <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest">Simulate Context:</span>
+                <select 
+                  value={customerId} 
+                  onChange={(e) => setCustomerId(e.target.value)}
+                  className="flex-1 text-xs bg-white border border-neutral-200 rounded px-1.5 py-1 text-neutral-700 outline-none focus:border-emerald-500 shadow-sm transition-colors"
+                >
+                  <option value="">Anonymous Visitor</option>
+                  <option value="vip-sarah">VIP Customer (Sarah)</option>
+                  <option value="new-parent-john">First-time Parent (John)</option>
+                </select>
+              </div>
+            )}
 
             {/* Scrollable Chat Area */}
             <div 
@@ -367,7 +391,7 @@ export function Chatbot({ onAddToCart, positionStrategy = "fixed", isMobilePrevi
                   <div
                     className={`rounded-2xl px-3.5 py-2.5 max-w-[82%] shadow-sm ${
                       msg.from === "user"
-                        ? "bg-emerald-600 text-white text-sm font-medium"
+                        ? "bg-[#B2EA4D] text-[#203210] text-white text-sm font-medium"
                         : "bg-neutral-100 text-neutral-800"
                     }`}
                   >
@@ -390,7 +414,7 @@ export function Chatbot({ onAddToCart, positionStrategy = "fixed", isMobilePrevi
                               <div className="flex-1 min-w-0">
                                 <p className="text-[11px] font-bold text-neutral-900 truncate leading-tight">{prod.name}</p>
                                 <div className="flex items-center justify-between mt-1.5">
-                                  <span className="text-[10px] font-black text-emerald-600">${prod.price.toFixed(2)}</span>
+                                  <span className="text-[10px] font-black text-[#B2EA4D]">${prod.price.toFixed(2)}</span>
                                   <span className="text-[8px] text-neutral-500 font-mono">Age: {prod.ageRange}</span>
                                 </div>
                               </div>
@@ -402,7 +426,7 @@ export function Chatbot({ onAddToCart, positionStrategy = "fixed", isMobilePrevi
                                       el.scrollIntoView({ behavior: "smooth" });
                                     }
                                   }}
-                                  className="inline-flex items-center justify-center gap-1 px-2 py-1 text-[9px] font-extrabold bg-white hover:bg-neutral-50 text-neutral-600 hover:text-emerald-700 rounded-md transition-all border border-neutral-250 shadow-sm whitespace-nowrap min-w-[48px]"
+                                  className="inline-flex items-center justify-center gap-1 px-2 py-1 text-[9px] font-extrabold bg-white hover:bg-neutral-50 text-neutral-600 hover:text-[#B2EA4D] rounded-md transition-all border border-neutral-250 shadow-sm whitespace-nowrap min-w-[48px]"
                                   title="View Details"
                                 >
                                   <Eye className="w-2.5 h-2.5" />
@@ -410,7 +434,7 @@ export function Chatbot({ onAddToCart, positionStrategy = "fixed", isMobilePrevi
                                 </button>
                                 <button
                                   onClick={() => onAddToCart?.(prod)}
-                                  className="inline-flex items-center justify-center gap-1 px-2 py-1 text-[9px] font-extrabold bg-emerald-600 hover:bg-emerald-700 text-white rounded-md transition-all shadow-sm whitespace-nowrap min-w-[48px]"
+                                  className="inline-flex items-center justify-center gap-1 px-2 py-1 text-[9px] font-extrabold bg-[#B2EA4D] text-[#203210] hover:bg-[#B2EA4D]/90 text-white rounded-md transition-all shadow-sm whitespace-nowrap min-w-[48px]"
                                   title="Add to Cart"
                                 >
                                   <ShoppingCart className="w-2.5 h-2.5" />
@@ -454,9 +478,9 @@ export function Chatbot({ onAddToCart, positionStrategy = "fixed", isMobilePrevi
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
                 disabled={loading}
-                className="rounded-lg h-9 border-neutral-200 text-neutral-800 placeholder:text-neutral-400 focus-visible:ring-emerald-500"
+                className="rounded-lg h-9 border-neutral-200 text-neutral-800 placeholder:text-neutral-400 focus-visible:ring-[#B2EA4D]"
               />
-              <Button onClick={sendMessage} disabled={loading || !input.trim()} className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold h-9 px-4 rounded-lg shadow-sm">
+              <Button onClick={sendMessage} disabled={loading || !input.trim()} className="bg-[#B2EA4D] text-[#203210] hover:bg-[#B2EA4D]/90 text-white font-extrabold h-9 px-4 rounded-lg shadow-sm">
                 Send
               </Button>
             </div>

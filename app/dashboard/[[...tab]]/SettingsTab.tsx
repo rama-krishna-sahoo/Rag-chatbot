@@ -27,6 +27,68 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
+interface SectionCardProps {
+  id: string;
+  icon: any;
+  title: string;
+  description?: string;
+  children: React.ReactNode;
+  badge?: React.ReactNode;
+  isExpanded: boolean;
+  onToggle: () => void;
+}
+
+function SectionCard({ 
+  id, 
+  icon: Icon, 
+  title, 
+  description, 
+  children,
+  badge,
+  isExpanded,
+  onToggle
+}: SectionCardProps) {
+  return (
+    <Card className="bg-[#1b2e11]/50 backdrop-blur border-[#B2EA4D]/15 rounded-xl overflow-hidden shadow-sm transition-all duration-300">
+      <div 
+        onClick={onToggle}
+        className="p-5 flex items-center justify-between cursor-pointer hover:bg-[#203210]/40 select-none group"
+      >
+        <div className="flex items-center gap-3.5">
+          <div className={`p-2 rounded-lg transition-colors ${isExpanded ? 'bg-[#B2EA4D]/20 text-[#B2EA4D]' : 'bg-slate-800 text-slate-400 group-hover:text-slate-300 group-hover:bg-[#203210]/80'}`}>
+            <Icon className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-3">
+              <h3 className="text-base font-bold text-white tracking-tight">{title}</h3>
+              {badge}
+            </div>
+            {description && !isExpanded && (
+              <p className="text-xs text-slate-500 mt-0.5 truncate max-w-sm">{description}</p>
+            )}
+          </div>
+        </div>
+        <div className="text-slate-500">
+          {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+        </div>
+      </div>
+      
+      {isExpanded && (
+        <div className="px-6 pb-6 pt-2 border-t border-[#B2EA4D]/15/50 animate-in slide-in-from-top-2 duration-200">
+          {description && (
+            <p className="text-xs text-slate-400 mb-6 bg-[#0c1407]/50 p-3 rounded-lg border border-[#B2EA4D]/15 leading-relaxed">
+              {description}
+            </p>
+          )}
+          <div className="space-y-6">
+            {children}
+          </div>
+        </div>
+      )}
+    </Card>
+  );
+}
+
 interface SettingsTabProps {
   setActiveTab: (tab: string) => void;
 }
@@ -157,63 +219,7 @@ export function SettingsTab({ setActiveTab }: SettingsTabProps) {
     setUpdates(prev => prev.map(u => u.id === id ? { ...u, isNew: false } : u));
   };
 
-  const SectionCard = ({ 
-    id, 
-    icon: Icon, 
-    title, 
-    description, 
-    children,
-    badge
-  }: { 
-    id: string, 
-    icon: any, 
-    title: string, 
-    description?: string, 
-    children: React.ReactNode,
-    badge?: React.ReactNode
-  }) => {
-    const isExpanded = expandedSections.includes(id);
 
-    return (
-      <Card className="bg-slate-900/50 backdrop-blur border-slate-800 rounded-xl overflow-hidden shadow-sm transition-all duration-300">
-        <div 
-          onClick={() => toggleSection(id)}
-          className="p-5 flex items-center justify-between cursor-pointer hover:bg-slate-800/40 select-none group"
-        >
-          <div className="flex items-center gap-3.5">
-            <div className={`p-2 rounded-lg transition-colors ${isExpanded ? 'bg-teal-500/20 text-teal-400' : 'bg-slate-800 text-slate-400 group-hover:text-slate-300 group-hover:bg-slate-700'}`}>
-              <Icon className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-3">
-                <h3 className="text-base font-bold text-white tracking-tight">{title}</h3>
-                {badge}
-              </div>
-              {description && !isExpanded && (
-                <p className="text-xs text-slate-500 mt-0.5 truncate max-w-sm">{description}</p>
-              )}
-            </div>
-          </div>
-          <div className="text-slate-500">
-            {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-          </div>
-        </div>
-        
-        {isExpanded && (
-          <div className="px-6 pb-6 pt-2 border-t border-slate-800/50 animate-in slide-in-from-top-2 duration-200">
-            {description && (
-              <p className="text-xs text-slate-400 mb-6 bg-slate-950/50 p-3 rounded-lg border border-slate-900 leading-relaxed">
-                {description}
-              </p>
-            )}
-            <div className="space-y-6">
-              {children}
-            </div>
-          </div>
-        )}
-      </Card>
-    );
-  };
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-28 animate-mac-page relative">
@@ -223,33 +229,59 @@ export function SettingsTab({ setActiveTab }: SettingsTabProps) {
       </div>
 
       {/* 1. General */}
-      <SectionCard id="general" icon={Settings} title="1. General">
+      <SectionCard 
+        id="general" 
+        icon={Settings} 
+        title="1. General"
+        isExpanded={expandedSections.includes("general")}
+        onToggle={() => toggleSection("general")}
+      >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-2">Company Name</label>
             <Input 
               value={formData.companyName}
               onChange={e => setFormData({...formData, companyName: e.target.value})}
-              className="bg-slate-950 border-slate-800 text-sm h-10" 
+              className="bg-[#0c1407] border-[#B2EA4D]/15 text-sm h-10" 
             />
           </div>
           <div>
             <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-2">Chatbot Name</label>
-            <Input 
-              value={formData.chatbotName}
-              onChange={e => setFormData({...formData, chatbotName: e.target.value})}
-              className="bg-slate-950 border-slate-800 text-sm h-10" 
-            />
+            <div className="relative">
+              <Input 
+                value={formData.chatbotName}
+                onChange={e => setFormData({...formData, chatbotName: e.target.value})}
+                disabled={!isPremiumUnlocked}
+                className="bg-[#0c1407] border-[#B2EA4D]/15 text-sm h-10 pr-10 disabled:opacity-75 disabled:text-slate-500" 
+              />
+              {!isPremiumUnlocked && (
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[#B2EA4D] cursor-pointer animate-pulse" title="Upgrade to modify chatbot name">
+                  <Lock className="w-4 h-4" />
+                </div>
+              )}
+            </div>
+            {!isPremiumUnlocked && (
+              <span className="text-[10px] text-[#B2EA4D]/80 mt-1 block font-medium">Upgrade required to change chatbot name.</span>
+            )}
           </div>
           <div className="md:col-span-2">
             <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-2">Company Logo</label>
             <div className="flex items-center gap-4">
-              <div className="w-16 h-16 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-center border-dashed">
+              <div className="w-16 h-16 rounded-xl bg-[#0c1407] border border-[#B2EA4D]/15 flex items-center justify-center border-dashed">
                 <ImageIcon className="w-6 h-6 text-slate-600" />
               </div>
-              <Button variant="outline" className="h-9 border-slate-800 bg-slate-950 hover:bg-slate-800 text-xs text-slate-300">
+              <Button 
+                variant="outline" 
+                disabled={!isPremiumUnlocked}
+                className="h-9 border-[#B2EA4D]/15 bg-[#0c1407] hover:bg-[#203210]/60 text-xs text-slate-300"
+              >
                 Upload Logo
               </Button>
+              {!isPremiumUnlocked && (
+                <span className="text-[10px] text-[#B2EA4D]/80 flex items-center gap-1.5 font-medium">
+                  <Lock className="w-3.5 h-3.5" /> Upgrade required to change logo.
+                </span>
+              )}
             </div>
           </div>
           <div>
@@ -257,7 +289,7 @@ export function SettingsTab({ setActiveTab }: SettingsTabProps) {
             <select 
               value={formData.defaultLanguage}
               onChange={e => setFormData({...formData, defaultLanguage: e.target.value})}
-              className="w-full bg-slate-950 border border-slate-800 text-sm text-slate-200 p-2.5 rounded-lg focus:outline-none focus:border-teal-500"
+              className="w-full bg-[#0c1407] border border-[#B2EA4D]/15 text-sm text-slate-200 p-2.5 rounded-lg focus:outline-none focus:border-[#B2EA4D]"
             >
               <option>English (US)</option>
               <option>Spanish (ES)</option>
@@ -270,7 +302,7 @@ export function SettingsTab({ setActiveTab }: SettingsTabProps) {
             <select 
               value={formData.timeZone}
               onChange={e => setFormData({...formData, timeZone: e.target.value})}
-              className="w-full bg-slate-950 border border-slate-800 text-sm text-slate-200 p-2.5 rounded-lg focus:outline-none focus:border-teal-500"
+              className="w-full bg-[#0c1407] border border-[#B2EA4D]/15 text-sm text-slate-200 p-2.5 rounded-lg focus:outline-none focus:border-[#B2EA4D]"
             >
               <option>UTC-8 (Pacific Time)</option>
               <option>UTC-5 (Eastern Time)</option>
@@ -289,23 +321,25 @@ export function SettingsTab({ setActiveTab }: SettingsTabProps) {
         description="Customize your chatbot's identity to match your brand."
         badge={
           !isPremiumUnlocked && (
-            <span className="bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
+            <span className="bg-white/10 text-amber-400 border border-[#B2EA4D]/20 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
               <Star className="w-3 h-3" fill="currentColor" /> Premium
             </span>
           )
         }
+        isExpanded={expandedSections.includes("branding")}
+        onToggle={() => toggleSection("branding")}
       >
-        <div className="relative border border-slate-800 rounded-xl bg-slate-950/30 overflow-hidden">
+        <div className="relative border border-[#B2EA4D]/15 rounded-xl bg-[#0c1407]/30 overflow-hidden">
           {!isPremiumUnlocked && (
-            <div className="absolute inset-0 z-10 bg-slate-950/60 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center">
-              <div className="w-12 h-12 bg-amber-500/10 rounded-full flex items-center justify-center mb-4 border border-amber-500/20">
+            <div className="absolute inset-0 z-10 bg-[#0c1407]/60 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center">
+              <div className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center mb-4 border border-[#B2EA4D]/20">
                 <Lock className="w-6 h-6 text-amber-400" />
               </div>
               <h4 className="text-white font-bold text-lg mb-2">Custom Branding Locked</h4>
               <p className="text-slate-300 text-sm max-w-md mb-6 leading-relaxed">
                 Unlock Custom Branding for a one-time payment of ₹540 (≈ US$6). Personalize your chatbot with your own name and logo instantly.
               </p>
-              <Button onClick={handlePurchasePremium} disabled={isCheckingOut} className="bg-amber-500 hover:bg-amber-600 text-amber-950 font-bold px-8 h-10 shadow-lg shadow-amber-500/20">
+              <Button onClick={handlePurchasePremium} disabled={isCheckingOut} className="bg-white hover:bg-slate-100 text-[#203210] font-bold px-8 h-10 shadow-lg shadow-[#B2EA4D]/25">
                 {isCheckingOut ? (
                   <div className="flex items-center gap-2">
                     <div className="w-4 h-4 rounded-full border-2 border-amber-950 border-t-transparent animate-spin" />
@@ -329,16 +363,16 @@ export function SettingsTab({ setActiveTab }: SettingsTabProps) {
                   value={formData.chatbotName}
                   onChange={e => setFormData({...formData, chatbotName: e.target.value})}
                   disabled={!isPremiumUnlocked}
-                  className="bg-slate-950 border-slate-800 text-sm h-10 disabled:opacity-100" 
+                  className="bg-[#0c1407] border-[#B2EA4D]/15 text-sm h-10 disabled:opacity-100" 
                 />
               </div>
               <div>
                 <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-2">Custom Chatbot Logo</label>
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center">
-                    <span className="text-indigo-400 font-black text-lg">{formData.chatbotName.charAt(0)}</span>
+                  <div className="w-12 h-12 rounded bg-[#FFFFFF]/20 border border-indigo-500/30 flex items-center justify-center">
+                    <span className="text-[#FFFFFF] font-black text-lg">{formData.chatbotName.charAt(0)}</span>
                   </div>
-                  <Button variant="outline" disabled={!isPremiumUnlocked} className="h-9 border-slate-800 bg-slate-950 hover:bg-slate-800 text-xs text-slate-300">
+                  <Button variant="outline" disabled={!isPremiumUnlocked} className="h-9 border-[#B2EA4D]/15 bg-[#0c1407] hover:bg-[#203210]/60 text-xs text-slate-300">
                     Replace Logo
                   </Button>
                 </div>
@@ -347,14 +381,14 @@ export function SettingsTab({ setActiveTab }: SettingsTabProps) {
             
             <div>
               <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-2">Brand Preview</label>
-              <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 flex flex-col h-full min-h-[150px]">
-                <div className="flex items-center gap-3 border-b border-slate-800 pb-3">
-                  <div className="w-8 h-8 rounded bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center shrink-0">
-                    <span className="text-indigo-400 font-bold text-sm">{formData.chatbotName.charAt(0)}</span>
+              <div className="bg-[#0c1407] border border-[#B2EA4D]/15 rounded-xl p-4 flex flex-col h-full min-h-[150px]">
+                <div className="flex items-center gap-3 border-b border-[#B2EA4D]/15 pb-3">
+                  <div className="w-8 h-8 rounded bg-[#FFFFFF]/20 border border-indigo-500/30 flex items-center justify-center shrink-0">
+                    <span className="text-[#FFFFFF] font-bold text-sm">{formData.chatbotName.charAt(0)}</span>
                   </div>
                   <div>
                     <div className="text-sm font-bold text-white">{formData.chatbotName}</div>
-                    <div className="text-[10px] text-emerald-400 flex items-center gap-1">
+                    <div className="text-[10px] text-[#B2EA4D] flex items-center gap-1">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
                       Online
                     </div>
@@ -377,6 +411,8 @@ export function SettingsTab({ setActiveTab }: SettingsTabProps) {
         icon={Globe} 
         title="3. Knowledge Base"
         description="When enabled, Oogway automatically detects website changes, processes the content through the complete AI pipeline, and updates your chatbot's knowledge base with the latest information."
+        isExpanded={expandedSections.includes("website")}
+        onToggle={() => toggleSection("website")}
       >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div className="space-y-6">
@@ -386,11 +422,11 @@ export function SettingsTab({ setActiveTab }: SettingsTabProps) {
                 value={formData.websiteUrl}
                 onChange={e => setFormData({...formData, websiteUrl: e.target.value})}
                 placeholder="https://example.com"
-                className="bg-slate-950 border-slate-800 text-sm h-10" 
+                className="bg-[#0c1407] border-[#B2EA4D]/15 text-sm h-10" 
               />
             </div>
 
-            <div className="bg-slate-950 border border-slate-800 p-4 rounded-xl space-y-4">
+            <div className="bg-[#0c1407] border border-[#B2EA4D]/15 p-4 rounded-xl space-y-4">
               <label className="flex items-center justify-between cursor-pointer group">
                 <span className="text-sm font-semibold text-white">Enable Auto Website Sync</span>
                 <div className="relative flex items-center">
@@ -400,18 +436,18 @@ export function SettingsTab({ setActiveTab }: SettingsTabProps) {
                     checked={formData.syncEnabled}
                     onChange={e => setFormData({...formData, syncEnabled: e.target.checked})}
                   />
-                  <div className={`w-10 h-5 rounded-full transition-colors ${formData.syncEnabled ? 'bg-teal-500' : 'bg-slate-700'}`}></div>
+                  <div className={`w-10 h-5 rounded-full transition-colors ${formData.syncEnabled ? 'bg-[#B2EA4D]' : 'bg-slate-700'}`}></div>
                   <div className={`absolute left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${formData.syncEnabled ? 'translate-x-5' : 'translate-x-0'}`}></div>
                 </div>
               </label>
 
               {formData.syncEnabled && (
-                <div className="pt-3 border-t border-slate-800/50">
+                <div className="pt-3 border-t border-[#B2EA4D]/15/50">
                   <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-2">Sync Frequency</label>
                   <select 
                     value={formData.syncFrequency}
                     onChange={e => setFormData({...formData, syncFrequency: e.target.value})}
-                    className="w-full bg-slate-900 border border-slate-800 text-sm text-slate-200 p-2.5 rounded-lg focus:outline-none focus:border-teal-500"
+                    className="w-full bg-[#1b2e11] border border-[#B2EA4D]/15 text-sm text-slate-200 p-2.5 rounded-lg focus:outline-none focus:border-[#B2EA4D]"
                   >
                     <option value="daily">Daily</option>
                     <option value="weekly">Weekly</option>
@@ -421,17 +457,17 @@ export function SettingsTab({ setActiveTab }: SettingsTabProps) {
               )}
             </div>
             
-            <Button onClick={() => setActiveTab("upload")} className="w-full bg-teal-500 hover:bg-teal-600 text-slate-950 font-bold h-10">
+            <Button onClick={() => setActiveTab("upload")} className="w-full bg-[#B2EA4D] hover:bg-[#B2EA4D] text-slate-950 font-bold h-10">
               Sync Now
             </Button>
           </div>
 
           <div className="space-y-6">
-            <div className="bg-slate-950 border border-slate-800 p-4 rounded-xl flex flex-col justify-center gap-3">
-              <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-800 pb-2">Sync Status</h4>
+            <div className="bg-[#0c1407] border border-[#B2EA4D]/15 p-4 rounded-xl flex flex-col justify-center gap-3">
+              <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-[#B2EA4D]/15 pb-2">Sync Status</h4>
               <div className="flex justify-between items-center">
                 <span className="text-sm text-slate-300">Last Sync</span>
-                <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20 flex items-center gap-1">
+                <span className="text-xs font-bold text-[#B2EA4D] bg-[#B2EA4D]/8 px-2.5 py-1 rounded-full border border-[#B2EA4D]/20 flex items-center gap-1">
                   <ShieldCheck className="w-3.5 h-3.5" />
                   Success
                 </span>
@@ -443,12 +479,12 @@ export function SettingsTab({ setActiveTab }: SettingsTabProps) {
             </div>
 
             <div className="flex flex-col gap-3">
-              <Button onClick={() => setActiveTab("upload")} variant="outline" className="w-full h-10 border-slate-700 text-slate-300 hover:bg-slate-800 justify-start gap-3">
-                <UploadCloud className="w-4 h-4 text-teal-400" />
+              <Button onClick={() => setActiveTab("upload")} variant="outline" className="w-full h-10 border-slate-700 text-slate-300 hover:bg-[#203210]/60 justify-start gap-3">
+                <UploadCloud className="w-4 h-4 text-[#B2EA4D]" />
                 Upload Documents
               </Button>
-              <Button onClick={() => setActiveTab("upload")} variant="outline" className="w-full h-10 border-slate-700 text-slate-300 hover:bg-slate-800 justify-start gap-3">
-                <Database className="w-4 h-4 text-indigo-400" />
+              <Button onClick={() => setActiveTab("upload")} variant="outline" className="w-full h-10 border-slate-700 text-slate-300 hover:bg-[#203210]/60 justify-start gap-3">
+                <Database className="w-4 h-4 text-[#FFFFFF]" />
                 View Documents
               </Button>
             </div>
@@ -457,7 +493,13 @@ export function SettingsTab({ setActiveTab }: SettingsTabProps) {
       </SectionCard>
 
       {/* 4. Chatbot */}
-      <SectionCard id="chatbot" icon={MessageSquare} title="4. Chatbot">
+      <SectionCard 
+        id="chatbot" 
+        icon={MessageSquare} 
+        title="4. Chatbot"
+        isExpanded={expandedSections.includes("chatbot")}
+        onToggle={() => toggleSection("chatbot")}
+      >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div className="space-y-6">
             <div>
@@ -466,7 +508,7 @@ export function SettingsTab({ setActiveTab }: SettingsTabProps) {
                 rows={3}
                 value={formData.welcomeMessage}
                 onChange={e => setFormData({...formData, welcomeMessage: e.target.value})}
-                className="w-full bg-slate-950 border border-slate-800 text-sm text-slate-200 p-3 rounded-lg focus:outline-none focus:border-teal-500 resize-none"
+                className="w-full bg-[#0c1407] border border-[#B2EA4D]/15 text-sm text-slate-200 p-3 rounded-lg focus:outline-none focus:border-[#B2EA4D] resize-none"
               />
             </div>
             <div>
@@ -475,7 +517,7 @@ export function SettingsTab({ setActiveTab }: SettingsTabProps) {
                 rows={4}
                 value={formData.suggestedQuestions}
                 onChange={e => setFormData({...formData, suggestedQuestions: e.target.value})}
-                className="w-full bg-slate-950 border border-slate-800 text-sm text-slate-200 p-3 rounded-lg focus:outline-none focus:border-teal-500 resize-none font-mono"
+                className="w-full bg-[#0c1407] border border-[#B2EA4D]/15 text-sm text-slate-200 p-3 rounded-lg focus:outline-none focus:border-[#B2EA4D] resize-none font-mono"
               />
             </div>
           </div>
@@ -486,7 +528,7 @@ export function SettingsTab({ setActiveTab }: SettingsTabProps) {
               <select 
                 value={formData.responseLength}
                 onChange={e => setFormData({...formData, responseLength: e.target.value})}
-                className="w-full bg-slate-950 border border-slate-800 text-sm text-slate-200 p-2.5 rounded-lg focus:outline-none focus:border-teal-500"
+                className="w-full bg-[#0c1407] border border-[#B2EA4D]/15 text-sm text-slate-200 p-2.5 rounded-lg focus:outline-none focus:border-[#B2EA4D]"
               >
                 <option value="short">Short (Concise answers)</option>
                 <option value="balanced">Balanced (Recommended)</option>
@@ -498,9 +540,15 @@ export function SettingsTab({ setActiveTab }: SettingsTabProps) {
       </SectionCard>
 
       {/* 5. Notifications */}
-      <SectionCard id="notifications" icon={Bell} title="5. Notifications">
-        <div className="bg-slate-950 border border-slate-800 rounded-xl divide-y divide-slate-800/50">
-          <label className="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-900/30 transition-colors">
+      <SectionCard 
+        id="notifications" 
+        icon={Bell} 
+        title="5. Notifications"
+        isExpanded={expandedSections.includes("notifications")}
+        onToggle={() => toggleSection("notifications")}
+      >
+        <div className="bg-[#0c1407] border border-[#B2EA4D]/15 rounded-xl divide-y divide-slate-800/50">
+          <label className="flex items-center justify-between p-4 cursor-pointer hover:bg-[#1b2e11]/30 transition-colors">
             <div>
               <span className="text-sm font-medium text-white block">Notify on Failed Sync</span>
               <span className="text-xs text-slate-500 mt-0.5 block">Receive an email alert if automated website sync fails.</span>
@@ -512,12 +560,12 @@ export function SettingsTab({ setActiveTab }: SettingsTabProps) {
                 checked={formData.notifyFailures}
                 onChange={e => setFormData({...formData, notifyFailures: e.target.checked})}
               />
-              <div className={`w-9 h-5 rounded-full transition-colors ${formData.notifyFailures ? 'bg-teal-500' : 'bg-slate-700'}`}></div>
+              <div className={`w-9 h-5 rounded-full transition-colors ${formData.notifyFailures ? 'bg-[#B2EA4D]' : 'bg-slate-700'}`}></div>
               <div className={`absolute left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${formData.notifyFailures ? 'translate-x-4' : 'translate-x-0'}`}></div>
             </div>
           </label>
           
-          <label className="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-900/30 transition-colors">
+          <label className="flex items-center justify-between p-4 cursor-pointer hover:bg-[#1b2e11]/30 transition-colors">
             <div>
               <span className="text-sm font-medium text-white block">Notify When Processing Completes</span>
               <span className="text-xs text-slate-500 mt-0.5 block">Receive an email when new knowledge base indexing is finished.</span>
@@ -529,7 +577,7 @@ export function SettingsTab({ setActiveTab }: SettingsTabProps) {
                 checked={formData.notifySuccess}
                 onChange={e => setFormData({...formData, notifySuccess: e.target.checked})}
               />
-              <div className={`w-9 h-5 rounded-full transition-colors ${formData.notifySuccess ? 'bg-teal-500' : 'bg-slate-700'}`}></div>
+              <div className={`w-9 h-5 rounded-full transition-colors ${formData.notifySuccess ? 'bg-[#B2EA4D]' : 'bg-slate-700'}`}></div>
               <div className={`absolute left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${formData.notifySuccess ? 'translate-x-4' : 'translate-x-0'}`}></div>
             </div>
           </label>
@@ -548,6 +596,8 @@ export function SettingsTab({ setActiveTab }: SettingsTabProps) {
             </span>
           )
         }
+        isExpanded={expandedSections.includes("updates")}
+        onToggle={() => toggleSection("updates")}
       >
         <div className="space-y-4">
           {updates.map((update) => (
@@ -555,20 +605,20 @@ export function SettingsTab({ setActiveTab }: SettingsTabProps) {
               key={update.id} 
               className={`relative border rounded-xl p-5 flex flex-col md:flex-row md:items-start justify-between gap-4 transition-colors ${
                 update.isNew 
-                  ? 'bg-slate-900/80 border-slate-700 shadow-md shadow-slate-900' 
-                  : 'bg-slate-950 border-slate-800'
+                  ? 'bg-[#1b2e11]/80 border-slate-700 shadow-md shadow-slate-900' 
+                  : 'bg-[#0c1407] border-[#B2EA4D]/15'
               }`}
             >
               {/* Highlight bar for new updates */}
               {update.isNew && (
-                <div className="absolute top-0 left-0 w-1 h-full bg-teal-500 rounded-l-xl"></div>
+                <div className="absolute top-0 left-0 w-1 h-full bg-[#B2EA4D] rounded-l-xl"></div>
               )}
               
               <div className="flex-1 ml-1">
                 <div className="flex items-center gap-3 mb-2">
                   <h4 className="text-sm font-bold text-white tracking-tight">{update.title}</h4>
                   {update.isNew && (
-                    <span className="text-[9px] font-black text-rose-400 uppercase tracking-widest border border-rose-500/30 bg-rose-500/10 px-1.5 py-0.5 rounded">New</span>
+                    <span className="text-[9px] font-black text-rose-400 uppercase tracking-widest border border-rose-500/30 bg-[#203210]/15 px-1.5 py-0.5 rounded">New</span>
                   )}
                   <span className="text-[10px] text-slate-500 font-mono ml-auto md:ml-0">{update.date}</span>
                 </div>
@@ -577,8 +627,8 @@ export function SettingsTab({ setActiveTab }: SettingsTabProps) {
 
               <div className="flex flex-row md:flex-col items-center justify-end gap-2 shrink-0 md:min-w-[120px]">
                 {update.isNew ? (
-                  <Button onClick={() => markUpdateAsRead(update.id)} variant="outline" className="w-full h-8 text-[10px] border-slate-700 bg-slate-900 hover:bg-slate-800 text-slate-300">
-                    <CheckCircle2 className="w-3.5 h-3.5 mr-1.5 text-teal-400" /> Mark Read
+                  <Button onClick={() => markUpdateAsRead(update.id)} variant="outline" className="w-full h-8 text-[10px] border-slate-700 bg-[#1b2e11] hover:bg-[#203210]/60 text-slate-300">
+                    <CheckCircle2 className="w-3.5 h-3.5 mr-1.5 text-[#B2EA4D]" /> Mark Read
                   </Button>
                 ) : null}
                 
@@ -586,11 +636,11 @@ export function SettingsTab({ setActiveTab }: SettingsTabProps) {
                   <Button onClick={() => {
                     document.getElementById('branding')?.scrollIntoView({ behavior: 'smooth' });
                     if (!expandedSections.includes('branding')) toggleSection('branding');
-                  }} className="w-full h-8 text-[10px] bg-amber-500 hover:bg-amber-600 text-amber-950 font-bold shadow-lg shadow-amber-500/10">
+                  }} className="w-full h-8 text-[10px] bg-white hover:bg-slate-100 text-[#203210] font-bold shadow-lg shadow-[#B2EA4D]/25">
                     <Star className="w-3.5 h-3.5 mr-1.5" fill="currentColor" /> Upgrade
                   </Button>
                 ) : (
-                  <Button variant="ghost" className="w-full h-8 text-[10px] text-teal-400 hover:text-teal-300 hover:bg-teal-500/10">
+                  <Button variant="ghost" className="w-full h-8 text-[10px] text-[#B2EA4D] hover:text-[#B2EA4D]/90 hover:bg-[#B2EA4D]/8">
                     Learn More
                   </Button>
                 )}
@@ -602,14 +652,14 @@ export function SettingsTab({ setActiveTab }: SettingsTabProps) {
 
       {/* Bottom Sticky Action Bar */}
       <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] md:w-full max-w-xl z-50">
-        <div className="bg-slate-900/80 backdrop-blur-xl border border-slate-800 p-3 rounded-2xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.5)] flex items-center justify-end gap-3">
+        <div className="bg-[#1b2e11]/80 backdrop-blur-xl border border-[#B2EA4D]/15 p-3 rounded-2xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.5)] flex items-center justify-end gap-3">
           <Button variant="ghost" className="text-slate-400 hover:text-white h-10 px-6 rounded-xl text-sm font-medium">
             Cancel
           </Button>
           <Button 
             onClick={handleSave} 
             disabled={saving}
-            className="bg-teal-500 hover:bg-teal-600 text-slate-950 font-bold h-10 px-8 rounded-xl shadow-lg shadow-teal-500/20 text-sm"
+            className="bg-[#B2EA4D] hover:bg-[#B2EA4D] text-slate-950 font-bold h-10 px-8 rounded-xl shadow-lg shadow-[#B2EA4D]/25 text-sm"
           >
             {saving ? (
               <RefreshCw className="w-4 h-4 animate-spin mr-2" />

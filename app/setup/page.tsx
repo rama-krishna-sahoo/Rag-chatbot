@@ -335,7 +335,7 @@ export default function OnboardingWizard() {
                   return (
                     <div key={idx} className="flex items-center gap-2.5 py-1 transition-all duration-300">
                       {isCompleted ? (
-                        <span className="text-emerald-500 font-bold shrink-0">✓</span>
+                        <span className="text-[#B2EA4D] font-bold shrink-0">✓</span>
                       ) : isCurrent ? (
                         <Loader2 className="w-3.5 h-3.5 text-neutral-500 animate-spin shrink-0" />
                       ) : (
@@ -354,7 +354,7 @@ export default function OnboardingWizard() {
           {/* Step 4: Complete */}
           {step === "complete" && (
             <Card className="p-8 shadow-xl border-neutral-200/60 bg-white/80 backdrop-blur-xl rounded-2xl text-center space-y-6 animate-in zoom-in-95 duration-300">
-              <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-lg shadow-emerald-900/10">
+              <div className="w-16 h-16 bg-emerald-100 text-[#B2EA4D] rounded-full flex items-center justify-center mx-auto shadow-lg shadow-emerald-900/10">
                 <ShieldCheck className="w-8 h-8" />
               </div>
               <div className="space-y-2">
@@ -365,7 +365,7 @@ export default function OnboardingWizard() {
               </div>
               <Button 
                 onClick={handleFinish}
-                className="w-full h-11 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-xl shadow-lg transition-all"
+                className="w-full h-11 bg-[#B2EA4D] text-[#203210] hover:bg-[#B2EA4D]/90 text-white font-medium rounded-xl shadow-lg transition-all"
               >
                 Go to Dashboard <ArrowRight className="w-4 h-4 ml-2" />
               </Button>

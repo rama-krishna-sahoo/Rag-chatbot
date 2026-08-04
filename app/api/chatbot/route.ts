@@ -15,7 +15,7 @@ export async function GET() {
     return NextResponse.json(data || {
       workspace_id: workspaceId,
       bot_name: "Oogway AI",
-      brand_color: "#14b8a6",
+      brand_color: "#B2EA4D",
       system_prompt: "You are a helpful customer support assistant."
     });
   } catch (err: any) {

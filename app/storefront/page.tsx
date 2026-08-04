@@ -37,7 +37,7 @@ export default function StorefrontPreview() {
     return (
       <div className="w-screen h-screen bg-slate-950 flex items-center justify-center text-white">
         <div className="animate-pulse flex items-center gap-2 text-sm font-medium">
-          <div className="w-4 h-4 rounded-full border-2 border-teal-500 border-t-transparent animate-spin" />
+          <div className="w-4 h-4 rounded-full border-2 border-[#B2EA4D] border-t-transparent animate-spin" />
           Loading Preview Environment...
         </div>
       </div>
@@ -63,7 +63,7 @@ export default function StorefrontPreview() {
             Previewing: 
             <span className="text-white font-medium bg-slate-800 px-2 py-0.5 rounded flex items-center gap-1.5">
               {websiteUrl}
-              <a href={websiteUrl} target="_blank" rel="noopener noreferrer" className="hover:text-teal-400 transition-colors">
+              <a href={websiteUrl} target="_blank" rel="noopener noreferrer" className="hover:text-[#B2EA4D] transition-colors">
                 <ExternalLink className="w-3 h-3" />
               </a>
             </span>
@@ -73,14 +73,14 @@ export default function StorefrontPreview() {
         <div className="flex items-center gap-2 bg-slate-950 rounded-lg p-1 border border-slate-800">
           <button
             onClick={() => setDevice("desktop")}
-            className={`p-1.5 rounded-md transition-all ${device === "desktop" ? "bg-slate-800 text-teal-400 shadow-sm" : "text-slate-500 hover:text-slate-300"}`}
+            className={`p-1.5 rounded-md transition-all ${device === "desktop" ? "bg-slate-800 text-[#B2EA4D] shadow-sm" : "text-slate-500 hover:text-slate-300"}`}
             title="Desktop View"
           >
             <Monitor className="w-4 h-4" />
           </button>
           <button
             onClick={() => setDevice("mobile")}
-            className={`p-1.5 rounded-md transition-all ${device === "mobile" ? "bg-slate-800 text-teal-400 shadow-sm" : "text-slate-500 hover:text-slate-300"}`}
+            className={`p-1.5 rounded-md transition-all ${device === "mobile" ? "bg-slate-800 text-[#B2EA4D] shadow-sm" : "text-slate-500 hover:text-slate-300"}`}
             title="Mobile View"
           >
             <Smartphone className="w-4 h-4" />
@@ -92,7 +92,7 @@ export default function StorefrontPreview() {
       <div className="flex-1 w-full bg-slate-950 relative flex items-center justify-center overflow-hidden p-0 sm:p-4 md:p-8">
         {!isLoaded && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-slate-950 z-10 text-white">
-            <div className="w-8 h-8 rounded-full border-2 border-teal-500 border-t-transparent animate-spin" />
+            <div className="w-8 h-8 rounded-full border-2 border-[#B2EA4D] border-t-transparent animate-spin" />
             <p className="text-sm font-medium text-slate-400 animate-pulse">Connecting to your website...</p>
           </div>
         )}

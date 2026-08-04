@@ -107,10 +107,10 @@ export default function HomePage() {
             </div>
 
             <div className="hidden md:flex space-x-8">
-              <a href="#products" className="text-sm font-medium text-emerald-700 border-b-2 border-emerald-600 pb-1 hover:text-emerald-800 transition-colors">Shop All</a>
-              <a href="#products" onClick={() => setActiveCategory("All")} className="text-sm font-medium text-neutral-500 hover:text-emerald-600 hover:-translate-y-0.5 transform transition-all">Best Sellers</a>
-              <a href="#story" className="text-sm font-medium text-neutral-500 hover:text-emerald-600 hover:-translate-y-0.5 transform transition-all">Our Story</a>
-              <a href="#journal" className="text-sm font-medium text-neutral-500 hover:text-emerald-600 hover:-translate-y-0.5 transform transition-all">Journal</a>
+              <a href="#products" className="text-sm font-medium text-[#B2EA4D] border-b-2 border-emerald-600 pb-1 hover:text-emerald-800 transition-colors">Shop All</a>
+              <a href="#products" onClick={() => setActiveCategory("All")} className="text-sm font-medium text-neutral-500 hover:text-[#B2EA4D] hover:-translate-y-0.5 transform transition-all">Best Sellers</a>
+              <a href="#story" className="text-sm font-medium text-neutral-500 hover:text-[#B2EA4D] hover:-translate-y-0.5 transform transition-all">Our Story</a>
+              <a href="#journal" className="text-sm font-medium text-neutral-500 hover:text-[#B2EA4D] hover:-translate-y-0.5 transform transition-all">Journal</a>
             </div>
 
             <div className="flex items-center gap-2 sm:gap-4">
@@ -127,7 +127,7 @@ export default function HomePage() {
               <Button onClick={() => setCartOpen(true)} variant="ghost" size="icon" className="relative hover:bg-neutral-100 rounded-full">
                 <ShoppingBag className="w-5 h-5 text-neutral-700" />
                 {cartCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-emerald-600 text-white text-[9px] w-4.5 h-4.5 flex items-center justify-center rounded-full font-black font-mono shadow-sm">
+                  <span className="absolute -top-1 -right-1 bg-[#B2EA4D] text-[#203210] text-white text-[9px] w-4.5 h-4.5 flex items-center justify-center rounded-full font-black font-mono shadow-sm">
                     {cartCount}
                   </span>
                 )}
@@ -135,7 +135,7 @@ export default function HomePage() {
               
               <div className="flex items-center gap-2">
                 <a href="/admin">
-                  <Button variant="outline" size="sm" className="inline-flex text-xs h-8 border-emerald-600 text-emerald-700 hover:bg-emerald-50">
+                  <Button variant="outline" size="sm" className="inline-flex text-xs h-8 border-emerald-600 text-[#B2EA4D] hover:bg-emerald-50">
                     Admin Portal
                   </Button>
                 </a>
@@ -181,7 +181,7 @@ export default function HomePage() {
             Discover our dermatologist-tested, 100% organic essentials designed to nurture your little one's sensitive skin.
           </p>
           <div className="mt-8 flex gap-4">
-            <Button size="lg" className="rounded-full px-8 text-base shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300 bg-emerald-600 hover:bg-emerald-700 text-white border-none">
+            <Button size="lg" className="rounded-full px-8 text-base shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300 bg-[#B2EA4D] text-[#203210] hover:bg-[#B2EA4D]/90 text-white border-none">
               Shop Essentials
             </Button>
             <Button size="lg" variant="outline" className="rounded-full px-8 text-base bg-white/50 backdrop-blur-sm border-neutral-300 text-neutral-900 hover:bg-white hover:-translate-y-1 hover:shadow-md transition-all duration-300">
@@ -228,7 +228,7 @@ export default function HomePage() {
               <Button
                 key={cat}
                 variant={activeCategory === cat ? "default" : "outline"}
-                className={`rounded-full whitespace-nowrap transition-all duration-300 hover:-translate-y-1 hover:shadow-md ${activeCategory === cat ? "bg-emerald-600 hover:bg-emerald-700 text-white" : "bg-white text-neutral-600 border-neutral-200 hover:border-emerald-300 hover:text-emerald-600"}`}
+                className={`rounded-full whitespace-nowrap transition-all duration-300 hover:-translate-y-1 hover:shadow-md ${activeCategory === cat ? "bg-[#B2EA4D] text-[#203210] hover:bg-[#B2EA4D]/90 text-white" : "bg-white text-neutral-600 border-neutral-200 hover:border-[#B2EA4D]/50 hover:text-[#B2EA4D]"}`}
                 onClick={() => setActiveCategory(cat)}
                 size="sm"
               >
@@ -308,7 +308,7 @@ export default function HomePage() {
               {/* Cart Header */}
               <div className="px-6 py-5 border-b border-neutral-200 flex justify-between items-center bg-neutral-50">
                 <div className="flex items-center gap-2">
-                  <ShoppingBag className="w-5 h-5 text-emerald-700" />
+                  <ShoppingBag className="w-5 h-5 text-[#B2EA4D]" />
                   <h2 className="text-lg font-bold text-neutral-950">Your Shopping Cart</h2>
                   {cartCount > 0 && (
                     <span className="bg-emerald-100 text-emerald-800 text-xs px-2 py-0.5 rounded-full font-extrabold font-mono">{cartCount}</span>
@@ -363,7 +363,7 @@ export default function HomePage() {
                         </div>
                       </div>
                       <div className="text-right shrink-0">
-                        <p className="text-sm font-black text-emerald-700">${(item.product.price * item.quantity).toFixed(2)}</p>
+                        <p className="text-sm font-black text-[#B2EA4D]">${(item.product.price * item.quantity).toFixed(2)}</p>
                         <button 
                           onClick={() => handleRemoveFromCart(item.product.id)}
                           className="text-[10px] text-neutral-400 hover:text-red-500 mt-2 font-bold underline transition-colors"
@@ -386,7 +386,7 @@ export default function HomePage() {
                     </div>
                     <div className="flex justify-between text-sm text-neutral-500 font-medium">
                       <span>Shipping</span>
-                      <span className="text-emerald-600 font-bold">FREE</span>
+                      <span className="text-[#B2EA4D] font-bold">FREE</span>
                     </div>
                     <div className="flex justify-between text-base font-black text-neutral-950 pt-1.5 border-t border-neutral-200/60">
                       <span>Estimated Total</span>
@@ -399,7 +399,7 @@ export default function HomePage() {
                       setCart([]);
                       setCartOpen(false);
                     }}
-                    className="w-full h-11 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg shadow-md hover:shadow-lg transition-all"
+                    className="w-full h-11 bg-[#B2EA4D] text-[#203210] hover:bg-[#B2EA4D]/90 text-white font-bold rounded-lg shadow-md hover:shadow-lg transition-all"
                   >
                     Proceed to Checkout
                   </Button>

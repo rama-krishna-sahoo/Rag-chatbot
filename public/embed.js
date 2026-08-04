@@ -24,7 +24,7 @@
     console.log("Oogway Chatbot: Initializing embed script...");
 
     const workspaceId = currentScript.getAttribute('data-workspace-id') || '';
-    const brandColor = currentScript.getAttribute('data-brand-color') || '#14b8a6';
+    const brandColor = currentScript.getAttribute('data-brand-color') || '#B2EA4D';
 
     const iframe = document.createElement('iframe');
     iframe.id = 'oogway-chatbot-iframe';

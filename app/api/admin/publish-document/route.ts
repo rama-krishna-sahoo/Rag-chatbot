@@ -38,6 +38,17 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: updateError.message }, { status: 500 });
     }
 
+    // Update status in uploaded_documents as well
+    const { error: docUpdateError } = await supabase
+      .from("uploaded_documents")
+      .update({ status: "published" })
+      .eq("id", documentId)
+      .eq("workspace_id", workspaceId);
+
+    if (docUpdateError) {
+      return NextResponse.json({ error: docUpdateError.message }, { status: 500 });
+    }
+
     await supabase.rpc("log_audit_event", {
       p_action: "Document Published",
       p_workspace_id: workspaceId,

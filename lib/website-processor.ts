@@ -60,7 +60,10 @@ export async function processUrlForWorkspace(
   let docId: string | null = null;
 
   try {
-    const domain = new URL(url).hostname;
+    const parsedUrl = new URL(url);
+    const domain = parsedUrl.hostname;
+    const path = parsedUrl.pathname === "/" ? "" : parsedUrl.pathname;
+    const filename = `Website: ${domain}${path}`;
     
     let html = htmlContent;
     if (!html) {
@@ -83,10 +86,35 @@ export async function processUrlForWorkspace(
       throw new Error("Extracted text from the website is too short or empty.");
     }
 
+    // Deduplicate: Delete any existing documents and chunks for this URL in this workspace
+    const { data: existingDocs } = await supabase
+      .from("uploaded_documents")
+      .select("id")
+      .eq("storage_path", url)
+      .eq("workspace_id", workspaceId);
+
+    if (existingDocs && existingDocs.length > 0) {
+      const docIds = existingDocs.map((d: any) => d.id);
+      
+      // Cascade delete chunks
+      await supabase
+        .from("knowledge_base")
+        .delete()
+        .in("document_id", docIds)
+        .eq("workspace_id", workspaceId);
+
+      // Delete document records
+      await supabase
+        .from("uploaded_documents")
+        .delete()
+        .in("id", docIds)
+        .eq("workspace_id", workspaceId);
+    }
+
     const { data: document, error: docError } = await supabase
       .from("uploaded_documents")
       .insert({
-        filename: `Website: ${domain}`,
+        filename,
         storage_path: url,
         file_size: cleanedText.length,
         mime_type: "text/html",

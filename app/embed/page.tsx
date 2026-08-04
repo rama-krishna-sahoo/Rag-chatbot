@@ -15,7 +15,7 @@ function EmbedContent() {
         relative to the iframe bounds instead of the screen bounds, but 
         "fixed" actually works fine too since the iframe is the window.
       */}
-      <Chatbot positionStrategy="fixed" embeddedWorkspaceId={workspaceId} />
+      <Chatbot positionStrategy="fixed" embeddedWorkspaceId={workspaceId} hideSimulateContext={true} />
     </div>
   );
 }

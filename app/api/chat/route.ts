@@ -47,28 +47,36 @@ export async function POST(req: Request) {
 
     // Secure domain whitelisting check
     const origin = req.headers.get("origin") || req.headers.get("referer");
-    if (workspaceId && workspaceId !== "00000000-0000-0000-0000-000000000000" && origin) {
+    let workspaceName = "Oogway";
+    let workspaceIndustry = "premium organic baby brand";
+
+    if (workspaceId && workspaceId !== "00000000-0000-0000-0000-000000000000") {
       const supabaseAdmin = getSupabaseClient();
       const { data: workspace } = await supabaseAdmin
         .from("workspaces")
-        .select("website_url")
+        .select("website_url, name, industry")
         .eq("id", workspaceId)
         .maybeSingle();
 
-      if (workspace?.website_url) {
-        const cleanOrigin = origin.replace(/^https?:\/\//, "").split("/")[0];
-        const cleanWorkspaceUrl = workspace.website_url.replace(/^https?:\/\//, "").split("/")[0];
+      if (workspace) {
+        if (workspace.name) workspaceName = workspace.name;
+        if (workspace.industry) workspaceIndustry = workspace.industry;
 
-        // Allow local testing origins and verify domain match otherwise
-        if (
-          cleanOrigin !== "localhost:3000" && 
-          cleanOrigin !== "127.0.0.1:3000" && 
-          !cleanOrigin.endsWith(cleanWorkspaceUrl)
-        ) {
-          return NextResponse.json(
-            { error: "Forbidden: Origin domain is not whitelisted for this chatbot workspace." },
-            { status: 403 }
-          );
+        if (workspace.website_url && origin) {
+          const cleanOrigin = origin.replace(/^https?:\/\//, "").split("/")[0];
+          const cleanWorkspaceUrl = workspace.website_url.replace(/^https?:\/\//, "").split("/")[0];
+
+          // Allow local testing origins and verify domain match otherwise
+          if (
+            cleanOrigin !== "localhost:3000" &&
+            cleanOrigin !== "127.0.0.1:3000" &&
+            !cleanOrigin.endsWith(cleanWorkspaceUrl)
+          ) {
+            return NextResponse.json(
+              { error: "Forbidden: Origin domain is not whitelisted for this chatbot workspace." },
+              { status: 403 }
+            );
+          }
         }
       }
     }
@@ -111,7 +119,7 @@ export async function POST(req: Request) {
 
       if (matches && matches.length > 0 && topMatch?.similarity >= THRESHOLD) {
         sourceChunks = matches;
-        
+
         // Assemble chunks as context
         contextText = matches
           .map((m: any) => `Source: ${m.title || "Document"} (Category: ${m.category})\nContent: ${m.chunk_text}`)
@@ -120,7 +128,7 @@ export async function POST(req: Request) {
 
       // 4. Always generate grounded answer (handles greetings, empty context, and personalization)
       const customerProfile = customerId ? MOCK_CUSTOMERS[customerId] : null;
-      answer = await generateGroundedAnswer(contextText, message, customerProfile, history);
+      answer = await generateGroundedAnswer(contextText, message, customerProfile, history, workspaceName, workspaceIndustry);
     } catch (aiErr: any) {
       console.warn(
         "Gemini / Supabase RAG request failed, switching to local knowledge fallback:",
@@ -130,7 +138,11 @@ export async function POST(req: Request) {
 
     // Fall back to local intelligent product answer if AI/RAG didn't produce an answer
     if (!answer) {
-      answer = getLocalProductAnswer(message);
+      if (!workspaceId || workspaceId === "00000000-0000-0000-0000-000000000000" || workspaceName.toLowerCase() === "oogway") {
+        answer = getLocalProductAnswer(message);
+      } else {
+        answer = `I'm here to help you with questions about ${workspaceName}. Could you please specify which product or topic you would like to know more about?`;
+      }
     }
 
     try {
@@ -153,10 +165,8 @@ export async function POST(req: Request) {
     });
   } catch (err: any) {
     console.error("Error in /api/chat POST:", err);
-    // Return local fallback answer instead of 500 error
-    const fallbackAnswer = getLocalProductAnswer("generic");
     return NextResponse.json({
-      answer: fallbackAnswer,
+      answer: "I'm having trouble connecting right now. Please try again later.",
       sourceChunks: [],
     });
   }

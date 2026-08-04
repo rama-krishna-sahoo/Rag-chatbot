@@ -9,7 +9,7 @@ const demoUserRoles: { [userId: string]: string } = {};
 // GET: Retrieve list of users and roles
 export async function GET() {
   try {
-    const { authorized, supabase, workspaceId } = await verifyAdminAccess(['Super Admin', 'Viewer']);
+    const { authorized, supabase, workspaceId } = await verifyAdminAccess(['Super Admin', 'Knowledge Admin', 'Content Editor', 'Reviewer', 'Viewer']);
     if (!authorized) {
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
@@ -42,7 +42,7 @@ export async function GET() {
 // POST: Create a new user with a role (Super Admin only)
 export async function POST(req: Request) {
   try {
-    const { authorized, supabase, workspaceId } = await verifyAdminAccess(['Super Admin']);
+    const { authorized, supabase, workspaceId, role: callerRole } = await verifyAdminAccess(['Super Admin', 'Knowledge Admin']);
     if (!authorized) {
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
@@ -55,6 +55,11 @@ export async function POST(req: Request) {
     const allowedRoles = ['Super Admin', 'Knowledge Admin', 'Content Editor', 'Reviewer', 'Viewer', 'Chatbot User'];
     if (!allowedRoles.includes(role)) {
       return NextResponse.json({ error: "Invalid role" }, { status: 400 });
+    }
+
+    // Security: Only Super Admin can assign the Super Admin role
+    if (role === 'Super Admin' && callerRole !== 'Super Admin') {
+      return NextResponse.json({ error: "Unauthorized to assign Super Admin role" }, { status: 403 });
     }
 
     // 1. Create user in Supabase Auth via Admin service role
@@ -70,6 +75,19 @@ export async function POST(req: Request) {
         const { data: existingUsers } = await supabase.auth.admin.listUsers();
         const existingUser = existingUsers?.users?.find(u => u.email === email);
         if (existingUser) {
+          // Security: Prevent modifying a Super Admin user if caller is not Super Admin
+          if (callerRole !== 'Super Admin') {
+            const { data: targetUserRole } = await supabase
+              .from("user_roles")
+              .select("role")
+              .eq("user_id", existingUser.id)
+              .maybeSingle();
+
+            if (targetUserRole?.role === 'Super Admin') {
+              return NextResponse.json({ error: "Unauthorized: Cannot modify a Super Admin user" }, { status: 403 });
+            }
+          }
+
           const { error: roleError } = await supabase
             .from("user_roles")
             .upsert({
@@ -120,7 +138,7 @@ export async function POST(req: Request) {
 // PUT: Update a user's role (Super Admin only)
 export async function PUT(req: Request) {
   try {
-    const { authorized, supabase, workspaceId } = await verifyAdminAccess(['Super Admin']);
+    const { authorized, supabase, workspaceId, role: callerRole } = await verifyAdminAccess(['Super Admin', 'Knowledge Admin']);
     if (!authorized) {
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
@@ -134,6 +152,24 @@ export async function PUT(req: Request) {
     const allowedRoles = ['Super Admin', 'Knowledge Admin', 'Content Editor', 'Reviewer', 'Viewer', 'Chatbot User'];
     if (!allowedRoles.includes(role)) {
       return NextResponse.json({ error: "Invalid role" }, { status: 400 });
+    }
+
+    // Security: Only Super Admin can assign the Super Admin role
+    if (role === 'Super Admin' && callerRole !== 'Super Admin') {
+      return NextResponse.json({ error: "Unauthorized to assign Super Admin role" }, { status: 403 });
+    }
+
+    // Security: Prevent modifying a Super Admin user if caller is not Super Admin
+    if (callerRole !== 'Super Admin') {
+      const { data: targetUserRole } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (targetUserRole?.role === 'Super Admin') {
+        return NextResponse.json({ error: "Unauthorized: Cannot modify a Super Admin user" }, { status: 403 });
+      }
     }
 
     // If it's a demo mock user, we update the in-memory map

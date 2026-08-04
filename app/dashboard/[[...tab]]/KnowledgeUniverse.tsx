@@ -20,6 +20,7 @@ import {
   Info
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { CustomSelect } from "@/components/ui/CustomSelect";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
@@ -70,16 +71,59 @@ export type GraphStats = {
 
 // Curated Sleek HSL colors for Semantic Communities
 export const ClusterColors: Record<string, string> = {
-  "Sleep": "#3b82f6",     // Blue
-  "Feeding": "#f97316",   // Orange
-  "Diapering": "#10b981", // Emerald
-  "Skincare": "#a855f7",  // Purple
-  "Play": "#eab308",      // Yellow
-  "Travel": "#ec4899",    // Pink
-  "Bath": "#06b6d4",      // Cyan
-  "Teething": "#f43f5e",  // Rose
-  "general": "#94a3b8",   // Slate (grey)
-  "query": "#eab308"      // Gold for query node
+  "Sleep": "#B2EA4D",     // Lime
+  "Feeding": "#ffffff",   // White
+  "Diapering": "#81a85f", // Soft olive green
+  "Skincare": "#4e7033",  // Medium forest green
+  "Play": "#d6ff73",      // Yellow-lime
+  "Travel": "#a6bda2",    // Pale green-gray
+  "Bath": "#2e4a1c",      // Dark forest green
+  "Teething": "#e8ffd0",  // Light lime-white
+  "general": "#667a61",   // Muted gray-green
+  "query": "#ffffff"      // White for query node
+};
+
+const renderMarkdown = (text: string) => {
+  if (!text) return null;
+  const lines = text.split("\n");
+  
+  return (
+    <div className="space-y-2">
+      {lines.map((line, lIdx) => {
+        const trimmed = line.trim();
+        if (!trimmed) return <div key={lIdx} className="h-1.5" />;
+        
+        // Check if bullet point using regex (matches *, -, bullet characters, )
+        const bulletMatch = trimmed.match(/^([\*\-\u2022\u25E6\u25AA])\s*(.*)$/);
+        const isBullet = !!bulletMatch;
+        const content = isBullet ? bulletMatch[2] : trimmed;
+        
+        // Parse bold markers **word**
+        const parts = content.split(/(\*\*.*?\*\*)/g);
+        const renderedParts = parts.map((part, pIdx) => {
+          if (part.startsWith("**") && part.endsWith("**")) {
+            return <strong key={pIdx} className="font-extrabold text-[#B2EA4D]">{part.slice(2, -2)}</strong>;
+          }
+          return part;
+        });
+        
+        if (isBullet) {
+          return (
+            <div key={lIdx} className="flex gap-2 text-[10px] leading-relaxed text-slate-300">
+              <span className="text-[#B2EA4D] shrink-0 font-bold">•</span>
+              <span>{renderedParts}</span>
+            </div>
+          );
+        }
+        
+        return (
+          <p key={lIdx} className="text-[10px] leading-relaxed text-slate-300">
+            {renderedParts}
+          </p>
+        );
+      })}
+    </div>
+  );
 };
 
 export function KnowledgeUniverse() {
@@ -514,10 +558,10 @@ export function KnowledgeUniverse() {
         
         // Edge styling (opacity proportional to similarity, thicker if highlighted)
         if (isHighlighted || isMatched) {
-          ctx.strokeStyle = isMatched ? "rgba(234, 179, 8, 0.7)" : "rgba(45, 212, 191, 0.7)";
+          ctx.strokeStyle = isMatched ? "rgba(178, 234, 77, 0.85)" : "rgba(178, 234, 77, 0.75)";
           ctx.lineWidth = 2.5;
         } else {
-          ctx.strokeStyle = `rgba(51, 65, 85, ${edge.similarity * 0.4})`;
+          ctx.strokeStyle = `rgba(178, 234, 77, ${edge.similarity * 0.15})`;
           ctx.lineWidth = 1.0;
         }
         ctx.stroke();
@@ -535,7 +579,7 @@ export function KnowledgeUniverse() {
 
             ctx.beginPath();
             ctx.arc(px, py, 1.8, 0, Math.PI * 2);
-            ctx.fillStyle = isMatched ? "rgba(234, 179, 8, 0.8)" : "rgba(45, 212, 191, 0.6)";
+            ctx.fillStyle = isMatched ? "rgba(255, 255, 255, 0.9)" : "rgba(178, 234, 77, 0.7)";
             ctx.fill();
           });
         }
@@ -550,10 +594,10 @@ export function KnowledgeUniverse() {
 
         ctx.save();
         ctx.shadowBlur = 20;
-        ctx.shadowColor = "#eab308";
+        ctx.shadowColor = "#B2EA4D";
         ctx.beginPath();
         ctx.arc(qNode.x, qNode.y, 14, 0, Math.PI * 2);
-        ctx.fillStyle = "#eab308";
+        ctx.fillStyle = "#B2EA4D";
         ctx.fill();
         ctx.restore();
 
@@ -579,7 +623,7 @@ export function KnowledgeUniverse() {
         // Glow effect for selected, neighbor, or matched nodes
         if (isSelected || isMatched) {
           ctx.shadowBlur = 25;
-          ctx.shadowColor = isMatched ? "#eab308" : node.color;
+          ctx.shadowColor = isMatched ? "#B2EA4D" : node.color;
         } else if (isNeighbor || isSearchResult) {
           ctx.shadowBlur = 12;
           ctx.shadowColor = node.color;
@@ -589,7 +633,7 @@ export function KnowledgeUniverse() {
         ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
         
         if (isMatched) {
-          ctx.fillStyle = "#eab308"; // Highlighted search target
+          ctx.fillStyle = "#B2EA4D"; // Highlighted search target
         } else if (selectedNode && !isSelected && !isNeighbor) {
           // Dim unrelated nodes to focus attention
           ctx.fillStyle = "rgba(71, 85, 105, 0.15)";
@@ -616,7 +660,7 @@ export function KnowledgeUniverse() {
             ctx.fillStyle = "#ffffff";
           } else if (isMatched) {
             ctx.font = "bold 11px sans-serif";
-            ctx.fillStyle = "#eab308";
+            ctx.fillStyle = "#B2EA4D";
           } else {
             ctx.font = "10px sans-serif";
             ctx.fillStyle = "rgba(226, 232, 240, 0.8)";
@@ -909,10 +953,10 @@ export function KnowledgeUniverse() {
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 h-[75vh] animate-mac-page">
+    <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 lg:h-[calc(100vh-10rem)] min-h-[700px] lg:min-h-0 animate-mac-page">
       
       {/* 90% Main Canvas Visualizer Panel */}
-      <Card className="lg:col-span-3 bg-slate-900/50 backdrop-blur border-slate-800 rounded-xl overflow-hidden relative flex flex-col h-full border shadow-2xl">
+      <Card className="lg:col-span-3 bg-[#16250e]/60 backdrop-blur border-[#B2EA4D]/15 rounded-xl overflow-hidden relative flex flex-col h-full border shadow-2xl">
         
         {/* Top Floating Toolbar Overlay */}
         <div className="absolute top-4 left-4 right-4 z-10 flex flex-wrap gap-3 items-center justify-between pointer-events-none">
@@ -928,18 +972,18 @@ export function KnowledgeUniverse() {
                   setSearchResultsOpen(true);
                 }}
                 onFocus={() => setSearchResultsOpen(true)}
-                className="pl-9 w-52 bg-slate-950/80 backdrop-blur border-slate-800 text-xs h-9"
+                className="pl-9 w-52 bg-[#0c1407]/80 backdrop-blur border-[#B2EA4D]/15 text-xs h-9"
               />
               {searchResultsOpen && searchResults.length > 0 && (
-                <div className="absolute top-10 left-0 w-64 bg-slate-950 border border-slate-800 rounded-lg shadow-2xl z-20 py-1 max-h-48 overflow-y-auto">
+                <div className="absolute top-10 left-0 w-64 bg-[#0c1407] border border-[#B2EA4D]/15 rounded-lg shadow-2xl z-20 py-1 max-h-48 overflow-y-auto scrollbar-custom">
                   {searchResults.map((node) => (
                     <button
                       key={node.id}
                       onClick={() => handleNodeSearchSelect(node)}
-                      className="w-full text-left px-3 py-2 text-[10px] text-slate-300 hover:bg-slate-850 hover:text-white truncate flex items-center justify-between"
+                      className="w-full text-left px-3 py-2 text-[10px] text-slate-300 hover:bg-[#203210]/60 hover:text-white truncate flex items-center justify-between"
                     >
                       <span className="font-semibold">{node.label}</span>
-                      <span className="text-[9px] px-1.5 py-0.5 rounded text-teal-400 bg-teal-500/10 border border-teal-500/20">{node.category}</span>
+                      <span className="text-[9px] px-1.5 py-0.5 rounded text-[#B2EA4D] bg-[#B2EA4D]/10 border border-[#B2EA4D]/20">{node.category}</span>
                     </button>
                   ))}
                 </div>
@@ -947,20 +991,21 @@ export function KnowledgeUniverse() {
             </div>
 
             {/* Layout switcher */}
-            <select
+            <CustomSelect
               value={layoutMode}
-              onChange={(e) => {
-                setLayoutMode(e.target.value as any);
-                if (e.target.value !== "force") setIsPhysicsActive(false);
+              onChange={(val) => {
+                setLayoutMode(val as any);
+                if (val !== "force") setIsPhysicsActive(false);
               }}
-              className="bg-slate-950/80 backdrop-blur border border-slate-800 text-xs text-slate-300 px-3 py-1.5 rounded-lg focus:outline-none"
-            >
-              <option value="force">ForceAtlas2 Layout</option>
-              <option value="circle">Circular Layout</option>
-              <option value="radial">Radial Layout</option>
-              <option value="hierarchical">Hierarchical Layout</option>
-              <option value="grid">Grid Layout</option>
-            </select>
+              options={[
+                { value: "force", label: "ForceAtlas2 Layout" },
+                { value: "circle", label: "Circular Layout" },
+                { value: "radial", label: "Radial Layout" },
+                { value: "hierarchical", label: "Hierarchical Layout" },
+                { value: "grid", label: "Grid Layout" }
+              ]}
+              className="w-48 h-9"
+            />
             
             {/* Physics toggle */}
             {layoutMode === "force" && (
@@ -968,7 +1013,7 @@ export function KnowledgeUniverse() {
                 size="sm"
                 variant="outline"
                 onClick={() => setIsPhysicsActive(!isPhysicsActive)}
-                className={`h-9 text-[10px] bg-slate-950/80 border-slate-800 ${isPhysicsActive ? "text-teal-400 border-teal-500/30" : "text-slate-400"}`}
+                className={`h-9 text-[10px] bg-[#0c1407]/80 border-[#B2EA4D]/15 ${isPhysicsActive ? "text-[#B2EA4D] border-[#B2EA4D]/30" : "text-slate-400"}`}
               >
                 {isPhysicsActive ? "Physics Active" : "Physics Paused"}
               </Button>
@@ -977,68 +1022,71 @@ export function KnowledgeUniverse() {
 
           <div className="flex gap-2 items-center pointer-events-auto">
             {/* Screenshot & Reset */}
-            <Button size="icon" variant="outline" onClick={captureScreenshot} className="h-9 w-9 bg-slate-950/80 border-slate-800 text-slate-400 hover:text-white" title="Export graph screenshot">
+            <Button size="icon" variant="outline" onClick={captureScreenshot} className="h-9 w-9 bg-[#0c1407]/80 border-[#B2EA4D]/15 text-slate-400 hover:text-white" title="Export graph screenshot">
               <Camera className="w-4 h-4" />
             </Button>
-            <Button size="icon" variant="outline" onClick={loadGraphData} className="h-9 w-9 bg-slate-950/80 border-slate-800 text-slate-400 hover:text-white" title="Refresh network">
+            <Button size="icon" variant="outline" onClick={loadGraphData} className="h-9 w-9 bg-[#0c1407]/80 border-[#B2EA4D]/15 text-slate-400 hover:text-white" title="Refresh network">
               <RefreshCw className="w-4 h-4" />
             </Button>
           </div>
         </div>
 
-        {/* Legend Panel (Bottom Left Floating Overlay) */}
-        <div className="absolute bottom-4 left-4 z-10 bg-slate-950/85 backdrop-blur border border-slate-800 p-3.5 rounded-lg flex flex-col gap-2 max-w-xs select-none">
-          <span className="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest flex items-center gap-1">
-            <Info className="w-3.5 h-3.5 text-teal-400" />
-            Semantic Clusters
-          </span>
-          <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[9px] font-semibold text-slate-300">
-            {Object.keys(ClusterColors).filter(k => k !== 'query').map((cat) => (
-              <div key={cat} className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: ClusterColors[cat] }} />
-                <span>{cat}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Ingest Retrieval simulation Overlay (Bottom Right Floating) */}
-        <div className="absolute bottom-4 right-4 z-10 bg-slate-950/85 backdrop-blur border border-slate-800 p-3.5 rounded-lg w-72 flex flex-col gap-3">
-          <div className="flex items-center gap-1.5 border-b border-slate-800/60 pb-1.5">
-            <Zap className="w-4 h-4 text-amber-400" />
-            <span className="text-[10px] font-bold uppercase text-white">Semantic Retrieval Sandbox</span>
-          </div>
-
-          <div className="flex gap-2">
-            <Input
-              placeholder="Submit RAG testing query..."
-              value={queryInput}
-              onChange={(e) => setQueryInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && triggerQuerySimulation()}
-              disabled={simulatingQuery}
-              className="bg-slate-900 border-slate-800 text-[10px] h-8 flex-1"
-            />
-            <Button
-              onClick={triggerQuerySimulation}
-              disabled={simulatingQuery || !queryInput.trim()}
-              className="bg-amber-500 hover:bg-amber-600 text-slate-950 h-8 text-[10px] font-bold px-3 shrink-0"
-            >
-              {simulatingQuery ? "Testing..." : "Simulate"}
-            </Button>
-          </div>
-
-          {queryAnswer && (
-            <div className="max-h-24 overflow-y-auto text-[9px] text-slate-400 leading-relaxed border-t border-slate-800/60 pt-2 font-mono scrollbar-thin">
-              <strong className="text-white">Grounded Answer:</strong><br />
-              {queryAnswer}
+        {/* Bottom Floating Overlay Bar */}
+        <div className="absolute bottom-4 left-4 right-4 z-10 flex flex-col sm:flex-row gap-3 justify-between pointer-events-none">
+          {/* Legend Panel */}
+          <div className="bg-[#0c1407]/85 backdrop-blur border border-[#B2EA4D]/15 p-3 rounded-lg flex flex-col gap-2 max-w-xs select-none pointer-events-auto shadow-xl">
+            <span className="text-[9px] font-extrabold text-[#B2EA4D] uppercase tracking-widest flex items-center gap-1">
+              <Info className="w-3.5 h-3.5 text-[#B2EA4D]" />
+              Semantic Clusters
+            </span>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[9px] font-semibold text-slate-300">
+              {Object.keys(ClusterColors).filter(k => k !== 'query').map((cat) => (
+                <div key={cat} className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: ClusterColors[cat] }} />
+                  <span>{cat}</span>
+                </div>
+              ))}
             </div>
-          )}
+          </div>
+
+          {/* Ingest Retrieval simulation Overlay */}
+          <div className="bg-[#0c1407]/85 backdrop-blur border border-[#B2EA4D]/15 p-3 rounded-lg w-72 flex flex-col gap-3 pointer-events-auto shadow-xl">
+            <div className="flex items-center gap-1.5 border-b border-[#B2EA4D]/15 pb-1.5">
+              <Zap className="w-4 h-4 text-[#B2EA4D]" />
+              <span className="text-[10px] font-bold uppercase text-white">Semantic Retrieval Sandbox</span>
+            </div>
+
+            <div className="flex gap-2">
+              <Input
+                placeholder="Submit RAG testing query..."
+                value={queryInput}
+                onChange={(e) => setQueryInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && triggerQuerySimulation()}
+                disabled={simulatingQuery}
+                className="bg-[#16250e] border-[#B2EA4D]/15 text-[10px] h-8 flex-1"
+              />
+              <Button
+                onClick={triggerQuerySimulation}
+                disabled={simulatingQuery || !queryInput.trim()}
+                className="bg-[#B2EA4D] hover:bg-[#B2EA4D]/90 text-[#203210] h-8 text-[10px] font-bold px-3 shrink-0"
+              >
+                {simulatingQuery ? "Testing..." : "Simulate"}
+              </Button>
+            </div>
+
+            {queryAnswer && (
+              <div className="max-h-24 overflow-y-auto text-[9px] text-slate-400 leading-relaxed border-t border-[#B2EA4D]/15 pt-2 font-mono scrollbar-custom">
+                <strong className="text-white">Grounded Answer:</strong><br />
+                {queryAnswer}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Infinite interactive Canvas drawing board */}
         {loading ? (
-          <div className="flex-1 flex flex-col items-center justify-center bg-slate-950/95 gap-3">
-            <RefreshCw className="w-8 h-8 animate-spin text-teal-400" />
+          <div className="flex-1 flex flex-col items-center justify-center bg-[#0c1407]/95 gap-3">
+            <RefreshCw className="w-8 h-8 animate-spin text-[#B2EA4D]" />
             <p className="text-slate-400 text-xs animate-pulse">Calculating similarity vectors...</p>
           </div>
         ) : (
@@ -1049,18 +1097,18 @@ export function KnowledgeUniverse() {
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseUp}
             onWheel={handleWheel}
-            className="flex-1 bg-slate-950/60 cursor-grab active:cursor-grabbing"
+            className="flex-1 bg-[#0c1407]/60 cursor-grab active:cursor-grabbing"
           />
         )}
 
         {/* Bottom Timeline evolution panel */}
-        <div className="h-14 border-t border-slate-800 bg-slate-900/80 backdrop-blur-md px-6 flex items-center justify-between gap-6">
+        <div className="h-14 border-t border-[#B2EA4D]/15 bg-[#16250e]/80 backdrop-blur-md px-6 flex items-center justify-between gap-6">
           <div className="flex items-center gap-2.5 shrink-0">
             <Button
               size="icon"
               variant="outline"
               onClick={() => setIsTimelinePlaying(!isTimelinePlaying)}
-              className="h-8 w-8 border-slate-700 bg-slate-800 hover:bg-slate-700 text-white"
+              className="h-8 w-8 border-[#B2EA4D]/15 bg-[#203210] hover:bg-[#203210]/80 text-white"
             >
               {isTimelinePlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
             </Button>
@@ -1079,7 +1127,7 @@ export function KnowledgeUniverse() {
                 setTimelineIndex(Number(e.target.value));
                 setIsTimelinePlaying(false);
               }}
-              className="flex-1 h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-teal-400"
+              className="flex-1 h-1.5 bg-[#203210] rounded-lg appearance-none cursor-pointer accent-[#B2EA4D]"
             />
             <span className="text-[9px] font-mono text-slate-500">Live ({timelineIndex}%)</span>
           </div>
@@ -1092,25 +1140,25 @@ export function KnowledgeUniverse() {
       </Card>
 
       {/* Right Sidebar: Stats and Node Inspector */}
-      <div className="space-y-6 h-full flex flex-col">
+      <div className="space-y-6 h-full flex flex-col pr-1 min-h-0">
         {selectedNode ? (
           // Node Inspector Panel
-          <Card className="bg-slate-900/50 backdrop-blur border-slate-800 p-6 rounded-xl flex-1 min-h-0 flex flex-col overflow-hidden border shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <span className="text-[10px] font-bold uppercase bg-teal-500/10 text-teal-400 border border-teal-500/20 px-2 py-0.5 rounded">
+          <Card className="bg-[#16250e]/60 backdrop-blur border-[#B2EA4D]/15 p-6 rounded-xl flex-1 min-h-0 flex flex-col overflow-hidden border shadow-2xl">
+            <div className="flex items-center justify-between border-b border-[#B2EA4D]/15 pb-3">
+              <span className="text-[10px] font-bold uppercase bg-[#B2EA4D]/10 text-[#B2EA4D] border border-[#B2EA4D]/20 px-2 py-0.5 rounded">
                 Node Inspector
               </span>
               <button onClick={() => { setSelectedNode(null); collapseKeywords(); }} className="text-slate-500 hover:text-white text-xs">✕ Close</button>
             </div>
 
-            <div className="flex-1 min-h-0 overflow-y-auto mt-4 pr-1 scrollbar-thin">
+            <div className="flex-1 min-h-0 overflow-y-auto mt-4 pr-1 scrollbar-custom">
               <div className="space-y-4">
                 <div>
                   <h4 className="text-slate-400 text-[10px] uppercase font-bold tracking-wider">Document Title</h4>
                   <p className="text-white text-sm font-bold mt-0.5 leading-snug">{selectedNode.label}</p>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 border-y border-slate-800/60 py-3">
+                <div className="grid grid-cols-2 gap-4 border-y border-[#B2EA4D]/15 py-3">
                   <div>
                     <h5 className="text-[10px] text-slate-500 font-bold uppercase">Semantic Cluster</h5>
                     <span className="inline-block mt-1 text-[10px] font-bold px-2 py-0.5 rounded border" style={{ backgroundColor: `${selectedNode.color}15`, borderColor: `${selectedNode.color}30`, color: selectedNode.color }}>
@@ -1119,7 +1167,7 @@ export function KnowledgeUniverse() {
                   </div>
                   <div>
                     <h5 className="text-[10px] text-slate-500 font-bold uppercase">Source Type</h5>
-                    <span className="inline-block mt-1 text-[10px] font-bold px-2.5 py-0.5 bg-slate-800 border border-slate-700 text-slate-300 rounded-full capitalize">
+                    <span className="inline-block mt-1 text-[10px] font-bold px-2.5 py-0.5 bg-[#203210] border border-[#B2EA4D]/15 text-slate-300 rounded-full capitalize">
                       {selectedNode.sourceType}
                     </span>
                   </div>
@@ -1128,7 +1176,7 @@ export function KnowledgeUniverse() {
                 <div>
                   <h4 className="text-slate-400 text-[10px] uppercase font-bold tracking-wider">Embedding Dimensions</h4>
                   <p className="text-xs font-mono text-slate-300 mt-1 flex items-center gap-1.5">
-                    <Award className="w-3.5 h-3.5 text-teal-400" />
+                    <Award className="w-3.5 h-3.5 text-[#B2EA4D]" />
                     1536 (Google Multimodal Embedding)
                   </p>
                 </div>
@@ -1140,7 +1188,7 @@ export function KnowledgeUniverse() {
                       selectedNode.keywords.map((word, wIdx) => (
                         <span 
                           key={wIdx} 
-                          className="text-[9px] font-mono font-bold bg-teal-500/5 text-teal-400 border border-teal-500/25 px-2 py-0.5 rounded"
+                          className="text-[9px] font-mono font-bold bg-[#B2EA4D]/5 text-[#B2EA4D] border border-[#B2EA4D]/25 px-2 py-0.5 rounded"
                           style={{
                             textShadow: "0 0 8px rgba(45, 212, 191, 0.2)",
                             boxShadow: "0 0 10px rgba(45, 212, 191, 0.05)"
@@ -1159,7 +1207,7 @@ export function KnowledgeUniverse() {
                         .map((word, wIdx) => (
                           <span 
                             key={wIdx} 
-                            className="text-[9px] font-mono font-bold bg-slate-800 text-slate-300 border border-slate-700/50 px-2 py-0.5 rounded"
+                            className="text-[9px] font-mono font-bold bg-[#203210] text-slate-300 border border-[#B2EA4D]/15 px-2 py-0.5 rounded"
                           >
                             {word.toLowerCase()}
                           </span>
@@ -1170,33 +1218,33 @@ export function KnowledgeUniverse() {
 
                 <div>
                   <h4 className="text-slate-400 text-[10px] uppercase font-bold tracking-wider">Original Text Preview</h4>
-                  <p className="text-[11px] font-mono text-slate-300 bg-slate-950 p-3 rounded leading-relaxed border border-slate-900 mt-1 max-h-36 overflow-y-auto">
+                  <p className="text-[11px] font-mono text-slate-300 bg-[#0c1407] p-3 rounded leading-relaxed border border-[#B2EA4D]/15 mt-1 max-h-36 overflow-y-auto scrollbar-custom">
                     {selectedNode.chunkText}
                   </p>
                 </div>
 
-                <div className="pt-2 border-t border-slate-800/60">
+                <div className="pt-2 border-t border-[#B2EA4D]/15">
                   <div className="flex items-center justify-between mb-2">
                     <h4 className="text-slate-400 text-[10px] uppercase font-bold tracking-wider flex items-center gap-1">
-                      <Sparkles className="w-3.5 h-3.5 text-teal-400" />
+                      <Sparkles className="w-3.5 h-3.5 text-[#B2EA4D]" />
                       Generative AI Summary
                     </h4>
                     {!aiSummary && (
-                      <Button size="sm" onClick={generateChunkSummary} disabled={loadingSummary} className="bg-teal-500 hover:bg-teal-600 text-slate-950 font-bold h-6 text-[9px] px-2.5">
+                      <Button size="sm" onClick={generateChunkSummary} disabled={loadingSummary} className="bg-[#B2EA4D] hover:bg-[#B2EA4D]/90 text-[#203210] font-bold h-6 text-[9px] px-2.5">
                         {loadingSummary ? "Generating..." : "Summarize"}
                       </Button>
                     )}
                   </div>
                   {loadingSummary && (
                     <div className="p-4 text-center text-slate-500 text-xs flex items-center justify-center gap-2 font-mono">
-                      <RefreshCw className="w-4 h-4 animate-spin text-teal-400" />
+                      <RefreshCw className="w-4 h-4 animate-spin text-[#B2EA4D]" />
                       Writing Summary...
                     </div>
                   )}
                   {aiSummary && (
-                    <p className="text-[10px] leading-relaxed text-slate-300 bg-slate-950/60 p-3 rounded border border-slate-850 whitespace-pre-line font-mono">
-                      {aiSummary}
-                    </p>
+                    <div className="bg-[#0c1407]/60 p-3 rounded border border-[#B2EA4D]/15 font-mono text-[10px]">
+                      {renderMarkdown(aiSummary)}
+                    </div>
                   )}
                 </div>
 
@@ -1206,7 +1254,7 @@ export function KnowledgeUniverse() {
                       href={selectedNode.sourceUrl.startsWith("http") ? selectedNode.sourceUrl : `/api/admin/documents`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="w-full inline-flex items-center justify-center gap-2 h-9 bg-slate-850 hover:bg-slate-800 text-slate-200 border border-slate-800 rounded-lg text-xs"
+                      className="w-full inline-flex items-center justify-center gap-2 h-9 bg-[#203210]/60 hover:bg-[#203210] text-slate-200 border border-[#B2EA4D]/15 rounded-lg text-xs"
                     >
                       <Maximize2 className="w-3.5 h-3.5" />
                       Open Source Document
@@ -1218,42 +1266,42 @@ export function KnowledgeUniverse() {
           </Card>
         ) : (
           // Global Graph Statistics Panel
-          <Card className="bg-slate-900/50 backdrop-blur border-slate-800 p-6 rounded-xl flex-1 min-h-0 flex flex-col overflow-hidden border shadow-2xl">
-            <h3 className="text-sm font-extrabold text-white border-b border-slate-800 pb-3 uppercase tracking-wider flex items-center gap-1.5">
-              <Sliders className="w-4 h-4 text-teal-400" />
+          <Card className="bg-[#16250e]/60 backdrop-blur border-[#B2EA4D]/15 p-6 rounded-xl flex-1 min-h-0 flex flex-col overflow-hidden border shadow-2xl">
+            <h3 className="text-sm font-extrabold text-white border-b border-[#B2EA4D]/15 pb-3 uppercase tracking-wider flex items-center gap-1.5">
+              <Sliders className="w-4 h-4 text-[#B2EA4D]" />
               Graph Topology Stats
             </h3>
             
-            <div className="flex-1 min-h-0 overflow-y-auto mt-4 scrollbar-thin">
+            <div className="flex-1 min-h-0 overflow-y-auto mt-4 scrollbar-custom">
               {statistics ? (
                 <div className="space-y-4 text-xs">
                   <div className="grid grid-cols-2 gap-4">
-                    <Card className="bg-slate-950 p-3 border-slate-850 flex flex-col">
+                    <Card className="bg-[#0c1407] p-3 border-[#B2EA4D]/15 flex flex-col">
                       <span className="text-[9px] font-bold text-slate-500 uppercase">Density</span>
                       <span className="text-sm font-bold text-white mt-1 font-mono">{statistics.density}</span>
                     </Card>
-                    <Card className="bg-slate-950 p-3 border-slate-850 flex flex-col">
+                    <Card className="bg-[#0c1407] p-3 border-[#B2EA4D]/15 flex flex-col">
                       <span className="text-[9px] font-bold text-slate-500 uppercase">Avg. Degree</span>
                       <span className="text-sm font-bold text-white mt-1 font-mono">{statistics.avgDegree}</span>
                     </Card>
                   </div>
 
-                  <div className="space-y-2 border-t border-slate-800/60 pt-3">
-                    <div className="flex justify-between py-1.5 border-b border-slate-850">
+                  <div className="space-y-2 border-t border-[#B2EA4D]/15 pt-3">
+                    <div className="flex justify-between py-1.5 border-b border-[#B2EA4D]/15">
                       <span className="text-slate-400 text-[10px] font-bold uppercase">Orphan Nodes</span>
                       <span className="text-rose-400 font-bold font-mono">{statistics.orphans}</span>
                     </div>
-                    <div className="flex justify-between py-1.5 border-b border-slate-850">
+                    <div className="flex justify-between py-1.5 border-b border-[#B2EA4D]/15">
                       <span className="text-slate-400 text-[10px] font-bold uppercase">Duplicate Embeddings</span>
                       <span className="text-amber-400 font-bold font-mono">{statistics.duplicates}</span>
                     </div>
-                    <div className="flex justify-between py-1.5 border-b border-slate-850">
+                    <div className="flex justify-between py-1.5 border-b border-[#B2EA4D]/15">
                       <span className="text-slate-400 text-[10px] font-bold uppercase">Average Similarity</span>
-                      <span className="text-emerald-400 font-bold font-mono">{Math.round(statistics.averageSimilarity * 100)}%</span>
+                      <span className="text-[#B2EA4D] font-bold font-mono">{Math.round(statistics.averageSimilarity * 100)}%</span>
                     </div>
-                    <div className="flex justify-between py-1.5 border-b border-slate-850">
+                    <div className="flex justify-between py-1.5 border-b border-[#B2EA4D]/15">
                       <span className="text-slate-400 text-[10px] font-bold uppercase">Largest Cluster</span>
-                      <span className="text-teal-400 font-bold font-mono">{statistics.largestCluster}</span>
+                      <span className="text-[#B2EA4D] font-bold font-mono">{statistics.largestCluster}</span>
                     </div>
                     <div className="flex justify-between py-1.5">
                       <span className="text-slate-400 text-[10px] font-bold uppercase">Smallest Cluster</span>
@@ -1261,8 +1309,8 @@ export function KnowledgeUniverse() {
                     </div>
                   </div>
 
-                  <Card className="bg-emerald-500/5 border border-emerald-500/10 p-4 rounded-xl mt-4">
-                    <h5 className="text-[10px] font-extrabold uppercase text-emerald-400 tracking-wider flex items-center gap-1.5">
+                  <Card className="bg-[#B2EA4D]/5 border border-[#B2EA4D]/10 p-4 rounded-xl mt-4">
+                    <h5 className="text-[10px] font-extrabold uppercase text-[#B2EA4D] tracking-wider flex items-center gap-1.5">
                       <CheckCircle2 className="w-4 h-4 shrink-0" />
                       Semantic Health Index
                     </h5>
@@ -1279,9 +1327,9 @@ export function KnowledgeUniverse() {
         )}
 
         {/* Floating Parameter Controls */}
-        <Card className="bg-slate-900/50 backdrop-blur border-slate-800 p-5 rounded-xl border shadow-2xl flex flex-col gap-3">
+        <Card className="bg-[#16250e]/60 backdrop-blur border-[#B2EA4D]/15 p-5 rounded-xl border shadow-2xl flex flex-col gap-3">
           <h4 className="text-[10px] font-bold uppercase text-white tracking-widest flex items-center gap-1.5">
-            <Settings className="w-4 h-4 text-teal-400" />
+            <Settings className="w-4 h-4 text-[#B2EA4D]" />
             Simulation Parameters
           </h4>
 
@@ -1298,7 +1346,7 @@ export function KnowledgeUniverse() {
                 max="800"
                 value={repulsionForce}
                 onChange={(e) => setRepulsionForce(Number(e.target.value))}
-                className="w-full mt-1.5 h-1 bg-slate-800 rounded accent-teal-400 appearance-none cursor-pointer"
+                className="w-full mt-1.5 h-1 bg-[#203210] rounded accent-[#B2EA4D] appearance-none cursor-pointer"
               />
             </div>
 
@@ -1315,7 +1363,7 @@ export function KnowledgeUniverse() {
                 step="0.01"
                 value={linkForce}
                 onChange={(e) => setLinkForce(Number(e.target.value))}
-                className="w-full mt-1.5 h-1 bg-slate-800 rounded accent-teal-400 appearance-none cursor-pointer"
+                className="w-full mt-1.5 h-1 bg-[#203210] rounded accent-[#B2EA4D] appearance-none cursor-pointer"
               />
             </div>
 
@@ -1332,7 +1380,7 @@ export function KnowledgeUniverse() {
                 step="0.05"
                 value={minSimilarity}
                 onChange={(e) => setMinSimilarity(Number(e.target.value))}
-                className="w-full mt-1.5 h-1 bg-slate-800 rounded accent-teal-400 appearance-none cursor-pointer"
+                className="w-full mt-1.5 h-1 bg-[#203210] rounded accent-[#B2EA4D] appearance-none cursor-pointer"
               />
             </div>
           </div>

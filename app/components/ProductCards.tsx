@@ -51,7 +51,7 @@ export function ProductCard({ product, onAddToCart }: { product: Product; onAddT
             <div className="flex items-center text-xs text-muted-foreground">
               <span className="font-medium text-foreground mr-1">Age:</span> {product.ageRange}
             </div>
-            <div className="font-extrabold text-emerald-700 text-sm">
+            <div className="font-extrabold text-[#B2EA4D] text-sm">
               ${product.price.toFixed(2)}
             </div>
           </div>
@@ -66,13 +66,13 @@ export function ProductCard({ product, onAddToCart }: { product: Product; onAddT
         <div className="mt-5 flex gap-2">
           <Button 
             onClick={() => onAddToCart?.(product)}
-            className="flex-1 rounded-full shadow-sm bg-emerald-600 hover:bg-emerald-700 text-white hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 border-none" 
+            className="flex-1 rounded-full shadow-sm bg-[#B2EA4D] text-[#203210] hover:bg-[#B2EA4D]/90 text-white hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 border-none" 
             variant="default"
           >
             <ShoppingBag className="w-4 h-4 mr-2" />
             Add to Bag
           </Button>
-          <Button variant="outline" size="icon" className="rounded-full shadow-sm text-muted-foreground hover:text-emerald-600 hover:border-emerald-300 hover:-translate-y-0.5 transition-all duration-300" title="Ask Assistant about this product">
+          <Button variant="outline" size="icon" className="rounded-full shadow-sm text-muted-foreground hover:text-[#B2EA4D] hover:border-[#B2EA4D]/50 hover:-translate-y-0.5 transition-all duration-300" title="Ask Assistant about this product">
             <MessageCircleQuestion className="w-4 h-4" />
           </Button>
         </div>

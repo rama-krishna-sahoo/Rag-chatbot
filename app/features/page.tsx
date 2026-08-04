@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 
 export default function FeaturesPage() {
   return (
-    <div className="min-h-screen bg-slate-950 text-white font-sans antialiased selection:bg-teal-500/30 selection:text-teal-200">
+    <div className="min-h-screen bg-slate-950 text-white font-sans antialiased selection:bg-[#B2EA4D]/30 selection:text-slate-200">
       {/* Background gradients */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_var(--tw-gradient-stops))] from-teal-500/10 via-slate-950 to-slate-950 pointer-events-none" />
 
@@ -14,19 +14,19 @@ export default function FeaturesPage() {
       <header className="relative z-10 border-b border-slate-900 bg-slate-950/80 backdrop-blur-md sticky top-0">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <a href="/" className="flex items-center gap-2 font-bold text-lg text-white">
-            <Sparkles className="w-5 h-5 text-teal-400" />
+            <Sparkles className="w-5 h-5 text-[#B2EA4D]" />
             Oogway AI
           </a>
           <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-400">
             <a href="/features" className="text-white hover:text-white transition-colors">Features</a>
             <a href="/pricing" className="hover:text-white transition-colors">Pricing</a>
             <a href="/contact" className="hover:text-white transition-colors">Contact</a>
-            <a href="/store" className="hover:text-white transition-colors font-semibold text-teal-400">Demo Store</a>
+            <a href="/store" className="hover:text-white transition-colors font-semibold text-[#B2EA4D]">Demo Store</a>
           </nav>
           <div className="flex items-center gap-4">
             <a href="/login" className="text-sm font-semibold text-slate-400 hover:text-white transition-colors">Sign In</a>
             <a href="/register">
-              <Button size="sm" className="bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold px-4 rounded-lg">Get Started</Button>
+              <Button size="sm" className="bg-[#B2EA4D] hover:bg-teal-400 text-slate-950 font-bold px-4 rounded-lg">Get Started</Button>
             </a>
           </div>
         </div>
@@ -35,7 +35,7 @@ export default function FeaturesPage() {
       {/* Features Content */}
       <main className="relative z-10 max-w-7xl mx-auto px-6 py-20 text-center space-y-20">
         <div className="space-y-4 max-w-2xl mx-auto">
-          <span className="text-xs font-bold text-teal-400 uppercase tracking-widest bg-teal-500/10 px-3 py-1 rounded-full border border-teal-500/20">Platform Capabilities</span>
+          <span className="text-xs font-bold text-[#B2EA4D] uppercase tracking-widest bg-[#B2EA4D]/10 px-3 py-1 rounded-full border border-[#B2EA4D]/20">Platform Capabilities</span>
           <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-white leading-tight">Engineered for absolute isolation.</h1>
           <p className="text-slate-400 text-base md:text-lg">
             Oogway implements enterprise RAG pipelines scoping website knowledge bases to strictly isolated tenant namespaces.
@@ -79,7 +79,7 @@ export default function FeaturesPage() {
             const Icon = feat.icon;
             return (
               <div key={idx} className="border border-slate-900 bg-slate-950/40 p-8 rounded-2xl hover:border-slate-800 transition-all duration-300 flex flex-col gap-4">
-                <div className="w-10 h-10 rounded-xl bg-teal-500/10 text-teal-400 border border-teal-500/20 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-xl bg-[#B2EA4D]/10 text-[#B2EA4D] border border-[#B2EA4D]/20 flex items-center justify-center">
                   <Icon className="w-5 h-5" />
                 </div>
                 <h3 className="text-lg font-bold text-white mt-2">{feat.title}</h3>
@@ -95,7 +95,7 @@ export default function FeaturesPage() {
             Get started in under 3 minutes with our Guided Setup Wizard. No complex technical integrations required.
           </p>
           <a href="/register" className="inline-block">
-            <Button className="bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold px-8 h-11 rounded-xl flex items-center gap-1">
+            <Button className="bg-[#B2EA4D] hover:bg-teal-400 text-slate-950 font-bold px-8 h-11 rounded-xl flex items-center gap-1">
               Create Your Workspace <ArrowRight className="w-4 h-4" />
             </Button>
           </a>
