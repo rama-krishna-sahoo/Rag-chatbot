@@ -231,20 +231,7 @@ export default function WorkspaceDashboard() {
   const [loadingAuth, setLoadingAuth] = useState(true); // check credentials silently in the background
   const [isRealAuth, setIsRealAuth] = useState(false);
   const [copiedEmbed, setCopiedEmbed] = useState(false);
-  const [activeOtp, setActiveOtp] = useState<string>(() => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("oogway_active_otp");
-      if (stored && stored.length === 6) return stored;
-      const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-      let code = "";
-      for (let i = 0; i < 6; i++) {
-        code += chars.charAt(Math.floor(Math.random() * chars.length));
-      }
-      localStorage.setItem("oogway_active_otp", code);
-      return code;
-    }
-    return "K9X2P7";
-  });
+  const [activeOtp, setActiveOtp] = useState<string>("");
   const [generatingOtp, setGeneratingOtp] = useState<boolean>(false);
 
   const handleGenerateNewOtp = async () => {
@@ -279,21 +266,6 @@ export default function WorkspaceDashboard() {
     }
   };
 
-  useEffect(() => {
-    if (activeTab === "chatbot" && activeOtp) {
-      fetch("/api/chatbot/otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "register",
-          otp: activeOtp,
-          workspaceId,
-          companyName,
-          industry
-        })
-      }).catch(() => {});
-    }
-  }, [activeTab]);
   const [industry, setIndustry] = useState<string>(() => {
     if (typeof window !== "undefined") return localStorage.getItem("oogway_simulated_industry") || "E-commerce";
     return "E-commerce";
@@ -302,6 +274,34 @@ export default function WorkspaceDashboard() {
     if (typeof window !== "undefined") return localStorage.getItem("oogway_simulated_company") || "Oogway";
     return "Oogway";
   });
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      let stored = localStorage.getItem("oogway_active_otp");
+      if (!stored || stored.length !== 6) {
+        const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+        let code = "";
+        for (let i = 0; i < 6; i++) {
+          code += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        stored = code;
+        localStorage.setItem("oogway_active_otp", stored);
+      }
+      setActiveOtp(stored);
+
+      fetch("/api/chatbot/otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "register",
+          otp: stored,
+          workspaceId,
+          companyName,
+          industry
+        })
+      }).catch(() => {});
+    }
+  }, [workspaceId, companyName, industry]);
   const [website, setWebsite] = useState<string>(() => {
     if (typeof window !== "undefined") return localStorage.getItem("oogway_simulated_website") || "";
     return "";
@@ -1809,7 +1809,7 @@ export default function WorkspaceDashboard() {
                       </div>
                       <div className="flex items-center gap-3 shrink-0">
                         <div className="bg-[#1b2e11] border border-[#B2EA4D]/40 px-4 py-2 rounded-lg text-[#B2EA4D] font-mono text-lg font-black tracking-widest shadow-inner flex items-center gap-2 select-all">
-                          {generatingOtp ? <Loader2 className="w-5 h-5 animate-spin text-[#B2EA4D]" /> : (activeOtp || "A8B9X2")}
+                          {generatingOtp || !activeOtp ? <Loader2 className="w-5 h-5 animate-spin text-[#B2EA4D]" /> : activeOtp}
                         </div>
                         <Button
                           onClick={handleGenerateNewOtp}
@@ -1845,7 +1845,7 @@ export default function WorkspaceDashboard() {
 <script
   src="https://oogway-chatbot-chakadola.vercel.app/embed.js"
   data-workspace-id="${workspaceId}"
-  data-otp="${activeOtp || 'A8B9X2'}"
+  data-otp="${activeOtp}"
   data-brand-color="#B2EA4D"
   defer>
 </script>
@@ -1869,7 +1869,7 @@ export default function WorkspaceDashboard() {
 <script
   src="https://oogway-chatbot-chakadola.vercel.app/embed.js"
   data-workspace-id="${workspaceId}"
-  data-otp="${activeOtp || 'A8B9X2'}"
+  data-otp="${activeOtp}"
   data-brand-color="#B2EA4D"
   defer>
 </script>

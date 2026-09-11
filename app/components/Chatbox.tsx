@@ -653,7 +653,7 @@ export function Chatbot({
                   <Input
                     type="text"
                     maxLength={6}
-                    placeholder="e.g. K9X2P7"
+                    placeholder="Enter 6-digit OTP"
                     value={otpInput}
                     onChange={(e) => {
                       const val = e.target.value.toUpperCase();
