@@ -13,6 +13,7 @@ type OTPRecord = {
 };
 
 const globalOtpStore = new Map<string, OTPRecord>();
+const workspaceActiveOtpMap = new Map<string, string>();
 
 function getSupabaseClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
@@ -34,9 +35,9 @@ function generateAlphanumericOTP(): string {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { action = "verify", workspaceId, otp, companyName, industry } = body;
+    const { action = "verify", forceNew = false, workspaceId, otp, companyName, industry } = body;
 
-    // 1. GENERATE NEW OTP
+    // 1. GENERATE / GET ACTIVE OTP
     if (action === "generate") {
       const targetWsId = workspaceId && workspaceId !== "00000000-0000-0000-0000-000000000000"
         ? workspaceId
@@ -62,7 +63,21 @@ export async function POST(req: Request) {
         }
       }
 
+      // If not forced to regenerate and an active OTP already exists, reuse it!
+      const existingOtp = workspaceActiveOtpMap.get(targetWsId);
+      if (!forceNew && existingOtp && globalOtpStore.has(existingOtp)) {
+        return NextResponse.json({
+          success: true,
+          otp: existingOtp,
+          workspaceId: targetWsId,
+          workspaceName: wsName,
+          workspaceIndustry: wsIndustry,
+          isExisting: true
+        });
+      }
+
       const newOtp = generateAlphanumericOTP();
+      workspaceActiveOtpMap.set(targetWsId, newOtp);
       globalOtpStore.set(newOtp, {
         workspaceId: targetWsId,
         workspaceName: wsName,

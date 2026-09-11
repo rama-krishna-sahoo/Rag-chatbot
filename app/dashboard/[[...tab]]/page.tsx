@@ -231,10 +231,16 @@ export default function WorkspaceDashboard() {
   const [loadingAuth, setLoadingAuth] = useState(true); // check credentials silently in the background
   const [isRealAuth, setIsRealAuth] = useState(false);
   const [copiedEmbed, setCopiedEmbed] = useState(false);
-  const [activeOtp, setActiveOtp] = useState<string>("");
+  const [activeOtp, setActiveOtp] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("oogway_active_otp");
+      if (stored && stored.length === 6) return stored;
+    }
+    return "";
+  });
   const [generatingOtp, setGeneratingOtp] = useState<boolean>(false);
 
-  const fetchOrGenerateOtp = async () => {
+  const fetchOrGenerateOtp = async (forceNew = false) => {
     try {
       setGeneratingOtp(true);
       const res = await fetch("/api/chatbot/otp", {
@@ -242,6 +248,7 @@ export default function WorkspaceDashboard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "generate",
+          forceNew,
           workspaceId,
           companyName,
           industry
@@ -250,6 +257,9 @@ export default function WorkspaceDashboard() {
       const data = await res.json();
       if (data.otp) {
         setActiveOtp(data.otp);
+        if (typeof window !== "undefined") {
+          localStorage.setItem("oogway_active_otp", data.otp);
+        }
       }
     } catch (e) {
       console.warn("Failed to generate OTP:", e);
@@ -259,8 +269,15 @@ export default function WorkspaceDashboard() {
   };
 
   useEffect(() => {
-    if (activeTab === "chatbot" && !activeOtp) {
-      fetchOrGenerateOtp();
+    if (activeTab === "chatbot") {
+      if (typeof window !== "undefined") {
+        const stored = localStorage.getItem("oogway_active_otp");
+        if (stored && stored.length === 6) {
+          setActiveOtp(stored);
+          return;
+        }
+      }
+      fetchOrGenerateOtp(false);
     }
   }, [activeTab, workspaceId]);
   const [industry, setIndustry] = useState<string>(() => {
@@ -1781,7 +1798,7 @@ export default function WorkspaceDashboard() {
                           {generatingOtp ? <Loader2 className="w-5 h-5 animate-spin text-[#B2EA4D]" /> : (activeOtp || "A8B9X2")}
                         </div>
                         <Button
-                          onClick={fetchOrGenerateOtp}
+                          onClick={() => fetchOrGenerateOtp(true)}
                           disabled={generatingOtp}
                           variant="outline"
                           size="sm"
