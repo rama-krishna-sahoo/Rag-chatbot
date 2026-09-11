@@ -49,6 +49,8 @@
     // Add transition for smooth opening/closing
     iframe.style.setProperty('transition', 'width 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), height 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)', 'important');
     iframe.allow = 'microphone';
+    iframe.allowTransparency = true;
+    iframe.setAttribute('allowtransparency', 'true');
 
     document.body.appendChild(iframe);
 
