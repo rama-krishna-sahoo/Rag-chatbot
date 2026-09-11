@@ -235,49 +235,63 @@ export default function WorkspaceDashboard() {
     if (typeof window !== "undefined") {
       const stored = localStorage.getItem("oogway_active_otp");
       if (stored && stored.length === 6) return stored;
+      const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+      let code = "";
+      for (let i = 0; i < 6; i++) {
+        code += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      localStorage.setItem("oogway_active_otp", code);
+      return code;
     }
-    return "";
+    return "K9X2P7";
   });
   const [generatingOtp, setGeneratingOtp] = useState<boolean>(false);
 
-  const fetchOrGenerateOtp = async (forceNew = false) => {
+  const handleGenerateNewOtp = async () => {
     try {
       setGeneratingOtp(true);
-      const res = await fetch("/api/chatbot/otp", {
+      const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+      let newOtp = "";
+      for (let i = 0; i < 6; i++) {
+        newOtp += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+
+      await fetch("/api/chatbot/otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          action: "generate",
-          forceNew,
+          action: "register",
+          otp: newOtp,
           workspaceId,
           companyName,
           industry
         })
-      });
-      const data = await res.json();
-      if (data.otp) {
-        setActiveOtp(data.otp);
-        if (typeof window !== "undefined") {
-          localStorage.setItem("oogway_active_otp", data.otp);
-        }
+      }).catch(() => {});
+
+      setActiveOtp(newOtp);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("oogway_active_otp", newOtp);
       }
     } catch (e) {
-      console.warn("Failed to generate OTP:", e);
+      console.warn("Failed to generate new OTP:", e);
     } finally {
       setGeneratingOtp(false);
     }
   };
 
   useEffect(() => {
-    if (activeTab === "chatbot") {
-      if (typeof window !== "undefined") {
-        const stored = localStorage.getItem("oogway_active_otp");
-        if (stored && stored.length === 6) {
-          setActiveOtp(stored);
-          return;
-        }
-      }
-      fetchOrGenerateOtp(false);
+    if (activeTab === "chatbot" && activeOtp) {
+      fetch("/api/chatbot/otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "register",
+          otp: activeOtp,
+          workspaceId,
+          companyName,
+          industry
+        })
+      }).catch(() => {});
     }
   }, [activeTab]);
   const [industry, setIndustry] = useState<string>(() => {
@@ -1798,7 +1812,7 @@ export default function WorkspaceDashboard() {
                           {generatingOtp ? <Loader2 className="w-5 h-5 animate-spin text-[#B2EA4D]" /> : (activeOtp || "A8B9X2")}
                         </div>
                         <Button
-                          onClick={() => fetchOrGenerateOtp(true)}
+                          onClick={handleGenerateNewOtp}
                           disabled={generatingOtp}
                           variant="outline"
                           size="sm"

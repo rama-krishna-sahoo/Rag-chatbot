@@ -37,6 +37,39 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { action = "verify", forceNew = false, workspaceId, otp, companyName, industry } = body;
 
+    // 0. REGISTER CLIENT ACTIVE OTP
+    if (action === "register" && otp && typeof otp === "string") {
+      const regOtp = otp.trim().toUpperCase();
+      const targetWsId = workspaceId && workspaceId !== "00000000-0000-0000-0000-000000000000"
+        ? workspaceId
+        : "ffffffff-ffff-ffff-ffff-ffffffffffff";
+
+      let wsName = companyName || "Oogway";
+      let wsIndustry = industry || "E-commerce";
+
+      latestActiveOtpRecord = {
+        otp: regOtp,
+        workspaceId: targetWsId,
+        workspaceName: wsName,
+        workspaceIndustry: wsIndustry
+      };
+
+      globalOtpStore.set(regOtp, {
+        workspaceId: targetWsId,
+        workspaceName: wsName,
+        workspaceIndustry: wsIndustry,
+        createdAt: Date.now()
+      });
+
+      return NextResponse.json({
+        success: true,
+        otp: regOtp,
+        workspaceId: targetWsId,
+        workspaceName: wsName,
+        workspaceIndustry: wsIndustry
+      });
+    }
+
     // 1. GENERATE / GET ACTIVE OTP
     if (action === "generate") {
       const targetWsId = workspaceId && workspaceId !== "00000000-0000-0000-0000-000000000000"
