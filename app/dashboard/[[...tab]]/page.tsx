@@ -279,7 +279,7 @@ export default function WorkspaceDashboard() {
       }
       fetchOrGenerateOtp(false);
     }
-  }, [activeTab, workspaceId]);
+  }, [activeTab]);
   const [industry, setIndustry] = useState<string>(() => {
     if (typeof window !== "undefined") return localStorage.getItem("oogway_simulated_industry") || "E-commerce";
     return "E-commerce";

@@ -13,7 +13,7 @@ type OTPRecord = {
 };
 
 const globalOtpStore = new Map<string, OTPRecord>();
-const workspaceActiveOtpMap = new Map<string, string>();
+let latestActiveOtpRecord: { otp: string; workspaceId: string; workspaceName: string; workspaceIndustry: string } | null = null;
 
 function getSupabaseClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
@@ -63,12 +63,11 @@ export async function POST(req: Request) {
         }
       }
 
-      // If not forced to regenerate and an active OTP already exists, reuse it!
-      const existingOtp = workspaceActiveOtpMap.get(targetWsId);
-      if (!forceNew && existingOtp && globalOtpStore.has(existingOtp)) {
+      // If not forced to regenerate and an active OTP already exists globally, reuse it!
+      if (!forceNew && latestActiveOtpRecord && globalOtpStore.has(latestActiveOtpRecord.otp)) {
         return NextResponse.json({
           success: true,
-          otp: existingOtp,
+          otp: latestActiveOtpRecord.otp,
           workspaceId: targetWsId,
           workspaceName: wsName,
           workspaceIndustry: wsIndustry,
@@ -77,7 +76,12 @@ export async function POST(req: Request) {
       }
 
       const newOtp = generateAlphanumericOTP();
-      workspaceActiveOtpMap.set(targetWsId, newOtp);
+      latestActiveOtpRecord = {
+        otp: newOtp,
+        workspaceId: targetWsId,
+        workspaceName: wsName,
+        workspaceIndustry: wsIndustry
+      };
       globalOtpStore.set(newOtp, {
         workspaceId: targetWsId,
         workspaceName: wsName,
