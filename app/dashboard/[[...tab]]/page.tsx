@@ -233,10 +233,12 @@ export default function WorkspaceDashboard() {
   const [copiedEmbed, setCopiedEmbed] = useState(false);
   const [activeOtp, setActiveOtp] = useState<string>("");
   const [generatingOtp, setGeneratingOtp] = useState<boolean>(false);
+  const [isOtpSynced, setIsOtpSynced] = useState<boolean>(false);
 
   const handleGenerateNewOtp = async () => {
     try {
       setGeneratingOtp(true);
+      setIsOtpSynced(false);
       const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
       let newOtp = "";
       for (let i = 0; i < 6; i++) {
@@ -302,6 +304,28 @@ export default function WorkspaceDashboard() {
       }).catch(() => {});
     }
   }, [workspaceId, companyName, industry]);
+
+  // Poll for external OTP sync approval status
+  useEffect(() => {
+    if (!activeOtp) return;
+    const checkSyncStatus = async () => {
+      try {
+        const res = await fetch("/api/chatbot/otp", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "status", otp: activeOtp })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setIsOtpSynced(Boolean(data.isSynced));
+        }
+      } catch (e) {}
+    };
+
+    checkSyncStatus();
+    const interval = setInterval(checkSyncStatus, 2500);
+    return () => clearInterval(interval);
+  }, [activeOtp]);
   const [website, setWebsite] = useState<string>(() => {
     if (typeof window !== "undefined") return localStorage.getItem("oogway_simulated_website") || "";
     return "";
@@ -1799,9 +1823,22 @@ export default function WorkspaceDashboard() {
                     {/* Linking & Account Sync OTP Display Card */}
                     <div className="bg-[#0c1407]/80 p-4 rounded-xl border border-[#B2EA4D]/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-lg">
                       <div className="space-y-1">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-xs font-bold text-slate-200 font-mono uppercase tracking-wider">Linking & Account Sync OTP</span>
                           <span className="bg-[#B2EA4D]/20 text-[#B2EA4D] text-[9px] font-bold px-2 py-0.5 rounded-full border border-[#B2EA4D]/30 font-mono">One-Time Unique</span>
+                          {isOtpSynced ? (
+                            <span className="bg-emerald-500/20 text-emerald-400 text-[9px] font-bold px-2.5 py-0.5 rounded-full border border-emerald-500/40 font-mono flex items-center gap-1 shadow-[0_0_10px_rgba(52,211,153,0.2)]">
+                              <CheckCircle2 className="w-3 h-3 text-emerald-400" /> Synced & Approved
+                            </span>
+                          ) : (
+                            <span className="bg-amber-500/15 text-amber-300 text-[9px] font-bold px-2 py-0.5 rounded-full border border-amber-500/30 font-mono flex items-center gap-1.5">
+                              <span className="relative flex h-2 w-2">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                              </span>
+                              Pending External Link
+                            </span>
+                          )}
                         </div>
                         <p className="text-[11px] text-slate-400">
                           When embedding this chatbot on another website, entering this unique 6-digit OTP will sync your actual Account ID and Knowledgebase context.
@@ -1823,6 +1860,24 @@ export default function WorkspaceDashboard() {
                         </Button>
                       </div>
                     </div>
+
+                    {/* Sync Approved Banner */}
+                    {isOtpSynced && (
+                      <div className="bg-emerald-950/60 border border-emerald-500/40 p-3 rounded-xl flex items-center gap-3 text-emerald-200 text-xs font-mono shadow-md animate-fadeIn">
+                        <div className="p-2 bg-emerald-500/20 rounded-lg border border-emerald-500/30 shrink-0">
+                          <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                        </div>
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-2">
+                            <p className="font-bold text-emerald-300">Sync Approved & Active!</p>
+                            <span className="text-[9px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.2 rounded font-mono font-bold">LIVE</span>
+                          </div>
+                          <p className="text-[11px] text-emerald-300/80">
+                            External chatbot widget verified OTP <strong className="text-white bg-emerald-900/60 px-1.5 py-0.5 rounded font-mono">{activeOtp}</strong>. Account ID <strong className="text-white font-mono">{workspaceId}</strong> & Knowledge Base are fully synchronized.
+                          </p>
+                        </div>
+                      </div>
+                    )}
 
                     {/* Unified Copy-Paste Snippet Box */}
                     <div className="space-y-2">

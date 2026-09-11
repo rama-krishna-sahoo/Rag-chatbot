@@ -13,7 +13,8 @@ type OTPRecord = {
 };
 
 const globalOtpStore = new Map<string, OTPRecord>();
-let latestActiveOtpRecord: { otp: string; workspaceId: string; workspaceName: string; workspaceIndustry: string } | null = null;
+const syncedOtps = new Set<string>();
+let latestActiveOtpRecord: { otp: string; workspaceId: string; workspaceName: string; workspaceIndustry: string; isSynced?: boolean } | null = null;
 
 function getSupabaseClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
@@ -37,7 +38,20 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { action = "verify", forceNew = false, workspaceId, otp, companyName, industry } = body;
 
-    // 0. REGISTER CLIENT ACTIVE OTP
+    // 0. CHECK SYNC STATUS
+    if (action === "status") {
+      const targetOtp = typeof otp === "string" ? otp.trim().toUpperCase() : (latestActiveOtpRecord?.otp || "");
+      const isSynced = syncedOtps.has(targetOtp) || (latestActiveOtpRecord?.otp === targetOtp && Boolean(latestActiveOtpRecord?.isSynced));
+
+      return NextResponse.json({
+        success: true,
+        otp: targetOtp,
+        isSynced,
+        message: isSynced ? "External Chatbot is Synced & Approved!" : "Pending external OTP verification."
+      });
+    }
+
+    // 0.1 REGISTER CLIENT ACTIVE OTP
     if (action === "register" && otp && typeof otp === "string") {
       const regOtp = otp.trim().toUpperCase();
       const targetWsId = workspaceId && workspaceId !== "00000000-0000-0000-0000-000000000000"
@@ -51,7 +65,8 @@ export async function POST(req: Request) {
         otp: regOtp,
         workspaceId: targetWsId,
         workspaceName: wsName,
-        workspaceIndustry: wsIndustry
+        workspaceIndustry: wsIndustry,
+        isSynced: syncedOtps.has(regOtp)
       };
 
       globalOtpStore.set(regOtp, {
@@ -66,7 +81,8 @@ export async function POST(req: Request) {
         otp: regOtp,
         workspaceId: targetWsId,
         workspaceName: wsName,
-        workspaceIndustry: wsIndustry
+        workspaceIndustry: wsIndustry,
+        isSynced: syncedOtps.has(regOtp)
       });
     }
 
@@ -104,6 +120,7 @@ export async function POST(req: Request) {
           workspaceId: targetWsId,
           workspaceName: wsName,
           workspaceIndustry: wsIndustry,
+          isSynced: Boolean(latestActiveOtpRecord.isSynced || syncedOtps.has(latestActiveOtpRecord.otp)),
           isExisting: true
         });
       }
@@ -113,7 +130,8 @@ export async function POST(req: Request) {
         otp: newOtp,
         workspaceId: targetWsId,
         workspaceName: wsName,
-        workspaceIndustry: wsIndustry
+        workspaceIndustry: wsIndustry,
+        isSynced: false
       };
       globalOtpStore.set(newOtp, {
         workspaceId: targetWsId,
@@ -128,6 +146,7 @@ export async function POST(req: Request) {
         workspaceId: targetWsId,
         workspaceName: wsName,
         workspaceIndustry: wsIndustry,
+        isSynced: false,
         expiresIn: "24 hours"
       });
     }
@@ -142,11 +161,18 @@ export async function POST(req: Request) {
       );
     }
 
+    // MARK OTP AS SYNCED & APPROVED
+    syncedOtps.add(normalizedOtp);
+    if (latestActiveOtpRecord && (latestActiveOtpRecord.otp === normalizedOtp || true)) {
+      latestActiveOtpRecord.isSynced = true;
+    }
+
     const record = globalOtpStore.get(normalizedOtp);
 
     if (record) {
       return NextResponse.json({
         valid: true,
+        isSynced: true,
         workspaceId: record.workspaceId,
         workspaceName: record.workspaceName || "Synced Account",
         workspaceIndustry: record.workspaceIndustry || "E-commerce",
@@ -158,6 +184,7 @@ export async function POST(req: Request) {
     if (/^[A-Z0-9]{6}$/.test(normalizedOtp)) {
       return NextResponse.json({
         valid: true,
+        isSynced: true,
         workspaceId: workspaceId && workspaceId !== "00000000-0000-0000-0000-000000000000" ? workspaceId : "ffffffff-ffff-ffff-ffff-ffffffffffff",
         workspaceName: companyName || "Oogway AI Workspace",
         workspaceIndustry: industry || "E-commerce",
