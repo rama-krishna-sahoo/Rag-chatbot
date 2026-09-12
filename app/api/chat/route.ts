@@ -252,6 +252,82 @@ export async function POST(req: Request) {
         .join("\n\n---\n\n");
     }
 
+    // Match Workspace Key Contacts
+    let matchedContacts: any[] = [];
+    try {
+      let contactsList: any[] = [];
+      if (targetWsId !== "00000000-0000-0000-0000-000000000000") {
+        const { data: ws } = await supabase
+          .from("workspaces")
+          .select("settings")
+          .eq("id", targetWsId)
+          .maybeSingle();
+        if (ws?.settings?.key_contacts && Array.isArray(ws.settings.key_contacts)) {
+          contactsList = ws.settings.key_contacts;
+        }
+      }
+
+      if (contactsList.length === 0) {
+        contactsList = [
+          {
+            id: "cnt-1",
+            name: "Dr. Sangram K. Sahoo",
+            designation: "Director of Admissions & Student Affairs",
+            department: "Admissions",
+            phone: "+91 98765 43210",
+            email: "admissions@institute.edu",
+            availability: "Mon - Fri (9:00 AM - 5:00 PM)",
+            keywords: ["admission", "apply", "fee structure", "seat booking", "counseling", "entrance"]
+          },
+          {
+            id: "cnt-2",
+            name: "Prof. Rajesh Kumar Rout",
+            designation: "Head of Training & Placement Cell",
+            department: "Placements",
+            phone: "+91 94370 12345",
+            email: "placements@institute.edu",
+            availability: "Mon - Sat (9:30 AM - 6:00 PM)",
+            keywords: ["placement", "job", "campus recruitment", "internship", "salary package", "companies"]
+          },
+          {
+            id: "cnt-3",
+            name: "Er. Priyabrata Dash",
+            designation: "Central IT & Technical Helpdesk Lead",
+            department: "IT Support",
+            phone: "+91 674 230 9999",
+            email: "itsupport@institute.edu",
+            availability: "24/7 Priority Desk",
+            keywords: ["it support", "wifi", "portal login", "email reset", "technical issue", "hardware"]
+          }
+        ];
+      }
+
+      const lower = message.toLowerCase();
+      const contactTerms = ["contact", "phone", "email", "call", "number", "reach", "who to", "officer", "head", "support", "help", "department", "desk", "admission", "placement", "director", "dean", "warden"];
+      const isGeneralContactQuery = contactTerms.some(t => lower.includes(t));
+
+      matchedContacts = contactsList.filter(c => {
+        const nameMatch = c.name && lower.includes(c.name.toLowerCase());
+        const deptMatch = c.department && lower.includes(c.department.toLowerCase());
+        const roleMatch = c.designation && lower.includes(c.designation.toLowerCase());
+        const kwMatch = Array.isArray(c.keywords) && c.keywords.some((k: string) => lower.includes(k.toLowerCase()));
+        return nameMatch || deptMatch || roleMatch || kwMatch;
+      });
+
+      if (matchedContacts.length === 0 && isGeneralContactQuery) {
+        matchedContacts = contactsList.slice(0, 3);
+      }
+
+      if (matchedContacts.length > 0) {
+        const contactBlock = matchedContacts
+          .map(c => `Official Key Contact: ${c.name}\nDesignation: ${c.designation}\nDepartment: ${c.department}\nPhone: ${c.phone || 'N/A'}\nEmail: ${c.email || 'N/A'}\nHours: ${c.availability || 'N/A'}`)
+          .join("\n\n");
+        contextText += `\n\n--- OFFICIAL KEY DIRECTORY CONTACTS ---\n${contactBlock}`;
+      }
+    } catch (cErr) {
+      console.warn("Failed matching contacts:", cErr);
+    }
+
     const customerProfile = customerId
       ? (MOCK_CUSTOMERS[customerId] || `Customer Email: ${customerEmail || customerId}`)
       : (customerName ? `Customer Name: ${customerName}, Email: ${customerEmail || "registered@example.com"}` : null);
@@ -320,6 +396,7 @@ export async function POST(req: Request) {
       answer,
       sourceChunks,
       ticket: createdTicket,
+      contacts: matchedContacts
     });
   } catch (err: any) {
     console.error("Error in /api/chat POST:", err);

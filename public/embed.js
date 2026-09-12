@@ -1,4 +1,4 @@
-(function() {
+(function () {
   // Wait for the DOM to be ready
   const initChatbot = () => {
     // Prevent multiple initializations
@@ -24,18 +24,17 @@
     console.log("Oogway Chatbot: Initializing embed script...");
 
     const workspaceId = currentScript.getAttribute('data-workspace-id') || '';
-    const otp = currentScript.getAttribute('data-otp') || '';
     const brandColor = currentScript.getAttribute('data-brand-color') || '#B2EA4D';
 
     const iframe = document.createElement('iframe');
     iframe.id = 'oogway-chatbot-iframe';
-    
+
     // Determine the host from the script URL
     const scriptUrl = new URL(currentScript.src);
     const host = scriptUrl.origin;
 
-    iframe.src = `${host}/embed?workspaceId=${workspaceId}&otp=${encodeURIComponent(otp)}&brandColor=${encodeURIComponent(brandColor)}`;
-    
+    iframe.src = `${host}/embed?workspaceId=${workspaceId}&brandColor=${encodeURIComponent(brandColor)}`;
+
     // Default styling for the iframe container (closed state)
     iframe.style.setProperty('position', 'fixed', 'important');
     iframe.style.setProperty('bottom', '0', 'important');

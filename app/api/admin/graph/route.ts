@@ -17,6 +17,54 @@ function getCosineSimilarity(vecA: number[], vecB: number[]): number {
   return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
 }
 
+// Derive a distinct semantic concept label for each individual chunk node
+function getChunkConceptLabel(docTitle: string, chunkText: string, chunkId: number, keywords: string[]): string {
+  if (!chunkText || !chunkText.trim()) return `${docTitle} #${chunkId + 1}`;
+
+  const text = chunkText.trim();
+  const cleanTitle = (docTitle || "Document").replace(/^Website:\s*/i, "").trim();
+
+  // 1. Look for explicit Markdown headings inside the chunk
+  const headingMatch = text.match(/^(?:#+\s*|\*\*)\s*([^\n\*]+)/m);
+  if (headingMatch && headingMatch[1].trim().length > 3) {
+    let heading = headingMatch[1].replace(/[\*\#\:]/g, "").trim();
+    if (heading.length > 35) {
+      heading = heading.substring(0, 32) + "...";
+    }
+    if (heading.toLowerCase() !== cleanTitle.toLowerCase()) {
+      return heading;
+    }
+  }
+
+  // 2. Look for the first meaningful line / sentence
+  const lines = text
+    .split("\n")
+    .map(l => l.replace(/^[#\*\-\s\d\.\:\•\✓]+/, "").trim())
+    .filter(l => l.length > 8);
+
+  for (const line of lines) {
+    let cleanLine = line;
+    if (cleanTitle && cleanLine.toLowerCase().startsWith(cleanTitle.toLowerCase())) {
+      cleanLine = cleanLine.substring(cleanTitle.length).replace(/^[\s\:\-\|\,]+/, "").trim();
+    }
+    if (cleanLine.length > 35) {
+      cleanLine = cleanLine.substring(0, 32) + "...";
+    }
+    if (cleanLine.length >= 4 && cleanLine.toLowerCase() !== cleanTitle.toLowerCase()) {
+      return cleanLine;
+    }
+  }
+
+  // 3. Look for keywords if present
+  if (keywords && keywords.length > 0) {
+    const topK = keywords.slice(0, 2).map(k => k.charAt(0).toUpperCase() + k.slice(1)).join(", ");
+    return `${topK} (${cleanTitle.substring(0, 12)})`;
+  }
+
+  // 4. Default fallback with chunk index
+  return `${cleanTitle.substring(0, 18)}... #${chunkId + 1}`;
+}
+
 export async function GET(req: Request) {
   try {
     const { authorized, workspaceId, supabase } = await verifyAdminAccess();
@@ -54,9 +102,28 @@ export async function GET(req: Request) {
       });
     }
 
-    // 1. Process Nodes
-    const nodes = chunks.map(c => {
-      // Parse embedding if it was returned as string (though pgvector client returns array)
+    // 1. Process and Deduplicate Nodes
+    const seenContent = new Set<string>();
+    const nodes: any[] = [];
+    let duplicateEmbeddingsCount = 0;
+
+    for (const c of chunks) {
+      const normalizedContent = (c.chunk_text || "")
+        .toLowerCase()
+        .replace(/[^\w\s]/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
+
+      // Deduplicate exact or near-identical text content chunks
+      if (normalizedContent && normalizedContent.length > 30) {
+        if (seenContent.has(normalizedContent)) {
+          duplicateEmbeddingsCount++;
+          continue;
+        }
+        seenContent.add(normalizedContent);
+      }
+
+      // Parse embedding
       let embedding: number[] = [];
       if (c.embedding) {
         if (typeof c.embedding === "string") {
@@ -70,10 +137,13 @@ export async function GET(req: Request) {
         }
       }
 
-      return {
+      const conceptLabel = getChunkConceptLabel(c.title || "Document", c.chunk_text || "", c.chunk_id || 0, c.keywords || []);
+
+      nodes.push({
         id: c.id,
-        label: c.title,
-        category: c.category || "general",
+        label: conceptLabel,
+        documentTitle: c.title,
+        category: c.category || "General",
         chunkId: c.chunk_id,
         chunkText: c.chunk_text,
         docId: c.document_id,
@@ -84,8 +154,8 @@ export async function GET(req: Request) {
         sourceType: c.source_type,
         embedding,
         metadata: c.metadata || {}
-      };
-    });
+      });
+    }
 
     // 2. Generate Edges based on KNN / Cosine Similarity Threshold
     const edges: any[] = [];
@@ -94,7 +164,6 @@ export async function GET(req: Request) {
 
     let totalSimilaritySum = 0;
     let similarityCount = 0;
-    let duplicateEmbeddingsCount = 0;
 
     // For each node, find its top similarities and connect
     const KNN_K = 3; // nearest-neighbor connections cap
@@ -189,7 +258,6 @@ export async function GET(req: Request) {
       const { embedding, ...rest } = n;
       return {
         ...rest,
-        // Add calculated degree for node sizing
         degree: nodeDegrees.get(n.id) || 0
       };
     });
@@ -203,7 +271,7 @@ export async function GET(req: Request) {
         density: parseFloat(density.toFixed(5)),
         avgDegree: parseFloat(avgDegree.toFixed(2)),
         orphans,
-        duplicates: Math.floor(duplicateEmbeddingsCount / 2), // pairs counted twice
+        duplicates: duplicateEmbeddingsCount,
         averageSimilarity: parseFloat(averageSimilarity.toFixed(3)),
         largestCluster: `${largestClusterName} (${largestClusterSize} nodes)`,
         smallestCluster: `${smallestClusterName} (${smallestClusterSize} nodes)`

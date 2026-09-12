@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -9,7 +10,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { 
   CheckCircle2, ChevronRight, ArrowRight, 
-  Loader2, Globe, Building2, ShieldCheck, Mail, Lock
+  Loader2, Globe, Building2, ShieldCheck, Mail, Lock, UserCheck
 } from "lucide-react";
 
 type SetupStep = "welcome" | "info" | "analysis" | "complete";
@@ -45,8 +46,14 @@ const USER_FRIENDLY_STATUS = [
   "Finalizing setup..."
 ];
 
-export default function OnboardingWizard() {
+function OnboardingContent() {
+  const searchParams = useSearchParams();
+  const forceOnboarding = searchParams ? searchParams.get("onboarding") === "true" : false;
+
   const [step, setStep] = useState<SetupStep>("welcome");
+  const [currentUser, setCurrentUser] = useState<{ email?: string; name?: string; isEmailVerified?: boolean } | null>(null);
+  const [resendingEmail, setResendingEmail] = useState(false);
+  const [resendStatus, setResendStatus] = useState("");
   
   // Business Info Form State
   const [companyName, setCompanyName] = useState("");
@@ -61,27 +68,67 @@ export default function OnboardingWizard() {
   const [completedItems, setCompletedItems] = useState<number[]>([]);
   const [currentStatusIndex, setCurrentStatusIndex] = useState(0);
 
-  // Root check: If user is ALREADY present and logged in, never show the setup wizard
+  // Check logged-in user state
   useEffect(() => {
-    async function checkExistingUser() {
+    async function checkUserSession() {
       try {
         const res = await fetch("/api/auth/role");
         if (res.ok) {
           const data = await res.json();
-          if (data.user?.email && !data.isSimulated) {
-            window.location.href = "/dashboard";
+          if (data.user?.email) {
+            setCurrentUser({
+              email: data.user.email,
+              name: data.user.name,
+              isEmailVerified: Boolean(data.isEmailVerified || data.user.isEmailVerified),
+            });
+            setEmail(data.user.email);
+            
+            // Check if returning user already onboarded and not forced to redo
+            const hasOnboarded = typeof window !== "undefined" && localStorage.getItem("oogway_onboarded") === "true";
+            if (hasOnboarded && !forceOnboarding) {
+              window.location.href = "/dashboard";
+            }
           }
         }
       } catch (err) {
-        // ignore
+        console.warn("Auth check error during onboarding:", err);
       }
     }
-    checkExistingUser();
-  }, []);
+    checkUserSession();
+  }, [forceOnboarding]);
+
+  const handleResendVerification = async () => {
+    if (!currentUser?.email || resendingEmail) return;
+    setResendingEmail(true);
+    setResendStatus("");
+    try {
+      const res = await fetch("/api/auth/resend-verification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: currentUser.email }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setResendStatus("Verification email sent! Please check your inbox.");
+      } else {
+        setResendStatus(data.error || "Failed to resend verification link.");
+      }
+    } catch (err) {
+      setResendStatus("Failed to resend email link.");
+    } finally {
+      setResendingEmail(false);
+    }
+  };
 
   const handleInfoSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!companyName || !websiteUrl || !email || !password) return;
+    if (!companyName.trim() || !websiteUrl.trim()) return;
+    
+    // If not authenticated yet, email and password are required
+    if (!currentUser && (!email || !password)) {
+      setAuthError("Email and password are required to create your account.");
+      return;
+    }
     
     setAuthError("");
     setIsSubmitting(true);
@@ -89,31 +136,24 @@ export default function OnboardingWizard() {
     try {
       const supabase = createClient();
       
-      // 1. Sign Up the User
-      const { data: authData, error: authErr } = await supabase.auth.signUp({
-        email,
-        password,
-      });
+      // If user is not signed in yet, sign them up & in
+      if (!currentUser && email && password) {
+        const { error: authErr } = await supabase.auth.signUp({
+          email,
+          password,
+        });
 
-      if (authErr && !authErr.message.includes("already registered")) {
-        setAuthError(authErr.message);
-        setIsSubmitting(false);
-        return;
-      }
-      
-      // Try to sign them in immediately so the browser gets the session cookie
-      const { error: signInErr } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (signInErr && signInErr.message.includes("Invalid login credentials")) {
-        setAuthError("Account exists, but password was incorrect.");
-        setIsSubmitting(false);
-        return;
+        if (authErr && !authErr.message.includes("already registered")) {
+          setAuthError(authErr.message);
+          setIsSubmitting(false);
+          return;
+        }
+        
+        await supabase.auth.signInWithPassword({ email, password });
       }
 
-      // 2. Provision / Update Workspace
+      // Provision / Update Workspace with company name & URL
+      const activeEmail = currentUser?.email || email;
       const res = await fetch("/api/onboarding/setup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -121,26 +161,24 @@ export default function OnboardingWizard() {
           companyName,
           websiteUrl,
           industry,
-          email,
-          password
+          email: activeEmail,
+          password: password || undefined
         })
       });
+      
       const data = await res.json();
       if (data.workspaceId) {
         localStorage.setItem("oogway_simulated_workspace_id", data.workspaceId);
-      } else {
-        localStorage.setItem("oogway_simulated_workspace_id", "11111111-1111-1111-1111-111111111111");
       }
     } catch (err) {
-      console.warn("Failed to create workspace in database:", err);
-      localStorage.setItem("oogway_simulated_workspace_id", "11111111-1111-1111-1111-111111111111");
+      console.warn("Setup endpoint notification:", err);
     } finally {
       setIsSubmitting(false);
       setStep("analysis");
     }
   };
 
-  // Run the analysis checklist simulation
+  // Run the analysis checklist animation
   useEffect(() => {
     if (step !== "analysis") return;
 
@@ -176,7 +214,7 @@ export default function OnboardingWizard() {
       clearInterval(itemInterval);
       clearInterval(statusInterval);
     };
-  }, [step]);
+  }, [step, companyName, websiteUrl, industry]);
 
   const handleFinish = () => {
     window.location.href = "/dashboard?success=true";
@@ -184,7 +222,7 @@ export default function OnboardingWizard() {
 
   return (
     <div className="min-h-screen bg-[#050B06] text-white flex flex-col font-sans selection:bg-lime-500/30 selection:text-lime-200 relative overflow-hidden">
-      {/* Immersive Nature / Moss Background Gradients */}
+      {/* Background Gradients */}
       <div className="fixed inset-0 pointer-events-none z-0">
         <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] rounded-full bg-lime-900/20 blur-[120px]" />
         <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-green-900/20 blur-[120px]" />
@@ -217,7 +255,7 @@ export default function OnboardingWizard() {
           <ChevronRight className="w-3 h-3 text-gray-600" />
           <span className={step === "info" ? "text-lime-400 font-bold" : ""}>Business Info</span>
           <ChevronRight className="w-3 h-3 text-gray-600" />
-          <span className={step === "analysis" ? "text-lime-400 font-bold" : ""}>Analysis</span>
+          <span className={step === "analysis" ? "text-lime-400 font-bold" : ""}>AI Analysis</span>
           <ChevronRight className="w-3 h-3 text-gray-600" />
           <span className={step === "complete" ? "text-lime-400 font-bold" : ""}>Ready</span>
         </div>
@@ -240,12 +278,22 @@ export default function OnboardingWizard() {
                 />
               </div>
               <div className="space-y-2">
-                <h1 className="text-3xl font-bold tracking-tight text-white">Welcome to Oogway!</h1>
-                <p className="text-gray-400 text-sm">Let's set up your AI chatbot in just a few minutes.</p>
+                <h1 className="text-3xl font-bold tracking-tight text-white">
+                  {currentUser?.email ? `Welcome, ${currentUser.email.split('@')[0]}!` : "Welcome to Oogway!"}
+                </h1>
+                <p className="text-gray-400 text-sm">Let's set up your custom AI chatbot and knowledge base in just 2 minutes.</p>
               </div>
+
+              {currentUser?.email && (
+                <div className="p-3.5 rounded-xl bg-lime-500/10 border border-lime-500/25 text-lime-300 text-xs flex items-center justify-center gap-2 font-medium">
+                  <UserCheck className="w-4 h-4 text-lime-400 shrink-0" />
+                  <span>Authenticated as <strong>{currentUser.email}</strong></span>
+                </div>
+              )}
+
               <Button 
                 onClick={() => setStep("info")}
-                className="w-full h-11 bg-gradient-to-r from-lime-300 to-lime-500 hover:from-lime-200 hover:to-lime-400 text-[#050B06] font-semibold rounded-xl group transition-all shadow-[0_0_20px_rgba(163,230,53,0.3)]"
+                className="w-full h-11 bg-gradient-to-r from-lime-300 to-lime-500 hover:from-lime-200 hover:to-lime-400 text-[#050B06] font-semibold rounded-xl group transition-all shadow-[0_0_20px_rgba(163,230,53,0.3)] cursor-pointer"
               >
                 Start Setup <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
               </Button>
@@ -255,51 +303,92 @@ export default function OnboardingWizard() {
           {/* Step 2: Business Information */}
           {step === "info" && (
             <Card className="p-8 shadow-[0_8px_32px_rgba(0,0,0,0.5)] border border-white/10 bg-[#111A13]/70 backdrop-blur-xl rounded-2xl animate-in slide-in-from-bottom-4 duration-300">
-              <h2 className="text-2xl font-bold text-white mb-2">Create Account & Business Info</h2>
-              <p className="text-gray-400 text-sm mb-6">Create your admin account and tell us about your company.</p>
+              <h2 className="text-2xl font-bold text-white mb-1.5">Business & Website Details</h2>
+              <p className="text-gray-400 text-sm mb-6">Enter your company information to build your AI knowledge base.</p>
               
+              {currentUser?.email && (
+                <div className={`mb-5 p-3.5 rounded-xl border text-xs space-y-2 ${
+                  currentUser.isEmailVerified 
+                    ? "bg-lime-500/10 border-lime-500/30 text-lime-300"
+                    : "bg-amber-500/10 border-amber-500/30 text-amber-200"
+                }`}>
+                  <div className="flex items-center justify-between font-medium">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className={`w-4 h-4 shrink-0 ${currentUser.isEmailVerified ? "text-lime-400" : "text-amber-400"}`} />
+                      <span>Signed in as <strong>{currentUser.email}</strong></span>
+                    </div>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider font-bold ${
+                      currentUser.isEmailVerified 
+                        ? "text-lime-400/90 bg-lime-500/20 border border-lime-500/30" 
+                        : "text-amber-400/90 bg-amber-500/20 border border-amber-500/30"
+                    }`}>
+                      {currentUser.isEmailVerified ? "Verified" : "Unverified"}
+                    </span>
+                  </div>
+
+                  {!currentUser.isEmailVerified && (
+                    <div className="pt-2 border-t border-amber-500/20 flex items-center justify-between text-[11px]">
+                      <span className="text-gray-300">Click the link sent to your inbox to verify.</span>
+                      <button
+                        type="button"
+                        onClick={handleResendVerification}
+                        disabled={resendingEmail}
+                        className="text-lime-400 hover:text-lime-300 font-semibold underline underline-offset-2 cursor-pointer disabled:opacity-50"
+                      >
+                        {resendingEmail ? "Sending link..." : "Resend Link"}
+                      </button>
+                    </div>
+                  )}
+
+                  {resendStatus && (
+                    <p className="text-[11px] text-lime-300 font-semibold pt-1">{resendStatus}</p>
+                  )}
+                </div>
+              )}
+
               {authError && (
                 <div className="mb-4 p-3 bg-rose-500/10 text-rose-300 border border-rose-500/20 rounded-xl text-sm font-medium">
                   {authError}
                 </div>
               )}
               
-              <form 
-                onSubmit={handleInfoSubmit}
-                className="space-y-4"
-              >
-                <div>
-                  <label className="text-xs font-semibold text-gray-300 uppercase tracking-widest mb-1.5 block">Admin Email</label>
-                  <div className="relative">
-                    <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-                    <Input 
-                      type="email"
-                      value={email}
-                      onChange={e => setEmail(e.target.value)}
-                      className="pl-10 h-11 bg-[#080e09]/80 border-white/10 text-white placeholder:text-gray-500 focus-visible:border-lime-400 focus-visible:ring-1 focus-visible:ring-lime-400 rounded-xl" 
-                      placeholder="admin@company.com" 
-                      required 
-                    />
-                  </div>
-                </div>
+              <form onSubmit={handleInfoSubmit} className="space-y-4">
+                {!currentUser && (
+                  <>
+                    <div>
+                      <label className="text-xs font-semibold text-gray-300 uppercase tracking-widest mb-1.5 block">Admin Email</label>
+                      <div className="relative">
+                        <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                        <Input 
+                          type="email"
+                          value={email}
+                          onChange={e => setEmail(e.target.value)}
+                          className="pl-10 h-11 bg-[#080e09]/80 border-white/10 text-white placeholder:text-gray-500 focus-visible:border-lime-400 focus-visible:ring-1 focus-visible:ring-lime-400 rounded-xl" 
+                          placeholder="admin@company.com" 
+                          required 
+                        />
+                      </div>
+                    </div>
 
-                <div>
-                  <label className="text-xs font-semibold text-gray-300 uppercase tracking-widest mb-1.5 block">Password</label>
-                  <div className="relative">
-                    <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-                    <Input 
-                      type="password"
-                      value={password}
-                      onChange={e => setPassword(e.target.value)}
-                      className="pl-10 h-11 bg-[#080e09]/80 border-white/10 text-white placeholder:text-gray-500 focus-visible:border-lime-400 focus-visible:ring-1 focus-visible:ring-lime-400 rounded-xl" 
-                      placeholder="••••••••" 
-                      required 
-                      minLength={6}
-                    />
-                  </div>
-                </div>
-                
-                <hr className="border-white/10 my-3" />
+                    <div>
+                      <label className="text-xs font-semibold text-gray-300 uppercase tracking-widest mb-1.5 block">Password</label>
+                      <div className="relative">
+                        <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                        <Input 
+                          type="password"
+                          value={password}
+                          onChange={e => setPassword(e.target.value)}
+                          className="pl-10 h-11 bg-[#080e09]/80 border-white/10 text-white placeholder:text-gray-500 focus-visible:border-lime-400 focus-visible:ring-1 focus-visible:ring-lime-400 rounded-xl" 
+                          placeholder="••••••••" 
+                          required 
+                          minLength={6}
+                        />
+                      </div>
+                    </div>
+                    
+                    <hr className="border-white/10 my-3" />
+                  </>
+                )}
 
                 <div>
                   <label className="text-xs font-semibold text-gray-300 uppercase tracking-widest mb-1.5 block">Company Name</label>
@@ -331,7 +420,7 @@ export default function OnboardingWizard() {
                 </div>
 
                 <div>
-                  <label className="text-xs font-semibold text-gray-300 uppercase tracking-widest mb-1.5 block">Industry (Optional)</label>
+                  <label className="text-xs font-semibold text-gray-300 uppercase tracking-widest mb-1.5 block">Industry</label>
                   <select 
                     value={industry}
                     onChange={e => setIndustry(e.target.value)}
@@ -344,16 +433,16 @@ export default function OnboardingWizard() {
                 <Button 
                   type="submit" 
                   disabled={isSubmitting} 
-                  className="w-full h-11 mt-4 bg-gradient-to-r from-lime-300 to-lime-500 hover:from-lime-200 hover:to-lime-400 text-[#050B06] font-semibold rounded-xl group transition-all flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(163,230,53,0.3)] disabled:opacity-50"
+                  className="w-full h-11 mt-4 bg-gradient-to-r from-lime-300 to-lime-500 hover:from-lime-200 hover:to-lime-400 text-[#050B06] font-semibold rounded-xl group transition-all flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(163,230,53,0.3)] disabled:opacity-50 cursor-pointer"
                 >
                   {isSubmitting ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin text-[#050B06]" />
-                      Creating Private Workspace...
+                      Analyzing Business & Website...
                     </>
                   ) : (
                     <>
-                      Analyze Website <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                      Analyze Website & Build AI <ArrowRight className="w-4 h-4 ml-1.5 group-hover:translate-x-1 transition-transform" />
                     </>
                   )}
                 </Button>
@@ -404,12 +493,12 @@ export default function OnboardingWizard() {
               <div className="space-y-2">
                 <h1 className="text-3xl font-extrabold tracking-tight text-white">🎉 Your AI chatbot is ready!</h1>
                 <p className="text-gray-400 text-sm leading-relaxed max-w-sm mx-auto">
-                  Oogway has successfully learned about your business and is ready to answer customer questions using your latest website content.
+                  Oogway has successfully analyzed {companyName || "your business"} website and created your automated customer chatbot knowledge base.
                 </p>
               </div>
               <Button 
                 onClick={handleFinish}
-                className="w-full h-11 bg-gradient-to-r from-lime-300 to-lime-500 hover:from-lime-200 hover:to-lime-400 text-[#050B06] font-semibold rounded-xl shadow-[0_0_20px_rgba(163,230,53,0.3)] transition-all"
+                className="w-full h-11 bg-gradient-to-r from-lime-300 to-lime-500 hover:from-lime-200 hover:to-lime-400 text-[#050B06] font-semibold rounded-xl shadow-[0_0_20px_rgba(163,230,53,0.3)] transition-all cursor-pointer"
               >
                 Go to Dashboard <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
@@ -419,5 +508,17 @@ export default function OnboardingWizard() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function OnboardingWizard() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#050B06] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-lime-400" />
+      </div>
+    }>
+      <OnboardingContent />
+    </Suspense>
   );
 }

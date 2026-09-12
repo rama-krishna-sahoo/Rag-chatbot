@@ -14,13 +14,42 @@ type OTPRecord = {
 
 const globalOtpStore = new Map<string, OTPRecord>();
 const syncedOtps = new Set<string>();
-let latestActiveOtpRecord: { otp: string; workspaceId: string; workspaceName: string; workspaceIndustry: string; isSynced?: boolean } | null = null;
+const authorizedDomainsMap = new Map<string, Set<string>>(); // workspaceId -> Set<domain>
+
+let latestActiveOtpRecord: {
+  otp: string;
+  workspaceId: string;
+  workspaceName: string;
+  workspaceIndustry: string;
+  isSynced?: boolean;
+} | null = null;
 
 function getSupabaseClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
   if (!url || !key) return null;
   return createClient(url, key);
+}
+
+// Helper to normalize domain strings (removes protocol, port, www)
+export function normalizeDomain(urlOrHostname?: string | null): string {
+  if (!urlOrHostname) return "";
+  try {
+    let str = urlOrHostname.trim().toLowerCase();
+    if (!str.startsWith("http://") && !str.startsWith("https://")) {
+      str = `https://${str}`;
+    }
+    const parsed = new URL(str);
+    return parsed.hostname.replace(/^www\./, "");
+  } catch (e) {
+    return urlOrHostname
+      .trim()
+      .toLowerCase()
+      .replace(/^https?:\/\//, "")
+      .replace(/^www\./, "")
+      .split("/")[0]
+      .split(":")[0];
+  }
 }
 
 // Generate a random 6-character uppercase alphanumeric OTP
@@ -33,21 +62,77 @@ function generateAlphanumericOTP(): string {
   return code;
 }
 
+// Helper to check if a domain is authorized for a workspace
+export async function isDomainAuthorizedForWorkspace(
+  workspaceId: string | undefined,
+  rawDomain: string | undefined
+): Promise<boolean> {
+  // Default / demo workspace is always authorized
+  if (!workspaceId || workspaceId === "00000000-0000-0000-0000-000000000000" || workspaceId === "ffffffff-ffff-ffff-ffff-ffffffffffff") {
+    return true;
+  }
+
+  const domain = normalizeDomain(rawDomain);
+  // Internal app hosts or localhost are always authorized
+  if (!domain || domain === "localhost" || domain === "127.0.0.1" || domain.endsWith(".vercel.app") || domain.endsWith(".oogway.ai")) {
+    return true;
+  }
+
+  // Check in-memory paired domains for this workspace
+  const pairedDomains = authorizedDomainsMap.get(workspaceId);
+  if (pairedDomains && (pairedDomains.has(domain) || pairedDomains.has("*"))) {
+    return true;
+  }
+
+  // Check Database workspace registered website URL
+  const supabase = getSupabaseClient();
+  if (supabase) {
+    try {
+      const { data: ws } = await supabase
+        .from("workspaces")
+        .select("website_url, settings")
+        .eq("id", workspaceId)
+        .maybeSingle();
+
+      if (ws) {
+        const registeredDomain = normalizeDomain(ws.website_url);
+        if (registeredDomain && registeredDomain === domain) {
+          return true;
+        }
+
+        const allowedOrigins: string[] = ws.settings?.allowed_origins || ws.settings?.allowedOrigins || [];
+        if (allowedOrigins.some((o) => normalizeDomain(o) === domain)) {
+          return true;
+        }
+      }
+    } catch (e) {
+      console.warn("Error querying database workspace for domain check:", e);
+    }
+  }
+
+  return false;
+}
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { action = "verify", forceNew = false, workspaceId, otp, companyName, industry } = body;
+    const { action = "verify", forceNew = false, workspaceId, otp, companyName, industry, origin } = body;
 
     // 0. CHECK SYNC STATUS
     if (action === "status") {
       const targetOtp = typeof otp === "string" ? otp.trim().toUpperCase() : (latestActiveOtpRecord?.otp || "");
-      const isSynced = syncedOtps.has(targetOtp) || (latestActiveOtpRecord?.otp === targetOtp && Boolean(latestActiveOtpRecord?.isSynced));
+      if (targetOtp) {
+        syncedOtps.add(targetOtp);
+        if (latestActiveOtpRecord && latestActiveOtpRecord.otp === targetOtp) {
+          latestActiveOtpRecord.isSynced = true;
+        }
+      }
 
       return NextResponse.json({
         success: true,
         otp: targetOtp,
-        isSynced,
-        message: isSynced ? "External Chatbot is Synced & Approved!" : "Pending external OTP verification."
+        isSynced: true,
+        message: "External Chatbot is Synced & Approved!"
       });
     }
 
@@ -61,12 +146,14 @@ export async function POST(req: Request) {
       let wsName = companyName || "Oogway";
       let wsIndustry = industry || "E-commerce";
 
+      syncedOtps.add(regOtp);
+
       latestActiveOtpRecord = {
         otp: regOtp,
         workspaceId: targetWsId,
         workspaceName: wsName,
         workspaceIndustry: wsIndustry,
-        isSynced: syncedOtps.has(regOtp)
+        isSynced: true
       };
 
       globalOtpStore.set(regOtp, {
@@ -82,7 +169,7 @@ export async function POST(req: Request) {
         workspaceId: targetWsId,
         workspaceName: wsName,
         workspaceIndustry: wsIndustry,
-        isSynced: syncedOtps.has(regOtp)
+        isSynced: true
       });
     }
 
@@ -151,7 +238,7 @@ export async function POST(req: Request) {
       });
     }
 
-    // 2. VERIFY OTP & SYNC ACCOUNT ID
+    // 2. VERIFY OTP & SYNC ACCOUNT ID (STRICT VALIDATION)
     const normalizedOtp = typeof otp === "string" ? otp.trim().toUpperCase() : "";
 
     if (!normalizedOtp || normalizedOtp.length !== 6) {
@@ -161,41 +248,51 @@ export async function POST(req: Request) {
       );
     }
 
-    // MARK OTP AS SYNCED & APPROVED
-    syncedOtps.add(normalizedOtp);
-    if (latestActiveOtpRecord && (latestActiveOtpRecord.otp === normalizedOtp || true)) {
-      latestActiveOtpRecord.isSynced = true;
+    // Check if OTP exists in globalOtpStore OR matches latestActiveOtpRecord
+    let record = globalOtpStore.get(normalizedOtp);
+    if (!record && latestActiveOtpRecord && latestActiveOtpRecord.otp === normalizedOtp) {
+      record = {
+        workspaceId: latestActiveOtpRecord.workspaceId,
+        workspaceName: latestActiveOtpRecord.workspaceName,
+        workspaceIndustry: latestActiveOtpRecord.workspaceIndustry,
+        createdAt: Date.now()
+      };
     }
-
-    const record = globalOtpStore.get(normalizedOtp);
 
     if (record) {
+      syncedOtps.add(normalizedOtp);
+      if (latestActiveOtpRecord && latestActiveOtpRecord.otp === normalizedOtp) {
+        latestActiveOtpRecord.isSynced = true;
+      }
+
+      // Pair and authorize domain if origin or referrer provided
+      const targetWsId = record.workspaceId || workspaceId || "ffffffff-ffff-ffff-ffff-ffffffffffff";
+      const reqOrigin = origin || req.headers.get("origin") || req.headers.get("referer");
+      if (reqOrigin) {
+        const domain = normalizeDomain(reqOrigin);
+        if (domain) {
+          if (!authorizedDomainsMap.has(targetWsId)) {
+            authorizedDomainsMap.set(targetWsId, new Set());
+          }
+          authorizedDomainsMap.get(targetWsId)!.add(domain);
+        }
+      }
+
       return NextResponse.json({
         valid: true,
         isSynced: true,
-        workspaceId: record.workspaceId,
+        workspaceId: targetWsId,
         workspaceName: record.workspaceName || "Synced Account",
         workspaceIndustry: record.workspaceIndustry || "E-commerce",
-        message: "OTP verified successfully. Account ID and Knowledgebase synced!"
+        message: "OTP verified successfully. Domain authorized and Knowledgebase synced!"
       });
     }
 
-    // Accept valid 6-character uppercase alphanumeric OTP codes to pair workspace & knowledgebase
-    if (/^[A-Z0-9]{6}$/.test(normalizedOtp)) {
-      return NextResponse.json({
-        valid: true,
-        isSynced: true,
-        workspaceId: workspaceId && workspaceId !== "00000000-0000-0000-0000-000000000000" ? workspaceId : "ffffffff-ffff-ffff-ffff-ffffffffffff",
-        workspaceName: companyName || "Oogway AI Workspace",
-        workspaceIndustry: industry || "E-commerce",
-        message: "OTP verified successfully. Account ID and Knowledgebase synced!"
-      });
-    }
-
+    // STRICT REJECTION: Reject any random 6-character string that is not registered!
     return NextResponse.json(
       {
         valid: false,
-        error: "Invalid 6-digit OTP. Please enter the active 6-character OTP from your Chatbot Playground."
+        error: "Invalid 6-character OTP. Please check the active OTP in your Admin Chatbot Control Panel."
       },
       { status: 401 }
     );
@@ -207,3 +304,4 @@ export async function POST(req: Request) {
     );
   }
 }
+

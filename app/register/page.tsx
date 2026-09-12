@@ -34,8 +34,10 @@ function GoogleIcon(props: React.SVGProps<SVGSVGElement>) {
 }
 
 export default function RegisterPage() {
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [oauthLoading, setOauthLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -45,16 +47,32 @@ export default function RegisterPage() {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setErrorMsg("");
     setSuccessMsg("");
+
+    if (!name.trim()) {
+      setErrorMsg("Please enter your full name or username.");
+      return;
+    }
+
+    if (password.length < 6) {
+      setErrorMsg("Password must be at least 6 characters long.");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setErrorMsg("Passwords do not match. Please re-enter your password.");
+      return;
+    }
+
+    setLoading(true);
 
     try {
       // 1. First attempt registration via the server-side API endpoint with instant auto-confirmation
       const regRes = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ name: name.trim(), email, password }),
       });
 
       const regData = await regRes.json();
@@ -92,8 +110,8 @@ export default function RegisterPage() {
         return;
       }
 
-      // 3. User is signed in, redirect straight to dashboard
-      window.location.href = "/dashboard";
+      // 3. User is signed in, redirect straight to setup onboarding pipeline
+      window.location.href = "/setup?onboarding=true";
     } catch (err: any) {
       // Fallback: standard client signup if API endpoint encountered an issue
       try {
@@ -102,7 +120,11 @@ export default function RegisterPage() {
           email,
           password,
           options: {
-            emailRedirectTo: `${window.location.origin}/dashboard`,
+            data: {
+              full_name: name.trim(),
+              username: name.trim(),
+            },
+            emailRedirectTo: `${window.location.origin}/setup?onboarding=true`,
           },
         });
 
@@ -121,7 +143,7 @@ export default function RegisterPage() {
         }
 
         if (data.session) {
-          window.location.href = "/dashboard";
+          window.location.href = "/setup?onboarding=true";
         } else {
           setSuccessMsg("Account created! Please check your email inbox to confirm your account.");
           setLoading(false);
@@ -140,7 +162,7 @@ export default function RegisterPage() {
     setProviderDisabledNotice(false);
 
     try {
-      const result = await safeSignInWithOAuth("google", "/dashboard");
+      const result = await safeSignInWithOAuth("google", "/setup?onboarding=true");
 
       if (!result.success) {
         setOauthLoading(false);
@@ -201,7 +223,7 @@ export default function RegisterPage() {
             {oauthLoading ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin text-lime-400 shrink-0" />
-                <span>Checking Google Provider...</span>
+                <span>Connecting to Google...</span>
               </>
             ) : (
               <>
@@ -261,7 +283,7 @@ export default function RegisterPage() {
               <div className="w-full border-t border-white/10" />
             </div>
             <div className="relative flex justify-center text-[10px] uppercase tracking-widest font-bold">
-              <span className="bg-[#111A13] px-3 text-gray-400">Or continue with email</span>
+              <span className="bg-[#111A13] px-3 text-gray-400">Or continue with details</span>
             </div>
           </div>
 
@@ -276,6 +298,17 @@ export default function RegisterPage() {
                 <strong>Success:</strong> {successMsg}
               </div>
             )}
+            <div className="space-y-1.5">
+              <label className="text-sm font-semibold text-gray-300">Full Name / Username</label>
+              <Input 
+                type="text" 
+                placeholder="e.g. Alex Rivera" 
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="h-11 bg-[#080e09]/80 border-white/10 text-white placeholder:text-gray-500 focus-visible:border-lime-400 focus-visible:ring-1 focus-visible:ring-lime-400 transition-all rounded-xl"
+                required
+              />
+            </div>
             <div className="space-y-1.5">
               <label className="text-sm font-semibold text-gray-300">Email Address</label>
               <Input 
@@ -294,6 +327,17 @@ export default function RegisterPage() {
                 placeholder="••••••••" 
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                className="h-11 bg-[#080e09]/80 border-white/10 text-white placeholder:text-gray-500 focus-visible:border-lime-400 focus-visible:ring-1 focus-visible:ring-lime-400 transition-all rounded-xl"
+                required
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-semibold text-gray-300">Confirm Password</label>
+              <Input 
+                type="password" 
+                placeholder="••••••••" 
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
                 className="h-11 bg-[#080e09]/80 border-white/10 text-white placeholder:text-gray-500 focus-visible:border-lime-400 focus-visible:ring-1 focus-visible:ring-lime-400 transition-all rounded-xl"
                 required
               />

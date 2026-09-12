@@ -24,11 +24,17 @@ export async function GET(req: Request) {
 
     const { data } = await supabase
       .from("workspaces")
-      .select("id, name, industry, website_url, logo_url")
+      .select("id, name, industry, website_url, logo_url, settings")
       .eq("id", workspaceId)
       .maybeSingle();
 
-    return NextResponse.json(data || {
+    const settings = data?.settings || {};
+
+    return NextResponse.json(data ? {
+      ...data,
+      chatbot_name: settings.chatbot_name || settings.chatbotName || "Oogway Assistant",
+      welcome_message: settings.welcome_message || settings.welcomeMessage || null
+    } : {
       id: workspaceId,
       name: "Oogway",
       industry: "products and services",

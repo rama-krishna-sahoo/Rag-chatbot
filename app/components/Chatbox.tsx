@@ -3,11 +3,12 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { X, Mic, ShoppingCart, Eye, KeyRound, ShieldCheck, Lock, Loader2 } from "lucide-react";
+import { X, Mic, ShoppingCart, Eye, KeyRound, ShieldCheck, Lock, Loader2, PhoneCall, Mail, Copy, Share2, Check, Building2, UserCheck, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { products, Product } from "../../data/products";
+import { KeyContact } from "@/app/api/contacts/route";
 
 type ChatMessage = {
   id: number;
@@ -15,6 +16,7 @@ type ChatMessage = {
   text: string;
   sourceChunks?: any[];
   recs?: Product[];
+  contacts?: KeyContact[];
 };
 
 function FormattedMessage({ text }: { text: string }) {
@@ -67,15 +69,15 @@ function FormattedMessage({ text }: { text: string }) {
 const getRecommendationsForQuery = (query: string, sourceChunks?: any[]): Product[] => {
   const found: Product[] = [];
   const normalized = query.toLowerCase().trim();
-  
+
   // 1. Scan user query for specific product categories and keywords
   products.forEach(p => {
     const slugKey = p.slug.replace(/-/g, " ");
     const nameWords = p.name.toLowerCase().split(" ").filter(w => w.length > 3);
-    
+
     const matchesSlug = normalized.includes(slugKey);
     const matchesName = nameWords.some(w => normalized.includes(w));
-    
+
     // Add common e-commerce product synonyms
     const isDiaperQuery = (normalized.includes("diaper") || normalized.includes("nappy") || normalized.includes("wipe")) && p.id === "nb-3";
     const isBottleQuery = (normalized.includes("bottle") || normalized.includes("feed") || normalized.includes("milk") || normalized.includes("colic")) && p.id === "nb-2";
@@ -88,16 +90,16 @@ const getRecommendationsForQuery = (query: string, sourceChunks?: any[]): Produc
     const isWashQuery = (normalized.includes("wash") || normalized.includes("bath") || normalized.includes("soap") || normalized.includes("shampoo")) && p.id === "nb-9";
 
     if (
-      matchesSlug || 
-      matchesName || 
-      isDiaperQuery || 
-      isBottleQuery || 
-      isSwaddleQuery || 
-      isLotionQuery || 
-      isMatQuery || 
-      isCarrierQuery || 
-      isTeetherQuery || 
-      isBlanketQuery || 
+      matchesSlug ||
+      matchesName ||
+      isDiaperQuery ||
+      isBottleQuery ||
+      isSwaddleQuery ||
+      isLotionQuery ||
+      isMatQuery ||
+      isCarrierQuery ||
+      isTeetherQuery ||
+      isBlanketQuery ||
       isWashQuery
     ) {
       if (!found.some(item => item.id === p.id)) {
@@ -119,7 +121,7 @@ const getRecommendationsForQuery = (query: string, sourceChunks?: any[]): Produc
       }
     });
   }
-  
+
   return found.slice(0, 2);
 };
 
@@ -152,24 +154,166 @@ export function Chatbot({
   const [loading, setLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [customerEmail, setCustomerEmail] = useState<string>("");
+  const [customerPhone, setCustomerPhone] = useState<string>("");
   const [customerName, setCustomerName] = useState<string>("");
   const [workspaceId, setWorkspaceId] = useState<string>(embeddedWorkspaceId || "00000000-0000-0000-0000-000000000000");
 
+  const [leadNameInput, setLeadNameInput] = useState<string>("");
+  const [leadContactInput, setLeadContactInput] = useState<string>("");
+  const [leadError, setLeadError] = useState<string | null>(null);
+  const [showLeadPrompt, setShowLeadPrompt] = useState<boolean>(false);
+
+  // Initialize Lead User Info from Browser LocalStorage Cache Memory
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const cachedName = localStorage.getItem("oogway_lead_user_name");
+      const cachedContact = localStorage.getItem("oogway_lead_user_contact");
+
+      if (cachedName && cachedName.trim()) {
+        setCustomerName(cachedName.trim());
+        if (cachedContact && cachedContact.trim()) {
+          if (cachedContact.includes("@")) setCustomerEmail(cachedContact.trim());
+          else setCustomerPhone(cachedContact.trim());
+        }
+        setShowLeadPrompt(false);
+      } else {
+        setShowLeadPrompt(true);
+      }
+    }
+  }, []);
+
+  const generateGreetingMessage = (uName?: string, uContact?: string, targetCompanyName?: string) => {
+    const hour = new Date().getHours();
+    const targetName = uName ? uName.trim() : "";
+    const compName = targetCompanyName || activeCompanyName || "Oogway";
+
+    if (hour >= 5 && hour < 12) {
+      return targetName
+        ? `Good morning, ${targetName}! ☀️ Welcome to **${compName}** 🐢. How can I help you today?`
+        : `Good morning! ☀️ Welcome to **${compName}** 🐢. Please introduce yourself with your Name and Contact details below to get started!`;
+    } else if (hour >= 12 && hour < 17) {
+      return targetName
+        ? `Good afternoon, ${targetName}! 🌤️ Welcome to **${compName}** 🐢. How can I help you today?`
+        : `Good afternoon! 🌤️ Welcome to **${compName}** 🐢. Please introduce yourself with your Name and Contact details below to get started!`;
+    } else if (hour >= 17 && hour < 22) {
+      return targetName
+        ? `Good evening, ${targetName}! 🌆 Welcome to **${compName}** 🐢. How can I help you tonight?`
+        : `Good evening! 🌆 Welcome to **${compName}** 🐢. Please introduce yourself with your Name and Contact details below to get started!`;
+    } else {
+      const lateGreetings = targetName ? [
+        `Working late, ${targetName}? 🌙 Welcome to **${compName}** 🐢! How can I help you tonight?`,
+        `Night owl mode activated, ${targetName}! 🦉 Welcome to **${compName}** 🐢. What can I assist you with tonight?`,
+        `Burning the midnight oil, ${targetName}? ✨ Welcome to **${compName}** 🐢. How can I help you tonight?`
+      ] : [
+        `Working late? 🌙 Welcome to **${compName}** 🐢! Please enter your Name & Contact details below to get started!`,
+        `Night owl mode activated! 🦉 Welcome to **${compName}** 🐢. Please enter your Name & Contact details below to get started!`,
+        `Burning the midnight oil? ✨ Welcome to **${compName}** 🐢. Please enter your Name & Contact details below to get started!`
+      ];
+      const pickIdx = Math.abs(targetName.length + hour) % lateGreetings.length;
+      return lateGreetings[pickIdx];
+    }
+  };
+
+  const handleSaveLeadInfo = async () => {
+    const name = leadNameInput.trim();
+    const contact = leadContactInput.trim();
+
+    if (!name || name.length < 2) {
+      setLeadError("Please enter your full name (at least 2 characters).");
+      return;
+    }
+    if (!contact || contact.length < 5) {
+      setLeadError("Please enter a valid phone number or email address.");
+      return;
+    }
+
+    setLeadError(null);
+    const isEmail = contact.includes("@");
+
+    if (typeof window !== "undefined") {
+      localStorage.setItem("oogway_lead_user_name", name);
+      localStorage.setItem("oogway_lead_user_contact", contact);
+    }
+
+    setCustomerName(name);
+    if (isEmail) setCustomerEmail(contact);
+    else setCustomerPhone(contact);
+    setShowLeadPrompt(false);
+
+    // Save lead to Lead Channel API
+    try {
+      await fetch("/api/leads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          phone: isEmail ? "" : contact,
+          email: isEmail ? contact : "",
+          firstQuery: "Started Live Chat Session",
+          source: "Embedded Chatbot Widget",
+          workspaceId: workspaceId
+        })
+      });
+    } catch (e) {
+      console.warn("Failed to submit lead:", e);
+    }
+
+    const greetingText = generateGreetingMessage(name, contact, activeCompanyName);
+
+    setMessages([
+      {
+        id: 1,
+        from: "bot",
+        text: greetingText
+      }
+    ]);
+  };
+
   // Determine if running inside an iframe, CodePen, or embedded route on another site
   const [isEmbedded, setIsEmbedded] = useState<boolean>(true); // Default to embedded for security
+  const [isDomainAuthorized, setIsDomainAuthorized] = useState<boolean>(true);
   const [userVerifiedOtp, setUserVerifiedOtp] = useState<boolean>(false);
+  const [copiedContactId, setCopiedContactId] = useState<string | null>(null);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
       const inIframe = window.self !== window.top;
       const inEmbedRoute = window.location.pathname.startsWith("/embed");
-      const isExt = Boolean(isEmbeddedMode || embeddedOtp || (embeddedWorkspaceId && embeddedWorkspaceId !== "00000000-0000-0000-0000-000000000000") || inIframe || inEmbedRoute);
+      const isExt = Boolean(isEmbeddedMode || (embeddedWorkspaceId && embeddedWorkspaceId !== "00000000-0000-0000-0000-000000000000") || inIframe || inEmbedRoute);
       setIsEmbedded(isExt);
     }
-  }, [isEmbeddedMode, embeddedOtp, embeddedWorkspaceId]);
+  }, [isEmbeddedMode, embeddedWorkspaceId]);
 
-  // Chatbot is verified ONLY if not embedded, or if user explicitly verifies the 6-digit OTP
-  const isOtpVerified = !isEmbedded || userVerifiedOtp;
+  // Check domain security verification for embedded instance
+  useEffect(() => {
+    async function checkDomainSecurity() {
+      if (!isEmbedded) {
+        setIsDomainAuthorized(true);
+        return;
+      }
+
+      try {
+        const referrer = typeof document !== "undefined" ? document.referrer : "";
+        const origin = typeof window !== "undefined" ? window.location.origin : "";
+        const targetWs = embeddedWorkspaceId || workspaceId;
+
+        const res = await fetch(`/api/chatbot/verify?workspaceId=${encodeURIComponent(targetWs)}&origin=${encodeURIComponent(referrer || origin)}`);
+        if (res.ok) {
+          const data = await res.json();
+          setIsDomainAuthorized(Boolean(data.authorized));
+        } else {
+          setIsDomainAuthorized(true);
+        }
+      } catch (e) {
+        setIsDomainAuthorized(true);
+      }
+    }
+
+    checkDomainSecurity();
+  }, [isEmbedded, embeddedWorkspaceId, workspaceId]);
+
+  // Chatbot is verified ONLY if not embedded, OR domain is authorized, OR user explicitly verifies 1-time Admin OTP
+  const isOtpVerified = !isEmbedded || isDomainAuthorized || userVerifiedOtp;
   const [otpInput, setOtpInput] = useState<string>(embeddedOtp || "");
   const [verifyingOtp, setVerifyingOtp] = useState<boolean>(false);
   const [otpError, setOtpError] = useState<string | null>(null);
@@ -177,7 +321,7 @@ export function Chatbot({
   const handleVerifyOtp = async (codeToVerify?: string) => {
     const targetOtp = (codeToVerify || otpInput || "").trim().toUpperCase();
     if (!targetOtp || targetOtp.length !== 6) {
-      setOtpError("Please enter the 6-digit OTP from your Chatbot Playground.");
+      setOtpError("Please enter the 6-digit OTP from your Admin Chatbot Control Panel.");
       return;
     }
 
@@ -185,19 +329,24 @@ export function Chatbot({
       setVerifyingOtp(true);
       setOtpError(null);
 
+      const referrer = typeof document !== "undefined" ? document.referrer : "";
+      const origin = typeof window !== "undefined" ? window.location.origin : "";
+
       const res = await fetch("/api/chatbot/otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "verify",
           otp: targetOtp,
-          workspaceId: embeddedWorkspaceId
+          workspaceId: embeddedWorkspaceId || workspaceId,
+          origin: referrer || origin
         })
       });
 
       const data = await res.json();
       if (res.ok && data.valid) {
         setUserVerifiedOtp(true);
+        setIsDomainAuthorized(true);
         if (data.workspaceId) {
           setWorkspaceId(data.workspaceId);
         }
@@ -212,12 +361,12 @@ export function Chatbot({
           {
             id: 1,
             from: "bot",
-            text: `✓ **Chatbot Successfully Linked & Synced!**\nConnected to Knowledgebase for **${data.workspaceName || "Workspace"}**.\nHow can I help you today?`,
+            text: `✓ **Domain Authorized & Chatbot Successfully Linked!**\nConnected to Knowledgebase for **${data.workspaceName || "Workspace"}**.\nHow can I help you today?`,
           }
         ]);
       } else {
         setUserVerifiedOtp(false);
-        setOtpError(data.error || "Invalid OTP. Access denied. Nothing will work until a valid 6-digit OTP is verified.");
+        setOtpError(data.error || "Invalid 6-character OTP. Access denied. Please check your Admin Chatbot Control Panel.");
       }
     } catch (err) {
       setOtpError("Network error verifying OTP. Please try again.");
@@ -317,24 +466,70 @@ export function Chatbot({
           }
         }
 
-        if (email) {
-          setCustomerEmail(email);
-          setCustomerName(name);
+        // Fetch custom welcome message from workspace settings if available
+        let customWelcomeMsg: string | null = null;
+        if (finalWsId !== "00000000-0000-0000-0000-000000000000") {
+          try {
+            const wsRes = await fetch(`/api/workspace/info?workspaceId=${finalWsId}`).catch(() => null);
+            if (wsRes && wsRes.ok) {
+              const wsData = await wsRes.json();
+              if (wsData.welcome_message) customWelcomeMsg = wsData.welcome_message;
+            }
+          } catch (e) {}
+        }
+
+        // 4. Resolve effective name: Prioritize browser localStorage cache over admin auth session
+        let effectiveName = "";
+        let effectiveContact = "";
+
+        if (typeof window !== "undefined") {
+          const cachedName = localStorage.getItem("oogway_lead_user_name");
+          const cachedContact = localStorage.getItem("oogway_lead_user_contact");
+          if (cachedName && cachedName.trim()) {
+            effectiveName = cachedName.trim();
+          }
+          if (cachedContact && cachedContact.trim()) {
+            effectiveContact = cachedContact.trim();
+          }
+        }
+
+        // Fallback to logged-in admin account session if no local visitor cache exists
+        if (!effectiveName && name && name.trim()) {
+          effectiveName = name.trim();
+        }
+        if (!effectiveContact && email && email.trim()) {
+          effectiveContact = email.trim();
+        }
+
+        if (effectiveName) {
+          setCustomerName(effectiveName);
+          if (effectiveContact) {
+            if (effectiveContact.includes("@")) setCustomerEmail(effectiveContact);
+            else setCustomerPhone(effectiveContact);
+          }
+          setShowLeadPrompt(false);
+
+          const greetingText = customWelcomeMsg || generateGreetingMessage(effectiveName, effectiveContact, companyName);
+
           setMessages([
             {
               id: 1,
               from: "bot",
-              text: `Hello ${name}! Welcome to ${companyName} 🐢. I am your dedicated AI assistant, powered by your official Knowledge Base. I'm right here to answer questions about your account (${email}), products, policies, or services. How can I help you today?`,
+              text: greetingText,
             },
           ]);
         } else {
           setCustomerEmail("");
-          setCustomerName("Guest");
+          setCustomerName("");
+          setShowLeadPrompt(true);
+
+          const guestGreeting = customWelcomeMsg || generateGreetingMessage(undefined, undefined, companyName);
+
           setMessages([
             {
               id: 1,
               from: "bot",
-              text: `Hello! Welcome to ${companyName} 🐢. I am your dedicated support guide, present to answer any questions about our ${companyIndustry}. How can I help you today?`,
+              text: guestGreeting,
             },
           ]);
         }
@@ -418,12 +613,13 @@ export function Chatbot({
   }, [messages, open]);
 
   const handleWarmup = () => {
-    fetch("/api/chat/warmup").catch(() => {});
+    fetch("/api/chat/warmup").catch(() => { });
   };
 
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const sendMessage = async () => {
+    if (showLeadPrompt) return;
     const userQuery = input.trim();
     if (!userQuery) return;
 
@@ -439,6 +635,24 @@ export function Chatbot({
       from: "user",
       text: userQuery,
     };
+
+    // Auto-sync captured lead to Lead Channel API
+    if (customerName || leadNameInput) {
+      const targetLeadName = customerName || leadNameInput;
+      const targetLeadContact = customerEmail || customerPhone || leadContactInput;
+      fetch("/api/leads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: targetLeadName,
+          phone: targetLeadContact.includes("@") ? "" : targetLeadContact,
+          email: targetLeadContact.includes("@") ? targetLeadContact : "",
+          firstQuery: userQuery,
+          source: "Embedded Chatbot Widget",
+          workspaceId: workspaceId
+        })
+      }).catch(() => {});
+    }
 
     const botMsgId = Date.now() + 1;
     const initialBotMsg: ChatMessage = {
@@ -464,7 +678,7 @@ export function Chatbot({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         signal: controller.signal,
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           message: userQuery,
           customerEmail: customerEmail || undefined,
           customerName: customerName || undefined,
@@ -530,6 +744,27 @@ export function Chatbot({
           accumulatedText = "I am right here to help you. Could you please rephrase your query?";
         }
 
+        let matchedContacts: KeyContact[] = [];
+        const lowerQuery = userQuery.toLowerCase();
+        const contactKeywords = ["contact", "phone", "email", "call", "number", "reach", "who to", "officer", "head", "support", "help", "department", "desk", "admission", "placement", "director", "dean", "warden"];
+        if (contactKeywords.some(k => lowerQuery.includes(k))) {
+          try {
+            const cRes = await fetch(`/api/contacts?workspaceId=${encodeURIComponent(workspaceId)}`);
+            if (cRes.ok) {
+              const cData = await cRes.json();
+              const allContacts: KeyContact[] = cData.contacts || [];
+              matchedContacts = allContacts.filter(c => {
+                const nameMatch = c.name && lowerQuery.includes(c.name.toLowerCase());
+                const deptMatch = c.department && lowerQuery.includes(c.department.toLowerCase());
+                const roleMatch = c.designation && lowerQuery.includes(c.designation.toLowerCase());
+                const kwMatch = Array.isArray(c.keywords) && c.keywords.some((k: string) => lowerQuery.includes(k.toLowerCase()));
+                return nameMatch || deptMatch || roleMatch || kwMatch;
+              });
+              if (matchedContacts.length === 0) matchedContacts = allContacts.slice(0, 3);
+            }
+          } catch (e) {}
+        }
+
         const isDefaultOogwayStore = (!workspaceId || workspaceId === "00000000-0000-0000-0000-000000000000") && activeCompanyName.toLowerCase() === "oogway";
         const recs = isDefaultOogwayStore
           ? getRecommendationsForQuery(userQuery, sourceChunks)
@@ -538,12 +773,35 @@ export function Chatbot({
         setMessages((prev) =>
           prev.map((msg) =>
             msg.id === botMsgId
-              ? { ...msg, text: accumulatedText, sourceChunks, recs }
+              ? { ...msg, text: accumulatedText, sourceChunks, recs, contacts: matchedContacts.length > 0 ? matchedContacts : undefined }
               : msg
           )
         );
       } else {
         const data = await res.json();
+        let matchedContacts: KeyContact[] = data.contacts || [];
+        if (!matchedContacts || matchedContacts.length === 0) {
+          const lowerQuery = userQuery.toLowerCase();
+          const contactKeywords = ["contact", "phone", "email", "call", "number", "reach", "who to", "officer", "head", "support", "help", "department", "desk", "admission", "placement", "director", "dean", "warden"];
+          if (contactKeywords.some(k => lowerQuery.includes(k))) {
+            try {
+              const cRes = await fetch(`/api/contacts?workspaceId=${encodeURIComponent(workspaceId)}`);
+              if (cRes.ok) {
+                const cData = await cRes.json();
+                const allContacts: KeyContact[] = cData.contacts || [];
+                matchedContacts = allContacts.filter(c => {
+                  const nameMatch = c.name && lowerQuery.includes(c.name.toLowerCase());
+                  const deptMatch = c.department && lowerQuery.includes(c.department.toLowerCase());
+                  const roleMatch = c.designation && lowerQuery.includes(c.designation.toLowerCase());
+                  const kwMatch = Array.isArray(c.keywords) && c.keywords.some((k: string) => lowerQuery.includes(k.toLowerCase()));
+                  return nameMatch || deptMatch || roleMatch || kwMatch;
+                });
+                if (matchedContacts.length === 0) matchedContacts = allContacts.slice(0, 3);
+              }
+            } catch (e) {}
+          }
+        }
+
         const isDefaultOogwayStore = (!workspaceId || workspaceId === "00000000-0000-0000-0000-000000000000") && activeCompanyName.toLowerCase() === "oogway";
         const recs = isDefaultOogwayStore
           ? getRecommendationsForQuery(userQuery, data.sourceChunks)
@@ -553,11 +811,12 @@ export function Chatbot({
           prev.map((msg) =>
             msg.id === botMsgId
               ? {
-                  ...msg,
-                  text: data.answer ?? "I'm right here to assist you.",
-                  sourceChunks: data.sourceChunks,
-                  recs,
-                }
+                ...msg,
+                text: data.answer ?? "I'm right here to assist you.",
+                sourceChunks: data.sourceChunks,
+                recs,
+                contacts: matchedContacts.length > 0 ? matchedContacts : undefined,
+              }
               : msg
           )
         );
@@ -572,9 +831,9 @@ export function Chatbot({
         prev.map((msg) =>
           msg.id === botMsgId
             ? {
-                ...msg,
-                text: "I experienced a connection problem. Please try again so I can support you properly.",
-              }
+              ...msg,
+              text: "I experienced a connection problem. Please try again so I can support you properly.",
+            }
             : msg
         )
       );
@@ -694,16 +953,56 @@ export function Chatbot({
             ) : (
               <>
                 {/* Scrollable Chat Area */}
-                <div 
-                  ref={scrollRef} 
+                <div
+                  ref={scrollRef}
                   className="flex-1 overflow-y-auto px-4 py-3 min-h-0 space-y-4"
                 >
+                  {/* Inline Lead Capture Prompt Card for New Users */}
+                  {showLeadPrompt && (
+                    <div className="bg-gradient-to-r from-lime-500/10 to-emerald-500/10 border border-[#B2EA4D]/40 rounded-2xl p-3.5 space-y-2.5 font-sans my-2 shadow-md">
+                      <div className="flex items-center gap-2">
+                        <div className="p-1.5 rounded-lg bg-[#B2EA4D] text-[#203210] shrink-0">
+                          <UserCheck className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <h5 className="text-xs font-black text-neutral-900 leading-tight">Welcome! Introduce Yourself</h5>
+                          <p className="text-[10px] text-neutral-500 leading-tight mt-0.5">Please share your Name and Phone/Email so we can assist you better.</p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2 pt-1">
+                        <Input
+                          type="text"
+                          placeholder="Enter Your Full Name"
+                          value={leadNameInput}
+                          onChange={(e) => setLeadNameInput(e.target.value)}
+                          className="h-8 text-xs bg-white border-neutral-300 text-neutral-900 focus:border-[#B2EA4D]"
+                        />
+                        <Input
+                          type="text"
+                          placeholder="Phone Number or Email Address"
+                          value={leadContactInput}
+                          onChange={(e) => setLeadContactInput(e.target.value)}
+                          className="h-8 text-xs bg-white border-neutral-300 text-neutral-900 focus:border-[#B2EA4D]"
+                        />
+                        <div className="flex items-center justify-between gap-2 pt-1">
+                          <Button
+                            onClick={handleSaveLeadInfo}
+                            disabled={!leadNameInput.trim() || !leadContactInput.trim()}
+                            className="w-full h-8 bg-[#B2EA4D] hover:bg-[#B2EA4D]/90 text-[#203210] font-extrabold text-xs rounded-lg shadow-sm cursor-pointer"
+                          >
+                            Save & Start Conversation 🚀
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {messages.map((msg) => (
                     <div
                       key={msg.id}
-                      className={`flex gap-2.5 items-start ${
-                        msg.from === "user" ? "justify-end" : "justify-start"
-                      }`}
+                      className={`flex gap-2.5 items-start ${msg.from === "user" ? "justify-end" : "justify-start"
+                        }`}
                     >
                       {/* Bot Avatar Icon next to message bubbles */}
                       {msg.from === "bot" && (
@@ -713,11 +1012,10 @@ export function Chatbot({
                       )}
 
                       <div
-                        className={`rounded-2xl px-3.5 py-2.5 max-w-[82%] shadow-sm ${
-                          msg.from === "user"
+                        className={`rounded-2xl px-3.5 py-2.5 max-w-[82%] shadow-sm ${msg.from === "user"
                             ? "bg-[#B2EA4D] text-[#203210] text-white text-sm font-medium"
                             : "bg-neutral-100 text-neutral-800"
-                        }`}
+                          }`}
                       >
                         {msg.from === "bot" && !msg.text ? (
                           <span className="text-neutral-500 font-medium text-xs flex items-center gap-1.5">
@@ -727,7 +1025,7 @@ export function Chatbot({
                         ) : (
                           <FormattedMessage text={msg.text} />
                         )}
-                        
+
                         {/* Suggested products integration */}
                         {msg.from === "bot" && msg.recs && msg.recs.length > 0 && (
                           <div className="mt-3 pt-3 border-t border-neutral-200 space-y-2.5 w-full font-sans">
@@ -736,8 +1034,8 @@ export function Chatbot({
                               {msg.recs.map(prod => (
                                 <div key={prod.id} className="flex gap-3 bg-white border border-neutral-150 rounded-xl p-2.5 shadow-sm items-center hover:shadow-md transition-all">
                                   <div className="w-11 h-11 rounded-lg bg-neutral-100 flex items-center justify-center shrink-0 relative overflow-hidden border border-neutral-200">
-                                    <img 
-                                      src={prod.slug === "organic-swaddle-wrap" ? "/images/organic_swaddle.png" : prod.slug === "bamboo-feeding-bottle" ? "/images/bamboo_bottle.png" : "/images/natural_baby_hero.png"} 
+                                    <img
+                                      src={prod.slug === "organic-swaddle-wrap" ? "/images/organic_swaddle.png" : prod.slug === "bamboo-feeding-bottle" ? "/images/bamboo_bottle.png" : "/images/natural_baby_hero.png"}
                                       alt={prod.name}
                                       className="object-cover w-full h-full"
                                     />
@@ -777,6 +1075,126 @@ export function Chatbot({
                             </div>
                           </div>
                         )}
+
+                        {/* Key Directory Contact Cards integration */}
+                        {msg.from === "bot" && msg.contacts && msg.contacts.length > 0 && (
+                          <div className="mt-3 pt-3 border-t border-neutral-200 space-y-2.5 w-full font-sans">
+                            <p className="text-[9px] font-black text-neutral-500 uppercase tracking-widest font-mono flex items-center gap-1.5">
+                              <PhoneCall className="w-3 h-3 text-[#203210]" /> Official Key Contacts ({msg.contacts.length})
+                            </p>
+                            <div className="flex flex-col gap-2.5">
+                              {msg.contacts.map((contact) => {
+                                const initials = contact.name
+                                  .split(" ")
+                                  .map((n: string) => n[0])
+                                  .join("")
+                                  .substring(0, 2)
+                                  .toUpperCase();
+
+                                return (
+                                  <div
+                                    key={contact.id}
+                                    className="bg-white border border-neutral-200 rounded-xl p-3 shadow-sm hover:shadow-md transition-all space-y-2 text-neutral-900"
+                                  >
+                                    <div className="flex items-start justify-between gap-2">
+                                      <div className="flex items-center gap-2.5">
+                                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#B2EA4D] to-lime-500 text-[#203210] font-black text-xs flex items-center justify-center shrink-0 shadow-sm border border-lime-300 font-mono">
+                                          {initials}
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                          <h5 className="text-xs font-black text-neutral-900 leading-tight truncate">{contact.name}</h5>
+                                          <p className="text-[10px] font-medium text-neutral-500 truncate leading-tight mt-0.5">{contact.designation}</p>
+                                        </div>
+                                      </div>
+                                      <span className="text-[8px] font-extrabold uppercase font-mono px-2 py-0.5 rounded bg-[#B2EA4D]/30 text-[#203210] shrink-0 border border-[#B2EA4D]/40">
+                                        {contact.department}
+                                      </span>
+                                    </div>
+
+                                    <div className="bg-neutral-50 rounded-lg p-2 border border-neutral-150 space-y-1 text-[10px] font-mono text-neutral-700">
+                                      {contact.phone && (
+                                        <div className="flex items-center justify-between">
+                                          <span className="text-neutral-400">📞 Phone:</span>
+                                          <a href={`tel:${contact.phone.replace(/[^0-9+]/g, "")}`} className="font-bold text-[#203210] hover:underline">
+                                            {contact.phone}
+                                          </a>
+                                        </div>
+                                      )}
+                                      {contact.email && (
+                                        <div className="flex items-center justify-between">
+                                          <span className="text-neutral-400">✉️ Email:</span>
+                                          <a href={`mailto:${contact.email}`} className="font-bold text-neutral-800 hover:text-[#203210] hover:underline truncate max-w-[140px]">
+                                            {contact.email}
+                                          </a>
+                                        </div>
+                                      )}
+                                      {contact.availability && (
+                                        <div className="flex items-center justify-between text-neutral-400 text-[9px]">
+                                          <span>⏰ Hours:</span>
+                                          <span className="truncate">{contact.availability}</span>
+                                        </div>
+                                      )}
+                                    </div>
+
+                                    {/* Action buttons: Call, Email, Copy, Share */}
+                                    <div className="grid grid-cols-4 gap-1.5 pt-0.5 font-sans">
+                                      {contact.phone ? (
+                                        <a
+                                          href={`tel:${contact.phone.replace(/[^0-9+]/g, "")}`}
+                                          className="inline-flex items-center justify-center gap-1 py-1.5 px-2 text-[9px] font-black bg-[#B2EA4D] text-[#203210] hover:bg-[#B2EA4D]/90 rounded-md transition-all shadow-sm"
+                                          title="Direct Call"
+                                        >
+                                          <PhoneCall className="w-2.5 h-2.5" /> Call
+                                        </a>
+                                      ) : <div />}
+
+                                      {contact.email ? (
+                                        <a
+                                          href={`mailto:${contact.email}`}
+                                          className="inline-flex items-center justify-center gap-1 py-1.5 px-2 text-[9px] font-extrabold bg-neutral-900 text-white hover:bg-neutral-800 rounded-md transition-all shadow-sm"
+                                          title="Send Email"
+                                        >
+                                          <Mail className="w-2.5 h-2.5" /> Email
+                                        </a>
+                                      ) : <div />}
+
+                                      <button
+                                        onClick={() => {
+                                          const cardText = `📇 ${contact.name}\n💼 ${contact.designation} (${contact.department})\n📞 Phone: ${contact.phone || "N/A"}\n✉️ Email: ${contact.email || "N/A"}\n⏰ Hours: ${contact.availability || "N/A"}`;
+                                          navigator.clipboard.writeText(cardText);
+                                          setCopiedContactId(contact.id);
+                                          setTimeout(() => setCopiedContactId(null), 2000);
+                                        }}
+                                        className="inline-flex items-center justify-center gap-1 py-1.5 px-2 text-[9px] font-bold bg-white text-neutral-700 hover:bg-neutral-100 rounded-md border border-neutral-250 transition-all shadow-sm"
+                                        title="Copy Details"
+                                      >
+                                        {copiedContactId === contact.id ? <Check className="w-2.5 h-2.5 text-emerald-600" /> : <Copy className="w-2.5 h-2.5 text-neutral-500" />}
+                                        {copiedContactId === contact.id ? "Copied" : "Copy"}
+                                      </button>
+
+                                      <button
+                                        onClick={() => {
+                                          const text = `${contact.name} - ${contact.designation}\nPhone: ${contact.phone || ""}\nEmail: ${contact.email || ""}`;
+                                          if (navigator.share) {
+                                            navigator.share({ title: contact.name, text, url: window.location.href }).catch(() => {});
+                                          } else {
+                                            navigator.clipboard.writeText(text);
+                                            setCopiedContactId(contact.id);
+                                            setTimeout(() => setCopiedContactId(null), 2000);
+                                          }
+                                        }}
+                                        className="inline-flex items-center justify-center gap-1 py-1.5 px-2 text-[9px] font-bold bg-white text-neutral-700 hover:bg-neutral-100 rounded-md border border-neutral-250 transition-all shadow-sm"
+                                        title="Share Contact"
+                                      >
+                                        <Share2 className="w-2.5 h-2.5 text-amber-500" /> Share
+                                      </button>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -784,23 +1202,25 @@ export function Chatbot({
                 </div>
 
                 <div className="border-t border-neutral-100 px-3 pt-2 pb-2 flex gap-2 items-center bg-white">
-                  <Button 
-                    variant="outline" 
-                    size="icon" 
-                    onClick={toggleListening} 
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={toggleListening}
+                    disabled={showLeadPrompt}
                     className={`shrink-0 rounded-lg h-9 w-9 ${isListening ? "text-red-500 border-red-500 animate-pulse bg-red-50" : "text-neutral-500 border-neutral-200"}`}
-                    title="Voice Input"
+                    title={showLeadPrompt ? "Please submit your Name & Contact above to start" : "Voice Input"}
                   >
                     <Mic className="h-4 w-4" />
                   </Button>
                   <Input
-                    placeholder="Ask about Oogway products or support..."
+                    disabled={showLeadPrompt}
+                    placeholder={showLeadPrompt ? "🔒 Enter your Name & Contact above to start..." : "Ask about Oogway products or support..."}
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={handleKeyDown}
                     className="rounded-lg h-9 border-neutral-200 text-neutral-800 placeholder:text-neutral-400 focus-visible:ring-[#B2EA4D]"
                   />
-                  <Button onClick={sendMessage} disabled={!input.trim()} className="bg-[#B2EA4D] text-[#203210] hover:bg-[#B2EA4D]/90 text-white font-extrabold h-9 px-4 rounded-lg shadow-sm">
+                  <Button onClick={sendMessage} disabled={showLeadPrompt || !input.trim()} className="bg-[#B2EA4D] text-[#203210] hover:bg-[#B2EA4D]/90 text-white font-extrabold h-9 px-4 rounded-lg shadow-sm">
                     Send
                   </Button>
                 </div>

@@ -23,6 +23,8 @@ export async function verifyAdminAccess(allowedRoles?: AdminRole[]) {
   let workspaceId = "00000000-0000-0000-0000-000000000000"; // Default Oogway Workspace
   let isSimulated = false;
 
+  let isEmailVerified = false;
+
   // 1. Try resolving real Supabase Auth session first
   try {
     const cookieClient = await createServerClient();
@@ -31,6 +33,12 @@ export async function verifyAdminAccess(allowedRoles?: AdminRole[]) {
     if (user) {
       userId = user.id;
       email = user.email || "";
+      isEmailVerified = Boolean(
+        user.email_confirmed_at || 
+        user.user_metadata?.email_verified || 
+        user.app_metadata?.provider === "google" ||
+        (user.app_metadata?.providers && user.app_metadata.providers.includes("google"))
+      );
 
       const { data: userRoleRecord } = await supabase
         .from("user_roles")
@@ -51,6 +59,7 @@ export async function verifyAdminAccess(allowedRoles?: AdminRole[]) {
 
       if (email === "superadmin@yopmail.com") {
         role = "Super Admin";
+        isEmailVerified = true;
       }
     }
   } catch (err) {
@@ -79,6 +88,7 @@ export async function verifyAdminAccess(allowedRoles?: AdminRole[]) {
   if (simulatedRole) {
     role = simulatedRole;
     isSimulated = true;
+    isEmailVerified = true;
     if (userId === "00000000-0000-0000-0000-000000000000") {
       userId = `mock-${role.toLowerCase().replace(/\s+/g, "-")}`;
     }
@@ -97,11 +107,12 @@ export async function verifyAdminAccess(allowedRoles?: AdminRole[]) {
   const authorized = (!isUserGuest || isSimulated) && (!allowedRoles || allowedRoles.includes(role));
 
   return {
-    user: { id: userId, email },
+    user: { id: userId, email, isEmailVerified },
     role,
     authorized,
     workspaceId,
     supabase,
-    isSimulated
+    isSimulated,
+    isEmailVerified
   };
 }

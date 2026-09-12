@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { 
   Settings, 
@@ -21,7 +21,13 @@ import {
   Lock,
   Star,
   CheckCircle2,
-  Image as ImageIcon
+  Image as ImageIcon,
+  CreditCard,
+  Sparkles,
+  User,
+  Mail,
+  Wand2,
+  Upload
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -74,7 +80,7 @@ function SectionCard({
       </div>
       
       {isExpanded && (
-        <div className="px-6 pb-6 pt-2 border-t border-[#B2EA4D]/15/50 animate-in slide-in-from-top-2 duration-200">
+        <div className="px-6 pb-6 pt-2 border-t border-[#B2EA4D]/15 animate-in slide-in-from-top-2 duration-200">
           {description && (
             <p className="text-xs text-slate-400 mb-6 bg-[#0c1407]/50 p-3 rounded-lg border border-[#B2EA4D]/15 leading-relaxed">
               {description}
@@ -95,13 +101,15 @@ interface SettingsTabProps {
 }
 
 export function SettingsTab({ setActiveTab, onOpenUpgradeModal }: SettingsTabProps) {
-  // Track which sections are expanded
   const [expandedSections, setExpandedSections] = useState<string[]>([
-    "general", "branding", "website", "chatbot", "notifications", "updates"
+    "general", "profile", "subscription", "branding", "website", "chatbot", "notifications", "updates"
   ]);
 
   const searchParams = useSearchParams();
   const paymentStatus = searchParams?.get("payment");
+
+  // Premium feature state
+  const [isPremiumUnlocked, setIsPremiumUnlocked] = useState(false);
 
   useEffect(() => {
     if (typeof window !== "undefined" && localStorage.getItem("oogway_premium_unlocked") === "true") {
@@ -127,7 +135,8 @@ export function SettingsTab({ setActiveTab, onOpenUpgradeModal }: SettingsTabPro
   // Form State
   const [formData, setFormData] = useState({
     chatbotName: "Oogway AI Assistant",
-    companyName: "Acme Corp",
+    companyName: "NM Institute Of Engineering & Technology",
+    companyLogo: "",
     defaultLanguage: "English (US)",
     timeZone: "UTC-8 (Pacific Time)",
     websiteUrl: "https://example.com/support",
@@ -138,11 +147,23 @@ export function SettingsTab({ setActiveTab, onOpenUpgradeModal }: SettingsTabPro
     responseLength: "balanced",
     notifyFailures: true,
     notifySuccess: false,
+    adminEmail: "sangram@yopmail.com",
+    avatarUrl: ""
   });
 
-  // Premium feature state
-  const [isPremiumUnlocked, setIsPremiumUnlocked] = useState(false);
-  
+  const avatarInputRef = useRef<HTMLInputElement | null>(null);
+  const logoInputRef = useRef<HTMLInputElement | null>(null);
+
+  const isProActive = typeof window !== "undefined" && localStorage.getItem("oogway_pro_active") === "true";
+  const trialDaysRemaining = React.useMemo(() => {
+    if (typeof window === "undefined") return 15;
+    const stored = localStorage.getItem("oogway_trial_start_time");
+    let startTime = stored ? Number(stored) : null;
+    if (!startTime || isNaN(startTime)) return 15;
+    const elapsed = Math.floor((Date.now() - startTime) / (1000 * 60 * 60 * 24));
+    return Math.max(0, 15 - elapsed);
+  }, []);
+
   // Updates state
   const [updates, setUpdates] = useState([
     {
@@ -176,15 +197,39 @@ export function SettingsTab({ setActiveTab, onOpenUpgradeModal }: SettingsTabPro
   useEffect(() => {
     async function loadSettings() {
       try {
+        const storedEmail = typeof window !== "undefined" ? localStorage.getItem("oogway_cached_user_email") || "sangram@yopmail.com" : "sangram@yopmail.com";
+        const storedAvatar = typeof window !== "undefined" ? localStorage.getItem("oogway_admin_avatar") || "" : "";
+        const storedLogo = typeof window !== "undefined" ? localStorage.getItem("oogway_simulated_logo") || "" : "";
+        const storedCompany = typeof window !== "undefined" ? localStorage.getItem("oogway_simulated_company") || "" : "";
+        const storedSite = typeof window !== "undefined" ? localStorage.getItem("oogway_simulated_website") || "" : "";
+
         const res = await fetch("/api/settings");
         if (res.ok) {
           const data = await res.json();
-          const storedSite = typeof window !== "undefined" ? localStorage.getItem("oogway_simulated_website") : "";
-          const storedCompany = typeof window !== "undefined" ? localStorage.getItem("oogway_simulated_company") : "";
           setFormData(prev => ({
             ...prev,
             companyName: data.name || storedCompany || prev.companyName,
-            websiteUrl: data.website_url || storedSite || prev.websiteUrl
+            websiteUrl: data.website_url || storedSite || prev.websiteUrl,
+            companyLogo: data.logo_url || storedLogo || prev.companyLogo,
+            chatbotName: data.chatbot_name || prev.chatbotName,
+            defaultLanguage: data.default_language || prev.defaultLanguage,
+            timeZone: data.time_zone || prev.timeZone,
+            welcomeMessage: data.welcome_message || prev.welcomeMessage,
+            suggestedQuestions: data.suggested_questions || prev.suggestedQuestions,
+            responseLength: data.response_length || prev.responseLength,
+            syncEnabled: data.sync_enabled ?? prev.syncEnabled,
+            syncFrequency: data.sync_frequency || prev.syncFrequency,
+            notifyFailures: data.notify_failures ?? prev.notifyFailures,
+            notifySuccess: data.notify_success ?? prev.notifySuccess,
+            adminEmail: storedEmail,
+            avatarUrl: data.avatar_url || storedAvatar || prev.avatarUrl
+          }));
+        } else {
+          setFormData(prev => ({
+            ...prev,
+            adminEmail: storedEmail,
+            avatarUrl: storedAvatar,
+            companyLogo: storedLogo
           }));
         }
       } catch (e) {}
@@ -198,6 +243,56 @@ export function SettingsTab({ setActiveTab, onOpenUpgradeModal }: SettingsTabPro
     );
   };
 
+  // Handler: Extract profile avatar directly from registered email
+  const handleExtractAvatarFromEmail = () => {
+    const email = formData.adminEmail || "admin@example.com";
+    const namePart = email.split("@")[0].replace(/[._-]/g, " ");
+    const extractedUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(namePart)}&background=10b981&color=ffffff&bold=true&font-size=0.45`;
+    
+    setFormData(prev => ({ ...prev, avatarUrl: extractedUrl }));
+    if (typeof window !== "undefined") {
+      localStorage.setItem("oogway_admin_avatar", extractedUrl);
+      window.dispatchEvent(new Event("oogway-avatar-updated"));
+    }
+    alert(`Extracted high-resolution profile avatar for ${email}! Click 'Save Changes' to confirm.`);
+  };
+
+  // Handler: Upload Avatar file
+  const handleAvatarFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const result = evt.target?.result as string;
+      if (result) {
+        setFormData(prev => ({ ...prev, avatarUrl: result }));
+        if (typeof window !== "undefined") {
+          localStorage.setItem("oogway_admin_avatar", result);
+          window.dispatchEvent(new Event("oogway-avatar-updated"));
+        }
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Handler: Upload Company Logo file
+  const handleLogoFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const result = evt.target?.result as string;
+      if (result) {
+        setFormData(prev => ({ ...prev, companyLogo: result }));
+        if (typeof window !== "undefined") {
+          localStorage.setItem("oogway_simulated_logo", result);
+          window.dispatchEvent(new Event("oogway-logo-updated"));
+        }
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
@@ -206,14 +301,33 @@ export function SettingsTab({ setActiveTab, onOpenUpgradeModal }: SettingsTabPro
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: formData.companyName,
-          website_url: formData.websiteUrl
+          website_url: formData.websiteUrl,
+          logo_url: formData.companyLogo,
+          chatbot_name: formData.chatbotName,
+          default_language: formData.defaultLanguage,
+          time_zone: formData.timeZone,
+          welcome_message: formData.welcomeMessage,
+          suggested_questions: formData.suggestedQuestions,
+          response_length: formData.responseLength,
+          sync_enabled: formData.syncEnabled,
+          sync_frequency: formData.syncFrequency,
+          notify_failures: formData.notifyFailures,
+          notify_success: formData.notifySuccess,
+          avatar_url: formData.avatarUrl
         })
       });
+
       if (typeof window !== "undefined") {
         localStorage.setItem("oogway_simulated_company", formData.companyName);
         localStorage.setItem("oogway_simulated_website", formData.websiteUrl);
+        if (formData.companyLogo) localStorage.setItem("oogway_simulated_logo", formData.companyLogo);
+        if (formData.avatarUrl) localStorage.setItem("oogway_admin_avatar", formData.avatarUrl);
+        
+        window.dispatchEvent(new Event("oogway-logo-updated"));
+        window.dispatchEvent(new Event("oogway-avatar-updated"));
       }
-      alert("Settings saved successfully!");
+
+      alert("All Admin Settings saved successfully!");
     } catch (e: any) {
       alert("Failed to save settings: " + (e?.message || "Unknown error"));
     } finally {
@@ -254,20 +368,102 @@ export function SettingsTab({ setActiveTab, onOpenUpgradeModal }: SettingsTabPro
     setUpdates(prev => prev.map(u => u.id === id ? { ...u, isNew: false } : u));
   };
 
-
-
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-28 animate-mac-page relative">
       <div className="mb-8">
         <h2 className="text-2xl font-bold text-white tracking-tight">Admin Settings</h2>
-        <p className="text-slate-400 text-sm mt-1">Configure your chatbot, manage integrations, and review system updates.</p>
+        <p className="text-slate-400 text-sm mt-1">Configure your chatbot, profile image, brand identity, and system notifications.</p>
       </div>
 
-      {/* 1. General */}
+      {/* Hidden file inputs for avatar & logo */}
+      <input 
+        type="file" 
+        ref={avatarInputRef} 
+        onChange={handleAvatarFileUpload} 
+        accept="image/*" 
+        className="hidden" 
+      />
+      <input 
+        type="file" 
+        ref={logoInputRef} 
+        onChange={handleLogoFileUpload} 
+        accept="image/*" 
+        className="hidden" 
+      />
+
+      {/* 1. Admin Profile & Avatar */}
+      <SectionCard 
+        id="profile" 
+        icon={User} 
+        title="Admin Profile & Avatar"
+        description="Manage your account profile picture. Extract an avatar automatically from your registered email address or upload a custom image."
+        isExpanded={expandedSections.includes("profile")}
+        onToggle={() => toggleSection("profile")}
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-2 flex items-center gap-1.5">
+              <Mail className="w-3.5 h-3.5 text-[#B2EA4D]" />
+              Registered Email Address
+            </label>
+            <Input 
+              value={formData.adminEmail}
+              onChange={e => setFormData({...formData, adminEmail: e.target.value})}
+              className="bg-[#0c1407] border-[#B2EA4D]/15 text-sm h-10 font-mono text-slate-200" 
+            />
+            <span className="text-[10px] text-slate-500 mt-1 block">This registered email is used for authentication and profile avatar generation.</span>
+          </div>
+
+          <div>
+            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-2">
+              Admin Profile Picture
+            </label>
+            <div className="flex items-center gap-4 bg-[#0c1407] border border-[#B2EA4D]/15 p-3 rounded-xl">
+              <div className="relative w-14 h-14 rounded-full border-2 border-[#B2EA4D] p-0.5 overflow-hidden shrink-0 bg-[#1b2e11] shadow-lg">
+                {formData.avatarUrl ? (
+                  <img 
+                    src={formData.avatarUrl} 
+                    alt="Admin Avatar Preview" 
+                    className="w-full h-full rounded-full object-cover"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(formData.adminEmail.split("@")[0])}&background=10b981&color=ffffff&bold=true`;
+                    }}
+                  />
+                ) : (
+                  <div className="w-full h-full rounded-full bg-[#B2EA4D]/20 text-[#B2EA4D] font-extrabold flex items-center justify-center text-lg">
+                    {(formData.adminEmail || "A").charAt(0).toUpperCase()}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex flex-col gap-2 flex-1 min-w-0">
+                <Button 
+                  onClick={handleExtractAvatarFromEmail}
+                  className="bg-[#B2EA4D] hover:bg-[#B2EA4D]/90 text-slate-950 font-bold h-8 text-xs flex items-center justify-center gap-1.5 shadow-md"
+                >
+                  <Wand2 className="w-3.5 h-3.5" />
+                  Extract Avatar from Mail
+                </Button>
+
+                <Button 
+                  variant="outline"
+                  onClick={() => avatarInputRef.current?.click()}
+                  className="border-slate-700 bg-[#1b2e11] hover:bg-[#203210]/60 text-slate-300 h-8 text-xs flex items-center justify-center gap-1.5"
+                >
+                  <Upload className="w-3.5 h-3.5 text-[#B2EA4D]" />
+                  Upload Custom Picture
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </SectionCard>
+
+      {/* 2. General Settings */}
       <SectionCard 
         id="general" 
         icon={Settings} 
-        title="1. General"
+        title="2. General Settings"
         isExpanded={expandedSections.includes("general")}
         onToggle={() => toggleSection("general")}
       >
@@ -299,26 +495,27 @@ export function SettingsTab({ setActiveTab, onOpenUpgradeModal }: SettingsTabPro
               <span className="text-[10px] text-[#B2EA4D]/80 mt-1 block font-medium">Upgrade required to change chatbot name.</span>
             )}
           </div>
+
           <div className="md:col-span-2">
             <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-2">Company Logo</label>
             <div className="flex items-center gap-4">
-              <div className="w-16 h-16 rounded-xl bg-[#0c1407] border border-[#B2EA4D]/15 flex items-center justify-center border-dashed">
-                <ImageIcon className="w-6 h-6 text-slate-600" />
+              <div className="w-14 h-14 rounded-xl bg-[#0c1407] border border-[#B2EA4D]/15 flex items-center justify-center overflow-hidden border-dashed p-1">
+                {formData.companyLogo ? (
+                  <img src={formData.companyLogo} alt="Logo" className="w-full h-full object-contain" />
+                ) : (
+                  <ImageIcon className="w-6 h-6 text-slate-600" />
+                )}
               </div>
               <Button 
                 variant="outline" 
-                disabled={!isPremiumUnlocked}
-                className="h-9 border-[#B2EA4D]/15 bg-[#0c1407] hover:bg-[#203210]/60 text-xs text-slate-300"
+                onClick={() => logoInputRef.current?.click()}
+                className="h-9 border-[#B2EA4D]/30 bg-[#0c1407] hover:bg-[#203210]/60 text-xs text-slate-200 font-bold"
               >
                 Upload Logo
               </Button>
-              {!isPremiumUnlocked && (
-                <span className="text-[10px] text-[#B2EA4D]/80 flex items-center gap-1.5 font-medium">
-                  <Lock className="w-3.5 h-3.5" /> Upgrade required to change logo.
-                </span>
-              )}
             </div>
           </div>
+
           <div>
             <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-2">Default Language</label>
             <select 
@@ -343,16 +540,83 @@ export function SettingsTab({ setActiveTab, onOpenUpgradeModal }: SettingsTabPro
               <option>UTC-5 (Eastern Time)</option>
               <option>UTC+0 (GMT)</option>
               <option>UTC+1 (Central European Time)</option>
+              <option>UTC+5:30 (India Standard Time)</option>
             </select>
           </div>
         </div>
       </SectionCard>
 
-      {/* 2. Branding (Premium) */}
+      {/* 3. Subscription & Plan */}
+      <SectionCard 
+        id="subscription" 
+        icon={CreditCard} 
+        title="3. Subscription & Plan"
+        description="Manage your Oogway platform plan, billing cycles, and feature entitlements."
+        badge={
+          isProActive ? (
+            <span className="bg-lime-500/20 text-lime-300 text-xs font-bold px-2.5 py-0.5 rounded-full border border-lime-500/30 flex items-center gap-1">
+              <Sparkles className="w-3 h-3 text-lime-400" /> Pro Plan Active
+            </span>
+          ) : (
+            <span className="bg-amber-500/15 text-amber-300 text-xs font-semibold px-2.5 py-0.5 rounded-full border border-amber-500/25 flex items-center gap-1">
+              🟢 15-Day Free Trial ({trialDaysRemaining} days left)
+            </span>
+          )
+        }
+        isExpanded={expandedSections.includes("subscription")}
+        onToggle={() => toggleSection("subscription")}
+      >
+        <div className="p-5 rounded-xl bg-[#0c1407]/80 border border-[#B2EA4D]/20 space-y-4">
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <h4 className="text-base font-bold text-white">
+                  {isProActive ? "Pro Monthly Plan" : "15-Day Free Trial"}
+                </h4>
+                <span className="text-[11px] font-semibold text-gray-400">
+                  {isProActive ? "₹2,999 / month" : "₹0 (Free Trial)"}
+                </span>
+              </div>
+              <p className="text-xs text-gray-400 mt-1 leading-relaxed max-w-lg">
+                {isProActive 
+                  ? "Your account has active 24/7 AI Chatbot automation with unlimited customer inquiries and priority support."
+                  : `You are currently experiencing complete Oogway platform features. ${trialDaysRemaining} days remaining in your free trial.`}
+              </p>
+            </div>
+            <Button
+              onClick={() => onOpenUpgradeModal?.("pro")}
+              className="bg-gradient-to-r from-lime-300 to-lime-500 hover:from-lime-200 hover:to-lime-400 text-[#050B06] font-bold rounded-xl px-5 h-10 text-xs shadow-[0_0_20px_rgba(163,230,53,0.25)] transition-all cursor-pointer shrink-0"
+            >
+              {isProActive ? "Manage Plan & Billing" : "Upgrade to Pro • ₹2,999/mo"}
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-white/10 text-xs text-gray-300">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-lime-400 shrink-0" />
+              <span>24/7 Autonomous AI Chatbot Conversations</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-lime-400 shrink-0" />
+              <span>Vector Knowledge Base Embeddings</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-lime-400 shrink-0" />
+              <span>Website Crawling & Auto-Syncing</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-lime-400 shrink-0" />
+              <span>Real-Time Logs & Sentiment Analytics</span>
+            </div>
+          </div>
+        </div>
+      </SectionCard>
+
+      {/* 4. Branding (Premium) */}
       <SectionCard 
         id="branding" 
         icon={Palette} 
-        title="2. Branding"
+        title="4. Branding"
         description="Customize your chatbot's identity to match your brand."
         badge={
           !isPremiumUnlocked && (
@@ -404,10 +668,19 @@ export function SettingsTab({ setActiveTab, onOpenUpgradeModal }: SettingsTabPro
               <div>
                 <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-2">Custom Chatbot Logo</label>
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded bg-[#FFFFFF]/20 border border-indigo-500/30 flex items-center justify-center">
-                    <span className="text-[#FFFFFF] font-black text-lg">{formData.chatbotName.charAt(0)}</span>
+                  <div className="w-12 h-12 rounded bg-[#FFFFFF]/20 border border-indigo-500/30 flex items-center justify-center overflow-hidden">
+                    {formData.companyLogo ? (
+                      <img src={formData.companyLogo} alt="Logo" className="w-full h-full object-contain" />
+                    ) : (
+                      <span className="text-[#FFFFFF] font-black text-lg">{formData.chatbotName.charAt(0)}</span>
+                    )}
                   </div>
-                  <Button variant="outline" disabled={!isPremiumUnlocked} className="h-9 border-[#B2EA4D]/15 bg-[#0c1407] hover:bg-[#203210]/60 text-xs text-slate-300">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => logoInputRef.current?.click()}
+                    disabled={!isPremiumUnlocked} 
+                    className="h-9 border-[#B2EA4D]/15 bg-[#0c1407] hover:bg-[#203210]/60 text-xs text-slate-300"
+                  >
                     Replace Logo
                   </Button>
                 </div>
@@ -418,8 +691,12 @@ export function SettingsTab({ setActiveTab, onOpenUpgradeModal }: SettingsTabPro
               <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-2">Brand Preview</label>
               <div className="bg-[#0c1407] border border-[#B2EA4D]/15 rounded-xl p-4 flex flex-col h-full min-h-[150px]">
                 <div className="flex items-center gap-3 border-b border-[#B2EA4D]/15 pb-3">
-                  <div className="w-8 h-8 rounded bg-[#FFFFFF]/20 border border-indigo-500/30 flex items-center justify-center shrink-0">
-                    <span className="text-[#FFFFFF] font-bold text-sm">{formData.chatbotName.charAt(0)}</span>
+                  <div className="w-8 h-8 rounded bg-[#FFFFFF]/20 border border-indigo-500/30 flex items-center justify-center shrink-0 overflow-hidden">
+                    {formData.companyLogo ? (
+                      <img src={formData.companyLogo} alt="Logo" className="w-full h-full object-contain" />
+                    ) : (
+                      <span className="text-[#FFFFFF] font-bold text-sm">{formData.chatbotName.charAt(0)}</span>
+                    )}
                   </div>
                   <div>
                     <div className="text-sm font-bold text-white">{formData.chatbotName}</div>
@@ -440,12 +717,12 @@ export function SettingsTab({ setActiveTab, onOpenUpgradeModal }: SettingsTabPro
         </div>
       </SectionCard>
 
-      {/* 3. Knowledge Base */}
+      {/* 5. Knowledge Base */}
       <SectionCard 
         id="website" 
         icon={Globe} 
-        title="3. Knowledge Base"
-        description="When enabled, Oogway automatically detects website changes, processes the content through the complete AI pipeline, and updates your chatbot's knowledge base with the latest information."
+        title="5. Knowledge Base Sync"
+        description="When enabled, Oogway automatically detects website changes, processes content, and updates your chatbot's knowledge base."
         isExpanded={expandedSections.includes("website")}
         onToggle={() => toggleSection("website")}
       >
@@ -477,7 +754,7 @@ export function SettingsTab({ setActiveTab, onOpenUpgradeModal }: SettingsTabPro
               </label>
 
               {formData.syncEnabled && (
-                <div className="pt-3 border-t border-[#B2EA4D]/15/50">
+                <div className="pt-3 border-t border-[#B2EA4D]/15">
                   <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-2">Sync Frequency</label>
                   <select 
                     value={formData.syncFrequency}
@@ -492,7 +769,7 @@ export function SettingsTab({ setActiveTab, onOpenUpgradeModal }: SettingsTabPro
               )}
             </div>
             
-            <Button onClick={() => setActiveTab("upload")} className="w-full bg-[#B2EA4D] hover:bg-[#B2EA4D] text-slate-950 font-bold h-10">
+            <Button onClick={() => setActiveTab("website_sync")} className="w-full bg-[#B2EA4D] hover:bg-[#B2EA4D]/90 text-slate-950 font-bold h-10">
               Sync Now
             </Button>
           </div>
@@ -504,22 +781,22 @@ export function SettingsTab({ setActiveTab, onOpenUpgradeModal }: SettingsTabPro
                 <span className="text-sm text-slate-300">Last Sync</span>
                 <span className="text-xs font-bold text-[#B2EA4D] bg-[#B2EA4D]/8 px-2.5 py-1 rounded-full border border-[#B2EA4D]/20 flex items-center gap-1">
                   <ShieldCheck className="w-3.5 h-3.5" />
-                  Success
+                  Active
                 </span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm text-slate-300">Timestamp</span>
-                <span className="text-xs text-slate-400 font-mono">Today, 08:30 AM</span>
+                <span className="text-sm text-slate-300">Status</span>
+                <span className="text-xs text-slate-400 font-mono">Synced</span>
               </div>
             </div>
 
             <div className="flex flex-col gap-3">
-              <Button onClick={() => setActiveTab("upload")} variant="outline" className="w-full h-10 border-slate-700 text-slate-300 hover:bg-[#203210]/60 justify-start gap-3">
+              <Button onClick={() => setActiveTab("documents")} variant="outline" className="w-full h-10 border-slate-700 text-slate-300 hover:bg-[#203210]/60 justify-start gap-3">
                 <UploadCloud className="w-4 h-4 text-[#B2EA4D]" />
                 Upload Documents
               </Button>
-              <Button onClick={() => setActiveTab("upload")} variant="outline" className="w-full h-10 border-slate-700 text-slate-300 hover:bg-[#203210]/60 justify-start gap-3">
-                <Database className="w-4 h-4 text-[#FFFFFF]" />
+              <Button onClick={() => setActiveTab("documents")} variant="outline" className="w-full h-10 border-slate-700 text-slate-300 hover:bg-[#203210]/60 justify-start gap-3">
+                <Database className="w-4 h-4 text-white" />
                 View Documents
               </Button>
             </div>
@@ -527,11 +804,11 @@ export function SettingsTab({ setActiveTab, onOpenUpgradeModal }: SettingsTabPro
         </div>
       </SectionCard>
 
-      {/* 4. Chatbot */}
+      {/* 6. Chatbot Customization */}
       <SectionCard 
         id="chatbot" 
         icon={MessageSquare} 
-        title="4. Chatbot"
+        title="6. Chatbot Behavior & Prompts"
         isExpanded={expandedSections.includes("chatbot")}
         onToggle={() => toggleSection("chatbot")}
       >
@@ -574,11 +851,11 @@ export function SettingsTab({ setActiveTab, onOpenUpgradeModal }: SettingsTabPro
         </div>
       </SectionCard>
 
-      {/* 5. Notifications */}
+      {/* 7. Notifications */}
       <SectionCard 
         id="notifications" 
         icon={Bell} 
-        title="5. Notifications"
+        title="7. Notifications"
         isExpanded={expandedSections.includes("notifications")}
         onToggle={() => toggleSection("notifications")}
       >
@@ -619,11 +896,11 @@ export function SettingsTab({ setActiveTab, onOpenUpgradeModal }: SettingsTabPro
         </div>
       </SectionCard>
 
-      {/* 6. Updates from Oogway */}
+      {/* 8. System Updates */}
       <SectionCard 
         id="updates" 
         icon={Megaphone} 
-        title="6. Updates from Oogway"
+        title="8. System Updates"
         badge={
           updates.some(u => u.isNew) && (
             <span className="bg-rose-500 text-white px-1.5 py-0.5 rounded text-[9px] font-black tracking-wider shadow-lg shadow-rose-500/20">
@@ -644,7 +921,6 @@ export function SettingsTab({ setActiveTab, onOpenUpgradeModal }: SettingsTabPro
                   : 'bg-[#0c1407] border-[#B2EA4D]/15'
               }`}
             >
-              {/* Highlight bar for new updates */}
               {update.isNew && (
                 <div className="absolute top-0 left-0 w-1 h-full bg-[#B2EA4D] rounded-l-xl"></div>
               )}
@@ -687,14 +963,14 @@ export function SettingsTab({ setActiveTab, onOpenUpgradeModal }: SettingsTabPro
 
       {/* Bottom Sticky Action Bar */}
       <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] md:w-full max-w-xl z-50">
-        <div className="bg-[#1b2e11]/80 backdrop-blur-xl border border-[#B2EA4D]/15 p-3 rounded-2xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.5)] flex items-center justify-end gap-3">
+        <div className="bg-[#1b2e11]/90 backdrop-blur-xl border border-[#B2EA4D]/30 p-3 rounded-2xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.8)] flex items-center justify-end gap-3">
           <Button variant="ghost" className="text-slate-400 hover:text-white h-10 px-6 rounded-xl text-sm font-medium">
             Cancel
           </Button>
           <Button 
             onClick={handleSave} 
             disabled={saving}
-            className="bg-[#B2EA4D] hover:bg-[#B2EA4D] text-slate-950 font-bold h-10 px-8 rounded-xl shadow-lg shadow-[#B2EA4D]/25 text-sm"
+            className="bg-[#B2EA4D] hover:bg-[#B2EA4D]/90 text-slate-950 font-extrabold h-10 px-8 rounded-xl shadow-lg shadow-[#B2EA4D]/25 text-sm"
           >
             {saving ? (
               <RefreshCw className="w-4 h-4 animate-spin mr-2" />

@@ -7,7 +7,6 @@ import { Suspense, useEffect } from "react";
 function EmbedContent() {
   const searchParams = useSearchParams();
   const workspaceId = searchParams.get("workspaceId") || undefined;
-  const otp = searchParams.get("otp") || undefined;
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -26,7 +25,7 @@ function EmbedContent() {
           background-color: transparent !important;
         }
       `}</style>
-      <Chatbot positionStrategy="fixed" embeddedWorkspaceId={workspaceId} embeddedOtp={otp} hideSimulateContext={true} isEmbeddedMode={true} />
+      <Chatbot positionStrategy="fixed" embeddedWorkspaceId={workspaceId} hideSimulateContext={true} isEmbeddedMode={true} />
     </div>
   );
 }

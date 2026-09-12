@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { sendWelcomeEmail } from "@/lib/email";
+import { sendWelcomeEmail, sendVerificationEmail } from "@/lib/email";
+import crypto from "crypto";
 
 export async function POST(req: Request) {
   try {
@@ -37,14 +38,19 @@ export async function POST(req: Request) {
       },
     });
 
-    // Create user with email_confirm: true so user is immediately active and can sign in
+    const verifyToken = crypto.randomUUID();
+
+    // Create user with email_confirm: false requiring link click verification
     const { data, error } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
-      email_confirm: true,
+      email_confirm: false,
       user_metadata: {
         source: "web_registration",
         full_name: name,
+        username: name,
+        verification_token: verifyToken,
+        email_verified: false,
       },
     });
 
@@ -70,15 +76,24 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
-    // Trigger high-converting Welcome Email asynchronously in background
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    const verificationUrl = `${appUrl}/verify-email?token=${verifyToken}&email=${encodeURIComponent(email)}`;
+
+    // Dispatch verification link to the given email address asynchronously
     if (data.user && data.user.email) {
+      sendVerificationEmail({
+        email: data.user.email,
+        name: name || undefined,
+        verificationUrl,
+      }).catch((emailErr) => {
+        console.warn("Background verification email dispatch error:", emailErr);
+      });
+
       sendWelcomeEmail({
         email: data.user.email,
         name: name || undefined,
         companyName: companyName || undefined,
-      }).catch((emailErr) => {
-        console.warn("Background welcome email dispatch error:", emailErr);
-      });
+      }).catch(() => {});
     }
 
     return NextResponse.json({

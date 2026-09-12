@@ -37,12 +37,16 @@ import {
   Bot,
   Loader2,
   Code,
-  X
+  X,
+  PhoneCall,
+  TrendingUp
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { KeyContactsTab } from "./KeyContactsTab";
+import { LeadsTab } from "./LeadsTab";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import dynamic from "next/dynamic";
 import { SettingsTab } from "./SettingsTab";
@@ -51,18 +55,18 @@ import { TicketsTab } from "./TicketsTab";
 const renderMarkdown = (text: string) => {
   if (!text) return null;
   const lines = text.split("\n");
-  
+
   return (
     <div className="space-y-2">
       {lines.map((line, lIdx) => {
         const trimmed = line.trim();
         if (!trimmed) return <div key={lIdx} className="h-1.5" />;
-        
+
         // Check if bullet point using regex (matches *, -, bullet characters, )
         const bulletMatch = trimmed.match(/^([\*\-\u2022\u25E6\u25AA])\s*(.*)$/);
         const isBullet = !!bulletMatch;
         const content = isBullet ? bulletMatch[2] : trimmed;
-        
+
         // Parse bold markers **word**
         const parts = content.split(/(\*\*.*?\*\*)/g);
         const renderedParts = parts.map((part, pIdx) => {
@@ -71,7 +75,7 @@ const renderMarkdown = (text: string) => {
           }
           return part;
         });
-        
+
         if (isBullet) {
           return (
             <div key={lIdx} className="flex gap-2 text-[11px] leading-relaxed text-slate-300">
@@ -80,7 +84,7 @@ const renderMarkdown = (text: string) => {
             </div>
           );
         }
-        
+
         return (
           <p key={lIdx} className="text-[11px] leading-relaxed text-slate-300">
             {renderedParts}
@@ -96,7 +100,7 @@ const KnowledgeUniverse = dynamic(
   { ssr: false }
 );
 
-type ActiveTab = "overview" | "chatbot" | "knowledge_base" | "website_sync" | "documents" | "conversations" | "tickets" | "analytics" | "team" | "settings" | "audit_logs";
+type ActiveTab = "overview" | "chatbot" | "knowledge_base" | "website_sync" | "documents" | "conversations" | "tickets" | "analytics" | "team" | "contacts" | "leads" | "settings" | "audit_logs";
 
 export default function WorkspaceDashboard() {
   const params = useParams();
@@ -118,6 +122,12 @@ export default function WorkspaceDashboard() {
     "tickets": "tickets",
     "analytics": "analytics",
     "team": "team",
+    "contacts": "contacts",
+    "key-contacts": "contacts",
+    "directory": "contacts",
+    "leads": "leads",
+    "lead-channel": "leads",
+    "pipeline": "leads",
     "settings": "settings",
     "audit-logs": "audit_logs"
   };
@@ -233,12 +243,12 @@ export default function WorkspaceDashboard() {
   const [copiedEmbed, setCopiedEmbed] = useState(false);
   const [activeOtp, setActiveOtp] = useState<string>("");
   const [generatingOtp, setGeneratingOtp] = useState<boolean>(false);
-  const [isOtpSynced, setIsOtpSynced] = useState<boolean>(false);
+  const [isOtpSynced, setIsOtpSynced] = useState<boolean>(true);
 
   const handleGenerateNewOtp = async () => {
     try {
       setGeneratingOtp(true);
-      setIsOtpSynced(false);
+      setIsOtpSynced(true);
       const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
       let newOtp = "";
       for (let i = 0; i < 6; i++) {
@@ -255,7 +265,7 @@ export default function WorkspaceDashboard() {
           companyName,
           industry
         })
-      }).catch(() => {});
+      }).catch(() => { });
 
       setActiveOtp(newOtp);
       if (typeof window !== "undefined") {
@@ -301,7 +311,7 @@ export default function WorkspaceDashboard() {
           companyName,
           industry
         })
-      }).catch(() => {});
+      }).catch(() => { });
     }
   }, [workspaceId, companyName, industry]);
 
@@ -319,7 +329,7 @@ export default function WorkspaceDashboard() {
           const data = await res.json();
           setIsOtpSynced(Boolean(data.isSynced));
         }
-      } catch (e) {}
+      } catch (e) { }
     };
 
     checkSyncStatus();
@@ -402,16 +412,16 @@ export default function WorkspaceDashboard() {
 
       const payload = type === "pro"
         ? {
-            plan: "pro_monthly",
-            successUrl: `${window.location.origin}/dashboard/overview?payment=success&type=pro`,
-            cancelUrl: `${window.location.origin}/dashboard/overview?payment=cancelled`
-          }
+          plan: "pro_monthly",
+          successUrl: `${window.location.origin}/dashboard/overview?payment=success&type=pro`,
+          cancelUrl: `${window.location.origin}/dashboard/overview?payment=cancelled`
+        }
         : {
-            amount: 540,
-            currency: "inr",
-            successUrl: `${window.location.origin}/dashboard/settings?payment=success&type=branding`,
-            cancelUrl: `${window.location.origin}/dashboard/settings?payment=cancelled`
-          };
+          amount: 540,
+          currency: "inr",
+          successUrl: `${window.location.origin}/dashboard/settings?payment=success&type=branding`,
+          cancelUrl: `${window.location.origin}/dashboard/settings?payment=cancelled`
+        };
 
       const res = await fetch("/api/stripe/checkout", {
         method: "POST",
@@ -535,7 +545,16 @@ export default function WorkspaceDashboard() {
       const paymentStatus = params.get("payment");
       const paymentType = params.get("type");
 
-      if (paymentStatus === "success" || params.get("success") === "true") {
+      // 1. Onboarding completion (/dashboard?success=true) -> Start 15-Day Free Trial
+      if (params.get("success") === "true") {
+        setShowSuccessBanner(true);
+        if (!localStorage.getItem("oogway_trial_start_time")) {
+          localStorage.setItem("oogway_trial_start_time", Date.now().toString());
+        }
+      }
+
+      // 2. Stripe payment completion (/dashboard?payment=success&type=pro) -> Unlock Pro Plan / Branding
+      if (paymentStatus === "success") {
         setShowSuccessBanner(true);
         if (paymentType === "branding") {
           localStorage.setItem("oogway_premium_unlocked", "true");
@@ -546,22 +565,57 @@ export default function WorkspaceDashboard() {
         }
       }
 
-      // Verify active subscription from server API
+      // Verify active subscription status from server API
       fetch("/api/stripe/subscription")
         .then((res) => res.ok ? res.json() : null)
         .then((data) => {
           if (data?.subscription?.active) {
             setIsProSubscribed(true);
             localStorage.setItem("oogway_pro_active", "true");
+          } else if (data && !data.subscription?.active) {
+            setIsProSubscribed(false);
+            localStorage.removeItem("oogway_pro_active");
           }
         })
-        .catch(() => {});
+        .catch(() => { });
     }
 
     return () => {
       subscription.unsubscribe();
     };
   }, [queryClient, user?.email]);
+
+  // Admin Avatar reactive state
+  const [customAvatar, setCustomAvatar] = useState<string>("");
+
+  useEffect(() => {
+    const handleAvatarUpdate = () => {
+      const stored = typeof window !== "undefined" ? localStorage.getItem("oogway_admin_avatar") : null;
+      if (stored) setCustomAvatar(stored);
+    };
+    handleAvatarUpdate();
+    window.addEventListener("storage", handleAvatarUpdate);
+    window.addEventListener("oogway-avatar-updated", handleAvatarUpdate);
+    return () => {
+      window.removeEventListener("storage", handleAvatarUpdate);
+      window.removeEventListener("oogway-avatar-updated", handleAvatarUpdate);
+    };
+  }, []);
+
+  const userAvatarUrl = useMemo(() => {
+    if (customAvatar) return customAvatar;
+    if (typeof window !== "undefined" && localStorage.getItem("oogway_admin_avatar")) {
+      return localStorage.getItem("oogway_admin_avatar");
+    }
+    const meta = user?.user_metadata || {};
+    const url = meta.avatar_url || meta.picture || meta.avatar;
+    if (url) return url;
+    if (user?.email) {
+      const namePart = user.email.split("@")[0].replace(/[._-]/g, " ");
+      return `https://ui-avatars.com/api/?name=${encodeURIComponent(namePart)}&background=10b981&color=ffffff&bold=true`;
+    }
+    return null;
+  }, [user, customAvatar]);
 
   // Handle Tab Switch / Background Throttling: Auto-recover auth immediately when user refocuses the tab
   useEffect(() => {
@@ -1127,18 +1181,18 @@ export default function WorkspaceDashboard() {
         <div className="w-full max-w-lg relative z-10 text-center">
           {/* Brand Header */}
           <div className="flex items-center justify-center gap-2.5 mb-6">
-            <Image 
-              src="/images/oogway_turtle_logo.png" 
-              alt="Oogway Turtle Logo" 
-              width={46} 
-              height={46} 
+            <Image
+              src="/images/oogway_turtle_logo.png"
+              alt="Oogway Turtle Logo"
+              width={46}
+              height={46}
               className="object-contain drop-shadow-[0_0_16px_rgba(163,230,53,0.3)]"
             />
-            <Image 
-              src="/images/oogway_text_logo.png" 
-              alt="Oogway Text Logo" 
-              width={115} 
-              height={30} 
+            <Image
+              src="/images/oogway_text_logo.png"
+              alt="Oogway Text Logo"
+              width={115}
+              height={30}
               className="object-contain brightness-0 invert opacity-95"
             />
           </div>
@@ -1225,9 +1279,9 @@ export default function WorkspaceDashboard() {
           <div className="flex items-center gap-2">
             <div suppressHydrationWarning className="w-7 h-7 rounded-lg bg-[#B2EA4D]/20 text-[#B2EA4D] flex items-center justify-center font-bold text-base shadow-sm border border-[#B2EA4D]/30 overflow-hidden shrink-0">
               {autoLogoUrl ? (
-                <img 
-                  src={autoLogoUrl} 
-                  alt="Logo" 
+                <img
+                  src={autoLogoUrl}
+                  alt="Logo"
                   className="w-full h-full object-contain p-0.5 bg-white"
                   onError={handleLogoError}
                 />
@@ -1242,19 +1296,30 @@ export default function WorkspaceDashboard() {
         </div>
 
         {/* User profile card */}
-        <div suppressHydrationWarning className="px-3.5 py-2 border-b border-[#B2EA4D]/15 flex items-center gap-2.5 shrink-0">
-          {user?.user_metadata?.avatar_url ? (
-            <img src={user.user_metadata.avatar_url} alt="Avatar" className="w-7 h-7 rounded-full border border-[#B2EA4D]/30 shrink-0" />
+        <div suppressHydrationWarning className="px-3.5 py-2.5 border-b border-[#B2EA4D]/15 flex items-center gap-3 shrink-0">
+          {userAvatarUrl ? (
+            <img
+              src={userAvatarUrl}
+              alt="Admin Avatar"
+              className="w-8 h-8 rounded-full border border-[#B2EA4D]/40 object-cover shrink-0 shadow-sm"
+              onError={(e) => {
+                // Fallback to UI-Avatars if image fails
+                const email = user?.email || "Admin";
+                (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(email.split("@")[0])}&background=10b981&color=ffffff&bold=true`;
+              }}
+            />
           ) : (
-            <div className="w-7 h-7 rounded-full bg-[#B2EA4D]/10 border border-[#B2EA4D]/25 flex items-center justify-center shrink-0">
-              <span className="text-[10px] font-bold text-[#B2EA4D]">
-                {(user?.email || "U").charAt(0).toUpperCase()}
+            <div className="w-8 h-8 rounded-full bg-[#B2EA4D]/15 border border-[#B2EA4D]/30 flex items-center justify-center shrink-0 shadow-sm">
+              <span className="text-xs font-extrabold text-[#B2EA4D]">
+                {(user?.email || "A").charAt(0).toUpperCase()}
               </span>
             </div>
           )}
           <div className="flex-1 min-w-0">
             {user?.email ? (
-              <p suppressHydrationWarning className="text-[11px] font-semibold text-white truncate font-mono leading-tight">{user.email}</p>
+              <p title={user.email} suppressHydrationWarning className="text-[11px] font-semibold text-slate-100 truncate font-mono leading-tight">
+                {user.email}
+              </p>
             ) : (
               <div className="flex items-center justify-between">
                 <span suppressHydrationWarning className="text-[11px] text-slate-400 font-mono flex items-center gap-1.5">
@@ -1270,7 +1335,7 @@ export default function WorkspaceDashboard() {
                 </button>
               </div>
             )}
-            <span suppressHydrationWarning className="text-[8px] font-bold text-[#B2EA4D] bg-[#B2EA4D]/8 border border-[#B2EA4D]/20 px-1.5 py-0.5 rounded uppercase tracking-wider mt-0.5 inline-block">
+            <span suppressHydrationWarning className="text-[8px] font-bold text-[#B2EA4D] bg-[#B2EA4D]/10 border border-[#B2EA4D]/20 px-1.5 py-0.5 rounded uppercase tracking-wider mt-0.5 inline-block">
               {user?.email === "superadmin@yopmail.com" ? "Super Admin" : (role === "Knowledge Admin" ? "Admin" : (role || "Admin"))}
             </span>
           </div>
@@ -1283,8 +1348,8 @@ export default function WorkspaceDashboard() {
             onMouseEnter={() => prefetchTab("overview")}
             onClick={() => setActiveTab("overview")}
             className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${activeTab === "overview"
-                ? "bg-[#B2EA4D]/15 text-[#B2EA4D] border-l-2 border-[#B2EA4D]"
-                : "text-slate-300 hover:bg-[#203210]/60 hover:text-slate-200"
+              ? "bg-[#B2EA4D]/15 text-[#B2EA4D] border-l-2 border-[#B2EA4D]"
+              : "text-slate-300 hover:bg-[#203210]/60 hover:text-slate-200"
               }`}
           >
             <LayoutDashboard className="w-3.5 h-3.5 shrink-0" />
@@ -1296,8 +1361,8 @@ export default function WorkspaceDashboard() {
             onMouseEnter={() => prefetchTab("chatbot")}
             onClick={() => setActiveTab("chatbot")}
             className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${activeTab === "chatbot"
-                ? "bg-[#B2EA4D]/15 text-[#B2EA4D] border-l-2 border-[#B2EA4D]"
-                : "text-slate-300 hover:bg-[#203210]/60 hover:text-slate-200"
+              ? "bg-[#B2EA4D]/15 text-[#B2EA4D] border-l-2 border-[#B2EA4D]"
+              : "text-slate-300 hover:bg-[#203210]/60 hover:text-slate-200"
               }`}
           >
             <Bot className="w-3.5 h-3.5 text-[#B2EA4D] shrink-0" />
@@ -1309,8 +1374,8 @@ export default function WorkspaceDashboard() {
             onMouseEnter={() => prefetchTab("knowledge_base")}
             onClick={() => setActiveTab("knowledge_base")}
             className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${activeTab === "knowledge_base"
-                ? "bg-[#B2EA4D]/15 text-[#B2EA4D] border-l-2 border-[#B2EA4D]"
-                : "text-slate-300 hover:bg-[#203210]/60 hover:text-slate-200"
+              ? "bg-[#B2EA4D]/15 text-[#B2EA4D] border-l-2 border-[#B2EA4D]"
+              : "text-slate-300 hover:bg-[#203210]/60 hover:text-slate-200"
               }`}
           >
             <Globe className="w-3.5 h-3.5 shrink-0" />
@@ -1322,8 +1387,8 @@ export default function WorkspaceDashboard() {
             onMouseEnter={() => prefetchTab("website_sync")}
             onClick={() => setActiveTab("website_sync")}
             className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${activeTab === "website_sync"
-                ? "bg-[#B2EA4D]/15 text-[#B2EA4D] border-l-2 border-[#B2EA4D]"
-                : "text-slate-300 hover:bg-[#203210]/60 hover:text-slate-200"
+              ? "bg-[#B2EA4D]/15 text-[#B2EA4D] border-l-2 border-[#B2EA4D]"
+              : "text-slate-300 hover:bg-[#203210]/60 hover:text-slate-200"
               }`}
           >
             <RefreshCw className="w-3.5 h-3.5 shrink-0" />
@@ -1335,8 +1400,8 @@ export default function WorkspaceDashboard() {
             onMouseEnter={() => prefetchTab("documents")}
             onClick={() => setActiveTab("documents")}
             className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${activeTab === "documents"
-                ? "bg-[#B2EA4D]/15 text-[#B2EA4D] border-l-2 border-[#B2EA4D]"
-                : "text-slate-300 hover:bg-[#203210]/60 hover:text-slate-200"
+              ? "bg-[#B2EA4D]/15 text-[#B2EA4D] border-l-2 border-[#B2EA4D]"
+              : "text-slate-300 hover:bg-[#203210]/60 hover:text-slate-200"
               }`}
           >
             <UploadCloud className="w-3.5 h-3.5 shrink-0" />
@@ -1348,8 +1413,8 @@ export default function WorkspaceDashboard() {
             onMouseEnter={() => prefetchTab("conversations")}
             onClick={() => setActiveTab("conversations")}
             className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${activeTab === "conversations"
-                ? "bg-[#B2EA4D]/15 text-[#B2EA4D] border-l-2 border-[#B2EA4D]"
-                : "text-slate-300 hover:bg-[#203210]/60 hover:text-slate-200"
+              ? "bg-[#B2EA4D]/15 text-[#B2EA4D] border-l-2 border-[#B2EA4D]"
+              : "text-slate-300 hover:bg-[#203210]/60 hover:text-slate-200"
               }`}
           >
             <FileSpreadsheet className="w-3.5 h-3.5 shrink-0" />
@@ -1361,8 +1426,8 @@ export default function WorkspaceDashboard() {
             onMouseEnter={() => prefetchTab("tickets")}
             onClick={() => setActiveTab("tickets")}
             className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${activeTab === "tickets"
-                ? "bg-[#B2EA4D]/15 text-[#B2EA4D] border-l-2 border-[#B2EA4D]"
-                : "text-slate-300 hover:bg-[#203210]/60 hover:text-slate-200"
+              ? "bg-[#B2EA4D]/15 text-[#B2EA4D] border-l-2 border-[#B2EA4D]"
+              : "text-slate-300 hover:bg-[#203210]/60 hover:text-slate-200"
               }`}
           >
             <ShieldAlert className="w-3.5 h-3.5 text-red-400 shrink-0" />
@@ -1374,8 +1439,8 @@ export default function WorkspaceDashboard() {
             onMouseEnter={() => prefetchTab("analytics")}
             onClick={() => setActiveTab("analytics")}
             className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${activeTab === "analytics"
-                ? "bg-[#B2EA4D]/15 text-[#B2EA4D] border-l-2 border-[#B2EA4D]"
-                : "text-slate-300 hover:bg-[#203210]/60 hover:text-slate-200"
+              ? "bg-[#B2EA4D]/15 text-[#B2EA4D] border-l-2 border-[#B2EA4D]"
+              : "text-slate-300 hover:bg-[#203210]/60 hover:text-slate-200"
               }`}
           >
             <Activity className="w-3.5 h-3.5 shrink-0" />
@@ -1386,12 +1451,36 @@ export default function WorkspaceDashboard() {
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => setActiveTab("team")}
             className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${activeTab === "team"
-                ? "bg-[#B2EA4D]/15 text-[#B2EA4D] border-l-2 border-[#B2EA4D]"
-                : "text-slate-300 hover:bg-[#203210]/60 hover:text-slate-200"
+              ? "bg-[#B2EA4D]/15 text-[#B2EA4D] border-l-2 border-[#B2EA4D]"
+              : "text-slate-300 hover:bg-[#203210]/60 hover:text-slate-200"
               }`}
           >
             <Users className="w-3.5 h-3.5 shrink-0" />
             Team
+          </button>
+
+          <button
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => setActiveTab("contacts")}
+            className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${activeTab === "contacts"
+              ? "bg-[#B2EA4D]/15 text-[#B2EA4D] border-l-2 border-[#B2EA4D]"
+              : "text-slate-300 hover:bg-[#203210]/60 hover:text-slate-200"
+              }`}
+          >
+            <PhoneCall className="w-3.5 h-3.5 text-[#B2EA4D] shrink-0" />
+            Key Contacts
+          </button>
+
+          <button
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => setActiveTab("leads")}
+            className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${activeTab === "leads"
+              ? "bg-[#B2EA4D]/15 text-[#B2EA4D] border-l-2 border-[#B2EA4D]"
+              : "text-slate-300 hover:bg-[#203210]/60 hover:text-slate-200"
+              }`}
+          >
+            <TrendingUp className="w-3.5 h-3.5 text-lime-400 shrink-0" />
+            Leads Channel
           </button>
 
           {["Super Admin", "Knowledge Admin", "Reviewer"].includes(role || "") && (
@@ -1399,8 +1488,8 @@ export default function WorkspaceDashboard() {
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => setActiveTab("audit_logs")}
               className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${activeTab === "audit_logs"
-                  ? "bg-[#B2EA4D]/15 text-[#B2EA4D] border-l-2 border-[#B2EA4D]"
-                  : "text-slate-300 hover:bg-[#203210]/60 hover:text-slate-200"
+                ? "bg-[#B2EA4D]/15 text-[#B2EA4D] border-l-2 border-[#B2EA4D]"
+                : "text-slate-300 hover:bg-[#203210]/60 hover:text-slate-200"
                 }`}
             >
               <Activity className="w-3.5 h-3.5 shrink-0" />
@@ -1412,8 +1501,8 @@ export default function WorkspaceDashboard() {
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => setActiveTab("settings")}
             className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${activeTab === "settings"
-                ? "bg-[#B2EA4D]/15 text-[#B2EA4D] border-l-2 border-[#B2EA4D]"
-                : "text-slate-300 hover:bg-[#203210]/60 hover:text-slate-200"
+              ? "bg-[#B2EA4D]/15 text-[#B2EA4D] border-l-2 border-[#B2EA4D]"
+              : "text-slate-300 hover:bg-[#203210]/60 hover:text-slate-200"
               }`}
           >
             <Settings className="w-3.5 h-3.5 shrink-0" />
@@ -1429,7 +1518,7 @@ export default function WorkspaceDashboard() {
               <span suppressHydrationWarning className="text-[#B2EA4D] font-mono font-bold text-[10px]">{trialDaysRemaining}d left</span>
             </div>
             <div className="w-full h-1 bg-black/60 rounded-full overflow-hidden">
-              <div 
+              <div
                 suppressHydrationWarning
                 className="h-full bg-gradient-to-r from-lime-400 to-[#B2EA4D] rounded-full transition-all duration-500"
                 style={{ width: `${Math.max(8, ((15 - trialDaysRemaining) / 15) * 100)}%` }}
@@ -1453,10 +1542,10 @@ export default function WorkspaceDashboard() {
               Storefront
             </Button>
           </a>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={handleLogout} 
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleLogout}
             title="Log Out"
             className="text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 text-xs h-8 px-2.5 flex items-center gap-1 shrink-0"
           >
@@ -1541,350 +1630,350 @@ export default function WorkspaceDashboard() {
                   </p>
                 </div>
               </div>
-              <Button 
-                onClick={() => setActiveTab("website_sync")} 
+              <Button
+                onClick={() => setActiveTab("website_sync")}
                 className="bg-gradient-to-r from-lime-300 to-lime-500 hover:from-lime-200 hover:to-lime-400 text-[#050B06] font-bold text-xs px-5 h-9 rounded-xl shrink-0 cursor-pointer shadow-[0_0_15px_rgba(163,230,53,0.2)]"
               >
                 Connect Website
               </Button>
             </Card>
           )}
-              {/* Success Banner */}
-              {showSuccessBanner && activeTab === "overview" && (
-                <div className="bg-[#B2EA4D]/8 border border-[#B2EA4D]/20 text-[#B2EA4D] p-4 rounded-xl flex items-start gap-3 mb-6 animate-in slide-in-from-top-4 duration-300">
-                  <div className="text-xl">🎉</div>
-                  <div className="flex-1">
-                    <h4 className="font-bold text-sm text-emerald-300">Your AI chatbot is ready!</h4>
-                    <p className="text-xs text-[#B2EA4D]/90 mt-0.5">
-                      Oogway has successfully learned about your business and is ready to answer customer questions using your latest website content.
-                    </p>
+          {/* Success Banner */}
+          {showSuccessBanner && activeTab === "overview" && (
+            <div className="bg-[#B2EA4D]/8 border border-[#B2EA4D]/20 text-[#B2EA4D] p-4 rounded-xl flex items-start gap-3 mb-6 animate-in slide-in-from-top-4 duration-300">
+              <div className="text-xl">🎉</div>
+              <div className="flex-1">
+                <h4 className="font-bold text-sm text-emerald-300">Your AI chatbot is ready!</h4>
+                <p className="text-xs text-[#B2EA4D]/90 mt-0.5">
+                  Oogway has successfully learned about your business and is ready to answer customer questions using your latest website content.
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowSuccessBanner(false)}
+                className="h-7 text-[#B2EA4D] hover:text-white text-xs hover:bg-[#B2EA4D]/8"
+              >
+                Dismiss
+              </Button>
+            </div>
+          )}
+
+          {/* TAB 1: OVERVIEW */}
+          {activeTab === "overview" && (
+            <div className="space-y-6 animate-mac-page">
+              {/* Dynamic Business Branding & Metrics Card */}
+              <Card className="bg-[#1b2e11] border-[#B2EA4D]/15 p-6 rounded-xl relative overflow-hidden group">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                  <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 rounded-xl bg-[#1b2e11] border border-[#B2EA4D]/15 flex items-center justify-center shrink-0 shadow-inner overflow-hidden">
+                      {autoLogoUrl ? (
+                        <img
+                          src={autoLogoUrl}
+                          alt="Logo"
+                          className="w-full h-full object-contain p-1 bg-white"
+                          onError={handleLogoError}
+                        />
+                      ) : (
+                        <span className="text-2xl">{workspaceLogo || "💼"}</span>
+                      )}
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-bold text-white flex items-center gap-3">
+                        {companyName}
+                        <span className="text-[9px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 font-extrabold tracking-widest uppercase border border-slate-700">
+                          {industry}
+                        </span>
+                      </h2>
+                      {website && (
+                        <a href={website} target="_blank" rel="noreferrer" className="text-xs text-[#B2EA4D] hover:text-[#B2EA4D]/90 flex items-center gap-1 mt-1 transition-colors">
+                          {website} <ExternalLink className="w-3 h-3" />
+                        </a>
+                      )}
+                    </div>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowSuccessBanner(false)}
-                    className="h-7 text-[#B2EA4D] hover:text-white text-xs hover:bg-[#B2EA4D]/8"
-                  >
-                    Dismiss
+                  <div className="text-left md:text-right shrink-0">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#B2EA4D]/8 text-[#B2EA4D] border border-[#B2EA4D]/20">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#B2EA4D] animate-pulse" />
+                      AI Chatbot Ready
+                    </span>
+                    <p className="text-[10px] text-slate-400 mt-2">Last website sync: {syncTime}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 mt-6 pt-6 border-t border-[#B2EA4D]/15">
+                  <div className="col-span-2 space-y-1">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Pages Processed</p>
+                    <p className="text-xl font-extrabold text-white mt-1">{stats?.totalChunks ?? pagesCount} pages</p>
+                  </div>
+                  <div className="col-span-2 space-y-1">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Documents Indexed</p>
+                    <p className="text-xl font-extrabold text-white mt-1">{stats?.totalDocuments ?? docsCount} docs</p>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Knowledge Base Status</span>
+                    <p className="text-xl font-extrabold text-[#B2EA4D] mt-1">Healthy</p>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Auto Sync</span>
+                    <p className="text-xl font-extrabold text-slate-300 mt-1">Enabled</p>
+                  </div>
+                </div>
+              </Card>
+
+              {/* System Health */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Card className="bg-[#1b2e11]/50 backdrop-blur border-[#B2EA4D]/15 p-6 rounded-xl flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 rounded-lg bg-[#B2EA4D]/8 text-[#B2EA4D]">
+                      <Database className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-semibold text-slate-300">Database connection</h4>
+                      <p className="text-xs text-slate-400 mt-0.5">Supabase Postgres Engine</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`w-2.5 h-2.5 rounded-full ${health?.database === "healthy" ? "bg-[#B2EA4D] animate-pulse shadow-[0_0_10px_#B2EA4D]" : "bg-rose-500 shadow-[0_0_10px_#ffffff]"}`} />
+                    <span className="text-sm font-bold capitalize text-white">{health?.database || "checking..."}</span>
+                  </div>
+                </Card>
+
+                <Card className="bg-[#1b2e11]/50 backdrop-blur border-[#B2EA4D]/15 p-6 rounded-xl flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 rounded-lg bg-[#B2EA4D]/8 text-[#B2EA4D]">
+                      <Sparkles className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-semibold text-slate-300">Gemini LLM & Embeddings</h4>
+                      <p className="text-xs text-slate-400 mt-0.5">Google AI Dev Suite</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`w-2.5 h-2.5 rounded-full ${health?.gemini === "healthy" ? "bg-[#B2EA4D] animate-pulse shadow-[0_0_10px_#B2EA4D]" : "bg-rose-500 shadow-[0_0_10px_#ffffff]"}`} />
+                    <span className="text-sm font-bold capitalize text-white">{health?.gemini || "checking..."}</span>
+                  </div>
+                </Card>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 2: CHATBOT */}
+          {activeTab === "chatbot" && (
+            <div className="space-y-6 animate-mac-page">
+              <div className="border-b border-[#B2EA4D]/15 pb-4">
+                <h3 className="text-lg font-bold text-white">Chatbot Playground</h3>
+                <p className="text-slate-300 text-xs mt-1">Test search queries, verify grounded AI answers, and fine-tune your chatbot responses.</p>
+              </div>
+              {/* Search Sandbox */}
+              <Card className="bg-[#1b2e11]/50 backdrop-blur border-[#B2EA4D]/15 p-6 rounded-xl relative z-20">
+                <div className="flex flex-wrap items-end gap-6">
+                  <div className="flex-1 min-w-[280px]">
+                    <label className="text-xs text-slate-300 font-medium">Vector Query Search</label>
+                    <div className="relative mt-1">
+                      <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <Input
+                        placeholder="Enter testing query..."
+                        value={testQuery}
+                        onChange={(e) => setTestQuery(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && runTestSearch()}
+                        className="pl-9 bg-[#0c1407] border-[#B2EA4D]/15"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="w-36">
+                    <label className="text-xs text-slate-300 font-medium">Top-K Results</label>
+                    <CustomSelect
+                      value={String(matchCount)}
+                      onChange={(val) => setMatchCount(Number(val))}
+                      options={[3, 4, 5, 6, 7, 8].map(n => ({ value: String(n), label: String(n) }))}
+                      className="mt-1"
+                    />
+                  </div>
+
+                  <div className="w-48">
+                    <label className="text-xs text-slate-300 font-medium">Category</label>
+                    <CustomSelect
+                      value={filterCategory}
+                      onChange={setFilterCategory}
+                      options={[
+                        { value: "", label: "All Categories" },
+                        ...dynamicCategories.map(cat => ({ value: cat, label: cat }))
+                      ]}
+                      className="mt-1"
+                    />
+                  </div>
+
+                  <div className="w-44">
+                    <label className="text-xs text-slate-300 font-medium">Status</label>
+                    <CustomSelect
+                      value={searchStatus}
+                      onChange={setSearchStatus}
+                      options={[
+                        { value: "", label: "All Statuses" },
+                        { value: "published", label: "Published Only" },
+                        { value: "draft", label: "Drafts Only" }
+                      ]}
+                      className="mt-1"
+                    />
+                  </div>
+
+                  <Button onClick={runTestSearch} disabled={searching || !testQuery.trim()} className="bg-[#B2EA4D] hover:bg-[#B2EA4D] text-slate-950 font-bold px-8 gap-2">
+                    {searching ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                    {searching ? "Searching..." : "Search"}
                   </Button>
                 </div>
-              )}
+              </Card>
 
-              {/* TAB 1: OVERVIEW */}
-              {activeTab === "overview" && (
-                <div className="space-y-6 animate-mac-page">
-                  {/* Dynamic Business Branding & Metrics Card */}
-                  <Card className="bg-[#1b2e11] border-[#B2EA4D]/15 p-6 rounded-xl relative overflow-hidden group">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                      <div className="flex items-center gap-4">
-                        <div className="w-14 h-14 rounded-xl bg-[#1b2e11] border border-[#B2EA4D]/15 flex items-center justify-center shrink-0 shadow-inner overflow-hidden">
-                          {autoLogoUrl ? (
-                            <img 
-                              src={autoLogoUrl} 
-                              alt="Logo" 
-                              className="w-full h-full object-contain p-1 bg-white"
-                              onError={handleLogoError}
-                            />
-                          ) : (
-                            <span className="text-2xl">{workspaceLogo || "💼"}</span>
-                          )}
+              {searchResults && (
+                <div className="space-y-4 mt-6">
+                  <div className="flex items-center justify-between bg-[#1b2e11]/60 border border-[#B2EA4D]/20 p-3 rounded-xl">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-[#B2EA4D] animate-pulse" />
+                      <h3 className="text-xs font-bold text-white uppercase tracking-wider">Search & RAG Sandbox Test Results</h3>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSearchResults(null)}
+                      className="h-7 text-slate-400 hover:text-white text-xs gap-1 hover:bg-[#203210]/40 rounded-lg cursor-pointer"
+                    >
+                      <X className="w-3.5 h-3.5" /> Close Results
+                    </Button>
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div className="space-y-4">
+                      <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Top Similar Vector Matches</h3>
+                      <ScrollArea className="h-[400px]">
+                        <div className="space-y-4 pr-3">
+                          {searchResults.sourceChunks.map((m: any, idx: number) => (
+                            <Card key={idx} className="bg-[#1b2e11]/30 border-[#B2EA4D]/15 p-4 rounded-xl flex flex-col gap-2">
+                              <div className="flex items-center justify-between border-b border-[#B2EA4D]/15 pb-2">
+                                <span className="text-[10px] font-extrabold text-[#B2EA4D] bg-[#B2EA4D]/8 px-2 py-0.5 border border-[#B2EA4D]/20 rounded">Match #{idx + 1}</span>
+                                <span className="text-xs font-bold font-mono text-[#B2EA4D]">Score: {Math.round(m.similarity * 100)}%</span>
+                              </div>
+                              <p className="text-xs font-mono text-slate-300 bg-[#0c1407] p-3 rounded leading-relaxed border border-[#B2EA4D]/15">{m.chunk_text}</p>
+                            </Card>
+                          ))}
                         </div>
-                        <div>
-                          <h2 className="text-xl font-bold text-white flex items-center gap-3">
-                            {companyName}
-                            <span className="text-[9px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 font-extrabold tracking-widest uppercase border border-slate-700">
-                              {industry}
-                            </span>
-                          </h2>
-                          {website && (
-                            <a href={website} target="_blank" rel="noreferrer" className="text-xs text-[#B2EA4D] hover:text-[#B2EA4D]/90 flex items-center gap-1 mt-1 transition-colors">
-                              {website} <ExternalLink className="w-3 h-3" />
-                            </a>
-                          )}
-                        </div>
-                      </div>
-                      <div className="text-left md:text-right shrink-0">
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#B2EA4D]/8 text-[#B2EA4D] border border-[#B2EA4D]/20">
-                          <span className="w-1.5 h-1.5 rounded-full bg-[#B2EA4D] animate-pulse" />
-                          AI Chatbot Ready
-                        </span>
-                        <p className="text-[10px] text-slate-400 mt-2">Last website sync: {syncTime}</p>
-                      </div>
+                      </ScrollArea>
                     </div>
 
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 mt-6 pt-6 border-t border-[#B2EA4D]/15">
-                      <div className="col-span-2 space-y-1">
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Pages Processed</p>
-                        <p className="text-xl font-extrabold text-white mt-1">{stats?.totalChunks ?? pagesCount} pages</p>
-                      </div>
-                      <div className="col-span-2 space-y-1">
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Documents Indexed</p>
-                        <p className="text-xl font-extrabold text-white mt-1">{stats?.totalDocuments ?? docsCount} docs</p>
-                      </div>
-                      <div>
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Knowledge Base Status</span>
-                        <p className="text-xl font-extrabold text-[#B2EA4D] mt-1">Healthy</p>
-                      </div>
-                      <div>
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Auto Sync</span>
-                        <p className="text-xl font-extrabold text-slate-300 mt-1">Enabled</p>
-                      </div>
+                    <div className="space-y-4">
+                      <h3 className="text-sm font-bold text-white uppercase tracking-wider">Grounded Response Preview</h3>
+                      <Card className="bg-[#1b2e11]/50 backdrop-blur border-[#B2EA4D]/15 p-6 rounded-xl flex flex-col h-[400px]">
+                        <ScrollArea className="flex-1">
+                          <div className="text-sm text-slate-200 leading-relaxed">{renderMarkdown(searchResults.answer)}</div>
+                        </ScrollArea>
+                      </Card>
                     </div>
-                  </Card>
-
-                  {/* System Health */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Card className="bg-[#1b2e11]/50 backdrop-blur border-[#B2EA4D]/15 p-6 rounded-xl flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className="p-3 rounded-lg bg-[#B2EA4D]/8 text-[#B2EA4D]">
-                          <Database className="w-6 h-6" />
-                        </div>
-                        <div>
-                          <h4 className="text-sm font-semibold text-slate-300">Database connection</h4>
-                          <p className="text-xs text-slate-400 mt-0.5">Supabase Postgres Engine</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className={`w-2.5 h-2.5 rounded-full ${health?.database === "healthy" ? "bg-[#B2EA4D] animate-pulse shadow-[0_0_10px_#B2EA4D]" : "bg-rose-500 shadow-[0_0_10px_#ffffff]"}`} />
-                        <span className="text-sm font-bold capitalize text-white">{health?.database || "checking..."}</span>
-                      </div>
-                    </Card>
-
-                    <Card className="bg-[#1b2e11]/50 backdrop-blur border-[#B2EA4D]/15 p-6 rounded-xl flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className="p-3 rounded-lg bg-[#B2EA4D]/8 text-[#B2EA4D]">
-                          <Sparkles className="w-6 h-6" />
-                        </div>
-                        <div>
-                          <h4 className="text-sm font-semibold text-slate-300">Gemini LLM & Embeddings</h4>
-                          <p className="text-xs text-slate-400 mt-0.5">Google AI Dev Suite</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className={`w-2.5 h-2.5 rounded-full ${health?.gemini === "healthy" ? "bg-[#B2EA4D] animate-pulse shadow-[0_0_10px_#B2EA4D]" : "bg-rose-500 shadow-[0_0_10px_#ffffff]"}`} />
-                        <span className="text-sm font-bold capitalize text-white">{health?.gemini || "checking..."}</span>
-                      </div>
-                    </Card>
                   </div>
                 </div>
               )}
 
-              {/* TAB 2: CHATBOT */}
-              {activeTab === "chatbot" && (
-                <div className="space-y-6 animate-mac-page">
-                  <div className="border-b border-[#B2EA4D]/15 pb-4">
-                    <h3 className="text-lg font-bold text-white">Chatbot Playground</h3>
-                    <p className="text-slate-300 text-xs mt-1">Test search queries, verify grounded AI answers, and fine-tune your chatbot responses.</p>
+              {/* Website Integration Snippet */}
+              <Card className="bg-[#1b2e11]/50 backdrop-blur border-[#B2EA4D]/15 p-6 rounded-xl mt-6 space-y-6">
+                <div className="flex items-center gap-2 border-b border-[#B2EA4D]/15 pb-3">
+                  <Code className="w-5 h-5 text-[#B2EA4D]" />
+                  <div>
+                    <h3 className="text-sm font-bold text-white uppercase tracking-wider">Embed Chatbot on Your Website</h3>
+                    <p className="text-[11px] text-slate-400 font-mono">Follow the step-by-step guide below to integrate the chat widget securely onto your website.</p>
                   </div>
-                  {/* Search Sandbox */}
-                  <Card className="bg-[#1b2e11]/50 backdrop-blur border-[#B2EA4D]/15 p-6 rounded-xl relative z-20">
-                    <div className="flex flex-wrap items-end gap-6">
-                      <div className="flex-1 min-w-[280px]">
-                        <label className="text-xs text-slate-300 font-medium">Vector Query Search</label>
-                        <div className="relative mt-1">
-                          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                          <Input
-                            placeholder="Enter testing query..."
-                            value={testQuery}
-                            onChange={(e) => setTestQuery(e.target.value)}
-                            onKeyDown={(e) => e.key === "Enter" && runTestSearch()}
-                            className="pl-9 bg-[#0c1407] border-[#B2EA4D]/15"
-                          />
-                        </div>
-                      </div>
+                </div>
 
-                      <div className="w-36">
-                        <label className="text-xs text-slate-300 font-medium">Top-K Results</label>
-                        <CustomSelect
-                          value={String(matchCount)}
-                          onChange={(val) => setMatchCount(Number(val))}
-                          options={[3, 4, 5, 6, 7, 8].map(n => ({ value: String(n), label: String(n) }))}
-                          className="mt-1"
-                        />
-                      </div>
-
-                      <div className="w-48">
-                        <label className="text-xs text-slate-300 font-medium">Category</label>
-                        <CustomSelect
-                          value={filterCategory}
-                          onChange={setFilterCategory}
-                          options={[
-                            { value: "", label: "All Categories" },
-                            ...dynamicCategories.map(cat => ({ value: cat, label: cat }))
-                          ]}
-                          className="mt-1"
-                        />
-                      </div>
-
-                      <div className="w-44">
-                        <label className="text-xs text-slate-300 font-medium">Status</label>
-                        <CustomSelect
-                          value={searchStatus}
-                          onChange={setSearchStatus}
-                          options={[
-                            { value: "", label: "All Statuses" },
-                            { value: "published", label: "Published Only" },
-                            { value: "draft", label: "Drafts Only" }
-                          ]}
-                          className="mt-1"
-                        />
-                      </div>
-
-                      <Button onClick={runTestSearch} disabled={searching || !testQuery.trim()} className="bg-[#B2EA4D] hover:bg-[#B2EA4D] text-slate-950 font-bold px-8 gap-2">
-                        {searching ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                        {searching ? "Searching..." : "Search"}
-                      </Button>
+                {/* Step-by-Step Instructions */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs font-mono">
+                  <div className="bg-[#0c1407]/60 p-3 rounded-lg border border-[#B2EA4D]/10 space-y-1.5">
+                    <span className="text-[#B2EA4D] font-bold text-[10px] block uppercase tracking-wider">Step 1: Whitelist Domain</span>
+                    <div className="text-[10px] text-slate-400 leading-relaxed space-y-1">
+                      <p>1. In the left sidebar, click the <strong className="text-white">"Website Sync"</strong> tab.</p>
+                      <p>2. Locate the <strong className="text-white">"Connect Website"</strong> card at the top.</p>
+                      <p>3. Enter your website domain URL and click the <strong className="text-white">"Connect Website"</strong> button to whitelist it.</p>
                     </div>
-                  </Card>
+                  </div>
 
-                  {searchResults && (
-                    <div className="space-y-4 mt-6">
-                      <div className="flex items-center justify-between bg-[#1b2e11]/60 border border-[#B2EA4D]/20 p-3 rounded-xl">
-                        <div className="flex items-center gap-2">
-                          <span className="w-2 h-2 rounded-full bg-[#B2EA4D] animate-pulse" />
-                          <h3 className="text-xs font-bold text-white uppercase tracking-wider">Search & RAG Sandbox Test Results</h3>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setSearchResults(null)}
-                          className="h-7 text-slate-400 hover:text-white text-xs gap-1 hover:bg-[#203210]/40 rounded-lg cursor-pointer"
-                        >
-                          <X className="w-3.5 h-3.5" /> Close Results
-                        </Button>
-                      </div>
+                  <div className="bg-[#0c1407]/60 p-3 rounded-lg border border-[#B2EA4D]/10 space-y-1">
+                    <span className="text-[#B2EA4D] font-bold text-[10px] block uppercase tracking-wider">Step 2: Copy Embed Code</span>
+                    <p className="text-[10px] text-slate-400 leading-normal">
+                      Click the <strong className="text-white">Copy Code</strong> button in the editor box below to copy the combined HTML/CSS integration script with cryptographic SRI protection.
+                    </p>
+                  </div>
 
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                        <div className="space-y-4">
-                          <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Top Similar Vector Matches</h3>
-                        <ScrollArea className="h-[400px]">
-                          <div className="space-y-4 pr-3">
-                            {searchResults.sourceChunks.map((m: any, idx: number) => (
-                              <Card key={idx} className="bg-[#1b2e11]/30 border-[#B2EA4D]/15 p-4 rounded-xl flex flex-col gap-2">
-                                <div className="flex items-center justify-between border-b border-[#B2EA4D]/15 pb-2">
-                                  <span className="text-[10px] font-extrabold text-[#B2EA4D] bg-[#B2EA4D]/8 px-2 py-0.5 border border-[#B2EA4D]/20 rounded">Match #{idx + 1}</span>
-                                  <span className="text-xs font-bold font-mono text-[#B2EA4D]">Score: {Math.round(m.similarity * 100)}%</span>
-                                </div>
-                                <p className="text-xs font-mono text-slate-300 bg-[#0c1407] p-3 rounded leading-relaxed border border-[#B2EA4D]/15">{m.chunk_text}</p>
-                              </Card>
-                            ))}
-                          </div>
-                        </ScrollArea>
-                      </div>
+                  <div className="bg-[#0c1407]/60 p-3 rounded-lg border border-[#B2EA4D]/10 space-y-1">
+                    <span className="text-[#B2EA4D] font-bold text-[10px] block uppercase tracking-wider">Step 3: Paste to Website</span>
+                    <p className="text-[10px] text-slate-400 leading-normal">
+                      Paste the copied snippet inside the <code className="bg-[#1b2e11] px-1 rounded text-white">&lt;head&gt;</code> or <code className="bg-[#1b2e11] px-1 rounded text-white">&lt;body&gt;</code> tag of your website. The widget will instantly render in the bottom-right corner.
+                    </p>
+                  </div>
+                </div>
 
-                      <div className="space-y-4">
-                        <h3 className="text-sm font-bold text-white uppercase tracking-wider">Grounded Response Preview</h3>
-                        <Card className="bg-[#1b2e11]/50 backdrop-blur border-[#B2EA4D]/15 p-6 rounded-xl flex flex-col h-[400px]">
-                          <ScrollArea className="flex-1">
-                            <div className="text-sm text-slate-200 leading-relaxed">{renderMarkdown(searchResults.answer)}</div>
-                          </ScrollArea>
-                        </Card>
+                {/* Linking & Account Sync OTP Display Card */}
+                <div className="bg-[#0c1407]/80 p-4 rounded-xl border border-[#B2EA4D]/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-lg">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs font-bold text-slate-200 font-mono uppercase tracking-wider">Linking & Account Sync OTP</span>
+                      <span className="bg-[#B2EA4D]/20 text-[#B2EA4D] text-[9px] font-bold px-2 py-0.5 rounded-full border border-[#B2EA4D]/30 font-mono">One-Time Unique</span>
+                      {isOtpSynced ? (
+                        <span className="bg-emerald-500/20 text-emerald-400 text-[9px] font-bold px-2.5 py-0.5 rounded-full border border-emerald-500/40 font-mono flex items-center gap-1 shadow-[0_0_10px_rgba(52,211,153,0.2)]">
+                          <CheckCircle2 className="w-3 h-3 text-emerald-400" /> Synced & Approved
+                        </span>
+                      ) : (
+                        <span className="bg-amber-500/15 text-amber-300 text-[9px] font-bold px-2 py-0.5 rounded-full border border-amber-500/30 font-mono flex items-center gap-1.5">
+                          <span className="relative flex h-2 w-2">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                          </span>
+                          Pending External Link
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-slate-400">
+                      When embedding this chatbot on another website, entering this unique 6-digit OTP will sync your actual Account ID and Knowledgebase context.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <div className="bg-[#1b2e11] border border-[#B2EA4D]/40 px-4 py-2 rounded-lg text-[#B2EA4D] font-mono text-lg font-black tracking-widest shadow-inner flex items-center gap-2 select-all">
+                      {generatingOtp || !activeOtp ? <Loader2 className="w-5 h-5 animate-spin text-[#B2EA4D]" /> : activeOtp}
+                    </div>
+                    <Button
+                      onClick={handleGenerateNewOtp}
+                      disabled={generatingOtp}
+                      variant="outline"
+                      size="sm"
+                      className="border-[#B2EA4D]/30 text-slate-200 hover:bg-[#B2EA4D]/10 hover:text-[#B2EA4D] text-[11px] h-9 font-bold font-mono"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${generatingOtp ? 'animate-spin' : ''}`} />
+                      New OTP
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Sync Approved Banner */}
+                {isOtpSynced && (
+                  <div className="bg-emerald-950/60 border border-emerald-500/40 p-3 rounded-xl flex items-center gap-3 text-emerald-200 text-xs font-mono shadow-md animate-fadeIn">
+                    <div className="p-2 bg-emerald-500/20 rounded-lg border border-emerald-500/30 shrink-0">
+                      <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                    </div>
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-2">
+                        <p className="font-bold text-emerald-300">Sync Approved & Active!</p>
+                        <span className="text-[9px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.2 rounded font-mono font-bold">LIVE</span>
                       </div>
+                      <p className="text-[11px] text-emerald-300/80">
+                        External chatbot widget verified OTP <strong className="text-white bg-emerald-900/60 px-1.5 py-0.5 rounded font-mono">{activeOtp}</strong>. Account ID <strong className="text-white font-mono">{workspaceId}</strong> & Knowledge Base are fully synchronized.
+                      </p>
                     </div>
                   </div>
                 )}
 
-                  {/* Website Integration Snippet */}
-                  <Card className="bg-[#1b2e11]/50 backdrop-blur border-[#B2EA4D]/15 p-6 rounded-xl mt-6 space-y-6">
-                    <div className="flex items-center gap-2 border-b border-[#B2EA4D]/15 pb-3">
-                      <Code className="w-5 h-5 text-[#B2EA4D]" />
-                      <div>
-                        <h3 className="text-sm font-bold text-white uppercase tracking-wider">Embed Chatbot on Your Website</h3>
-                        <p className="text-[11px] text-slate-400 font-mono">Follow the step-by-step guide below to integrate the chat widget securely onto your website.</p>
-                      </div>
-                    </div>
-
-                    {/* Step-by-Step Instructions */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs font-mono">
-                      <div className="bg-[#0c1407]/60 p-3 rounded-lg border border-[#B2EA4D]/10 space-y-1.5">
-                        <span className="text-[#B2EA4D] font-bold text-[10px] block uppercase tracking-wider">Step 1: Whitelist Domain</span>
-                        <div className="text-[10px] text-slate-400 leading-relaxed space-y-1">
-                          <p>1. In the left sidebar, click the <strong className="text-white">"Website Sync"</strong> tab.</p>
-                          <p>2. Locate the <strong className="text-white">"Connect Website"</strong> card at the top.</p>
-                          <p>3. Enter your website domain URL and click the <strong className="text-white">"Connect Website"</strong> button to whitelist it.</p>
-                        </div>
-                      </div>
-                      
-                      <div className="bg-[#0c1407]/60 p-3 rounded-lg border border-[#B2EA4D]/10 space-y-1">
-                        <span className="text-[#B2EA4D] font-bold text-[10px] block uppercase tracking-wider">Step 2: Copy Embed Code</span>
-                        <p className="text-[10px] text-slate-400 leading-normal">
-                          Click the <strong className="text-white">Copy Code</strong> button in the editor box below to copy the combined HTML/CSS integration script with cryptographic SRI protection.
-                        </p>
-                      </div>
-
-                      <div className="bg-[#0c1407]/60 p-3 rounded-lg border border-[#B2EA4D]/10 space-y-1">
-                        <span className="text-[#B2EA4D] font-bold text-[10px] block uppercase tracking-wider">Step 3: Paste to Website</span>
-                        <p className="text-[10px] text-slate-400 leading-normal">
-                          Paste the copied snippet inside the <code className="bg-[#1b2e11] px-1 rounded text-white">&lt;head&gt;</code> or <code className="bg-[#1b2e11] px-1 rounded text-white">&lt;body&gt;</code> tag of your website. The widget will instantly render in the bottom-right corner.
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Linking & Account Sync OTP Display Card */}
-                    <div className="bg-[#0c1407]/80 p-4 rounded-xl border border-[#B2EA4D]/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-lg">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-xs font-bold text-slate-200 font-mono uppercase tracking-wider">Linking & Account Sync OTP</span>
-                          <span className="bg-[#B2EA4D]/20 text-[#B2EA4D] text-[9px] font-bold px-2 py-0.5 rounded-full border border-[#B2EA4D]/30 font-mono">One-Time Unique</span>
-                          {isOtpSynced ? (
-                            <span className="bg-emerald-500/20 text-emerald-400 text-[9px] font-bold px-2.5 py-0.5 rounded-full border border-emerald-500/40 font-mono flex items-center gap-1 shadow-[0_0_10px_rgba(52,211,153,0.2)]">
-                              <CheckCircle2 className="w-3 h-3 text-emerald-400" /> Synced & Approved
-                            </span>
-                          ) : (
-                            <span className="bg-amber-500/15 text-amber-300 text-[9px] font-bold px-2 py-0.5 rounded-full border border-amber-500/30 font-mono flex items-center gap-1.5">
-                              <span className="relative flex h-2 w-2">
-                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                                <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
-                              </span>
-                              Pending External Link
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-[11px] text-slate-400">
-                          When embedding this chatbot on another website, entering this unique 6-digit OTP will sync your actual Account ID and Knowledgebase context.
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-3 shrink-0">
-                        <div className="bg-[#1b2e11] border border-[#B2EA4D]/40 px-4 py-2 rounded-lg text-[#B2EA4D] font-mono text-lg font-black tracking-widest shadow-inner flex items-center gap-2 select-all">
-                          {generatingOtp || !activeOtp ? <Loader2 className="w-5 h-5 animate-spin text-[#B2EA4D]" /> : activeOtp}
-                        </div>
-                        <Button
-                          onClick={handleGenerateNewOtp}
-                          disabled={generatingOtp}
-                          variant="outline"
-                          size="sm"
-                          className="border-[#B2EA4D]/30 text-slate-200 hover:bg-[#B2EA4D]/10 hover:text-[#B2EA4D] text-[11px] h-9 font-bold font-mono"
-                        >
-                          <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${generatingOtp ? 'animate-spin' : ''}`} />
-                          New OTP
-                        </Button>
-                      </div>
-                    </div>
-
-                    {/* Sync Approved Banner */}
-                    {isOtpSynced && (
-                      <div className="bg-emerald-950/60 border border-emerald-500/40 p-3 rounded-xl flex items-center gap-3 text-emerald-200 text-xs font-mono shadow-md animate-fadeIn">
-                        <div className="p-2 bg-emerald-500/20 rounded-lg border border-emerald-500/30 shrink-0">
-                          <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-                        </div>
-                        <div className="space-y-0.5">
-                          <div className="flex items-center gap-2">
-                            <p className="font-bold text-emerald-300">Sync Approved & Active!</p>
-                            <span className="text-[9px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.2 rounded font-mono font-bold">LIVE</span>
-                          </div>
-                          <p className="text-[11px] text-emerald-300/80">
-                            External chatbot widget verified OTP <strong className="text-white bg-emerald-900/60 px-1.5 py-0.5 rounded font-mono">{activeOtp}</strong>. Account ID <strong className="text-white font-mono">{workspaceId}</strong> & Knowledge Base are fully synchronized.
-                          </p>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Unified Copy-Paste Snippet Box */}
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-slate-300 uppercase tracking-widest block font-mono">Combined HTML & CSS Embed Code</label>
-                      <div className="relative">
-                        <pre className="bg-[#0c1407] border border-[#B2EA4D]/15 p-4 rounded-lg text-[10px] font-mono text-slate-300 overflow-x-auto leading-relaxed select-all max-h-64 scrollbar-custom">
-{`<!-- Start Oogway Chatbot Integration -->
+                {/* Unified Copy-Paste Snippet Box */}
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-slate-300 uppercase tracking-widest block font-mono">Combined HTML & CSS Embed Code</label>
+                  <div className="relative">
+                    <pre className="bg-[#0c1407] border border-[#B2EA4D]/15 p-4 rounded-lg text-[10px] font-mono text-slate-300 overflow-x-auto leading-relaxed select-all max-h-64 scrollbar-custom">
+                      {`<!-- Start Oogway Chatbot Integration -->
 <style>
   #oogway-chatbot-iframe {
     position: fixed !important;
@@ -1900,15 +1989,14 @@ export default function WorkspaceDashboard() {
 <script
   src="https://oogway-chatbot-chakadola.vercel.app/embed.js"
   data-workspace-id="${workspaceId}"
-  data-otp="${activeOtp}"
   data-brand-color="#B2EA4D"
   defer>
 </script>
 <!-- End Oogway Chatbot Integration -->`}
-                        </pre>
-                        <Button
-                          onClick={() => {
-                            const snippet = `<!-- Start Oogway Chatbot Integration -->
+                    </pre>
+                    <Button
+                      onClick={() => {
+                        const snippet = `<!-- Start Oogway Chatbot Integration -->
 <style>
   #oogway-chatbot-iframe {
     position: fixed !important;
@@ -1924,808 +2012,811 @@ export default function WorkspaceDashboard() {
 <script
   src="https://oogway-chatbot-chakadola.vercel.app/embed.js"
   data-workspace-id="${workspaceId}"
-  data-otp="${activeOtp}"
   data-brand-color="#B2EA4D"
   defer>
 </script>
 <!-- End Oogway Chatbot Integration -->`;
-                            navigator.clipboard.writeText(snippet);
-                            setCopiedEmbed(true);
-                            setTimeout(() => setCopiedEmbed(false), 2000);
-                          }}
-                          className={`absolute right-3 top-3 h-7 font-bold text-[9px] px-3.5 rounded transition-all duration-300 ${copiedEmbed ? 'bg-emerald-500 text-white scale-105' : 'bg-[#B2EA4D] hover:bg-[#B2EA4D]/90 text-slate-950'}`}
-                        >
-                          {copiedEmbed ? '✓ Copied!' : 'Copy Code'}
-                        </Button>
-                      </div>
-                    </div>
+                        navigator.clipboard.writeText(snippet);
+                        setCopiedEmbed(true);
+                        setTimeout(() => setCopiedEmbed(false), 2000);
+                      }}
+                      className={`absolute right-3 top-3 h-7 font-bold text-[9px] px-3.5 rounded transition-all duration-300 ${copiedEmbed ? 'bg-emerald-500 text-white scale-105' : 'bg-[#B2EA4D] hover:bg-[#B2EA4D]/90 text-slate-950'}`}
+                    >
+                      {copiedEmbed ? '✓ Copied!' : 'Copy Code'}
+                    </Button>
+                  </div>
+                </div>
 
-                    <div className="text-[11px] text-slate-300 flex flex-col gap-2 bg-[#1b2e11]/30 p-4 rounded-lg border border-[#B2EA4D]/15 font-mono">
-                      <div className="flex items-start gap-2 border-t border-[#B2EA4D]/15 pt-2 text-[10px] text-[#B2EA4D] font-mono">
-                        <span className="shrink-0 text-amber-400">🔒</span>
-                        <div>
-                          <strong>Multi-Tenant Data Isolation & Security:</strong>
-                          <ul className="list-disc list-inside space-y-1 mt-1 text-[9px] text-slate-400">
-                            <li><strong>Isolation Constraint:</strong> Every company workspace is fully logic-segregated. Queries are processed strictly within your own vector embedding partition.</li>
-                            
-                            <li><strong>CORS Policy:</strong> External embeds are blocked unless authorized. Go to website settings to configure permitted origins.</li>
-                          </ul>
+                <div className="text-[11px] text-slate-300 flex flex-col gap-2 bg-[#1b2e11]/30 p-4 rounded-lg border border-[#B2EA4D]/15 font-mono">
+                  <div className="flex items-start gap-2 border-t border-[#B2EA4D]/15 pt-2 text-[10px] text-[#B2EA4D] font-mono">
+                    <span className="shrink-0 text-amber-400">🔒</span>
+                    <div>
+                      <strong>Multi-Tenant Data Isolation & Security:</strong>
+                      <ul className="list-disc list-inside space-y-1 mt-1 text-[9px] text-slate-400">
+                        <li><strong>Isolation Constraint:</strong> Every company workspace is fully logic-segregated. Queries are processed strictly within your own vector embedding partition.</li>
+
+                        <li><strong>CORS Policy:</strong> External embeds are blocked unless authorized. Go to website settings to configure permitted origins.</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            </div>
+          )}
+
+          {/* TAB 3: KNOWLEDGE BASE */}
+          {activeTab === "knowledge_base" && (
+            <div className="space-y-6 animate-mac-page">
+              <div className="border-b border-[#B2EA4D]/15 pb-4">
+                <h3 className="text-lg font-bold text-white">Knowledge Universe</h3>
+                <p className="text-slate-300 text-xs mt-1">3D interactive vector cluster visualization of your database chunks.</p>
+              </div>
+              <KnowledgeUniverse />
+            </div>
+          )}
+
+          {/* TAB 4: WEBSITE SYNC */}
+          {activeTab === "website_sync" && (() => {
+            const syncedPages = documents.filter((doc: any) => doc.mime_type === "text/html");
+            return (
+              <div className="space-y-6 animate-mac-page">
+                <div className="border-b border-[#B2EA4D]/15 pb-4 flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg font-bold text-white">Website Sync Engine</h3>
+                    <p className="text-slate-300 text-xs mt-1">Configure automated crawling and manually trigger sync tasks for specific pages.</p>
+                  </div>
+                  {syncedPages.length > 0 && (
+                    <Button
+                      onClick={() => handleSyncAllPages(syncedPages)}
+                      disabled={uploading}
+                      className="bg-[#B2EA4D] hover:bg-[#B2EA4D]/90 text-slate-950 font-bold text-xs h-9 px-4 rounded-lg flex items-center gap-2"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${uploading ? 'animate-spin' : ''}`} />
+                      Sync All Pages
+                    </Button>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                  {/* Left Column: Sync settings & Add Specific Page */}
+                  <div className="lg:col-span-1 space-y-6">
+                    {/* Whitelisted Domain Overview */}
+                    <Card className="bg-[#1b2e11]/50 backdrop-blur border-[#B2EA4D]/15 p-6 rounded-xl border flex flex-col gap-4">
+                      <div>
+                        <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold block">Whitelisted Base Domain</span>
+                        <span className="text-white text-sm font-bold block truncate mt-1 bg-[#0c1407] px-3 py-2 rounded border border-[#B2EA4D]/10">
+                          {website || "Not configured"}
+                        </span>
+                        <p className="text-[10px] text-slate-400 mt-2 leading-relaxed">
+                          Configure this under <strong className="text-slate-300">Settings</strong> to authorize the chatbot widget and anchor specific page paths.
+                        </p>
+                      </div>
+
+                      <div className="border-t border-[#B2EA4D]/15 pt-4 space-y-4">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-slate-300 font-semibold">Periodic Auto Sync</span>
+                          <span className="bg-[#B2EA4D]/10 text-[#B2EA4D] border border-[#B2EA4D]/20 px-2 py-0.5 rounded-full text-[10px] font-bold">Active</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-slate-300 font-semibold">Interval</span>
+                          <span className="text-slate-300 text-xs font-mono font-semibold">Weekly</span>
                         </div>
                       </div>
-                    </div>
-                  </Card>
-                </div>
-              )}
+                    </Card>
 
-              {/* TAB 3: KNOWLEDGE BASE */}
-              {activeTab === "knowledge_base" && (
-                <div className="space-y-6 animate-mac-page">
-                  <div className="border-b border-[#B2EA4D]/15 pb-4">
-                    <h3 className="text-lg font-bold text-white">Knowledge Universe</h3>
-                    <p className="text-slate-300 text-xs mt-1">3D interactive vector cluster visualization of your database chunks.</p>
-                  </div>
-                  <KnowledgeUniverse />
-                </div>
-              )}
-
-              {/* TAB 4: WEBSITE SYNC */}
-              {activeTab === "website_sync" && (() => {
-                const syncedPages = documents.filter((doc: any) => doc.mime_type === "text/html");
-                return (
-                  <div className="space-y-6 animate-mac-page">
-                    <div className="border-b border-[#B2EA4D]/15 pb-4 flex items-center justify-between">
+                    {/* Add Specific Page Form */}
+                    <Card className="bg-[#1b2e11]/50 backdrop-blur border-[#B2EA4D]/15 p-6 rounded-xl border flex flex-col gap-4">
                       <div>
-                        <h3 className="text-lg font-bold text-white">Website Sync Engine</h3>
-                        <p className="text-slate-300 text-xs mt-1">Configure automated crawling and manually trigger sync tasks for specific pages.</p>
+                        <h4 className="text-white font-bold text-sm">Add Specific Pages</h4>
+                        <p className="text-slate-400 text-[10px] mt-0.5">Scrape specific paths, multiple pages, or wildcard patterns from your whitelisted domain.</p>
                       </div>
-                      {syncedPages.length > 0 && (
-                        <Button
-                          onClick={() => handleSyncAllPages(syncedPages)}
-                          disabled={uploading}
-                          className="bg-[#B2EA4D] hover:bg-[#B2EA4D]/90 text-slate-950 font-bold text-xs h-9 px-4 rounded-lg flex items-center gap-2"
-                        >
-                          <RefreshCw className={`w-3.5 h-3.5 ${uploading ? 'animate-spin' : ''}`} />
-                          Sync All Pages
-                        </Button>
-                      )}
-                    </div>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                      {/* Left Column: Sync settings & Add Specific Page */}
-                      <div className="lg:col-span-1 space-y-6">
-                        {/* Whitelisted Domain Overview */}
-                        <Card className="bg-[#1b2e11]/50 backdrop-blur border-[#B2EA4D]/15 p-6 rounded-xl border flex flex-col gap-4">
+                      <div className="space-y-3">
+                        <div>
+                          <label className="text-[9px] text-slate-400 uppercase font-bold tracking-wider">Page Paths, URLs, or Wildcards</label>
+                          <Input
+                            type="text"
+                            placeholder="e.g. /about, /faq, /blog/* (comma or newline separated)"
+                            value={websiteUrl}
+                            onChange={(e) => setWebsiteUrl(e.target.value)}
+                            disabled={uploading}
+                            className="mt-1 bg-[#0c1407] border-[#B2EA4D]/15 text-xs h-9"
+                          />
+                        </div>
+
+                        {uploading ? (
+                          <div className="flex flex-col items-center justify-center text-center gap-2 py-3 border border-[#B2EA4D]/15 rounded-xl bg-[#0c1407]/40 min-h-[60px]">
+                            <RefreshCw className="w-5 h-5 text-[#B2EA4D] animate-spin" />
+                            <span className="text-slate-300 text-[10px] animate-pulse font-mono">{uploadProgress}</span>
+                          </div>
+                        ) : (
+                          <Button
+                            onClick={handleAddPage}
+                            disabled={uploading || !websiteUrl.trim()}
+                            className="w-full bg-[#B2EA4D] hover:bg-[#B2EA4D]/90 text-slate-950 font-bold h-9 rounded-lg text-xs"
+                          >
+                            Crawl & Index Pages
+                          </Button>
+                        )}
+                      </div>
+                    </Card>
+                  </div>
+
+                  {/* Right Column: Synced Pages List */}
+                  <div className="lg:col-span-2 space-y-4">
+                    <Card className="bg-[#1b2e11]/50 backdrop-blur border-[#B2EA4D]/15 p-6 rounded-xl border">
+                      <div className="border-b border-[#B2EA4D]/15 pb-3 flex items-center justify-between mb-4">
+                        <h4 className="text-sm font-bold text-white uppercase tracking-wider">Configured Specific Pages</h4>
+                        <span className="bg-[#B2EA4D]/15 text-[#B2EA4D] border border-[#B2EA4D]/25 px-2.5 py-0.5 rounded text-[10px] font-bold font-mono">
+                          {syncedPages.length} Pages
+                        </span>
+                      </div>
+
+                      {syncedPages.length === 0 ? (
+                        <div className="text-center py-12 flex flex-col items-center justify-center gap-3">
+                          <span className="text-4xl">🌐</span>
                           <div>
-                            <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold block">Whitelisted Base Domain</span>
-                            <span className="text-white text-sm font-bold block truncate mt-1 bg-[#0c1407] px-3 py-2 rounded border border-[#B2EA4D]/10">
-                              {website || "Not configured"}
-                            </span>
-                            <p className="text-[10px] text-slate-400 mt-2 leading-relaxed">
-                              Configure this under <strong className="text-slate-300">Settings</strong> to authorize the chatbot widget and anchor specific page paths.
+                            <p className="text-slate-300 text-xs font-semibold">No specific pages crawled yet</p>
+                            <p className="text-slate-400 text-[10px] mt-1 max-w-sm mx-auto">
+                              Use the form on the left to add specific page URLs (e.g. `/refund-policy` or `/about`) from your domain to sync.
                             </p>
                           </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-3 max-h-[480px] overflow-y-auto pr-1 scrollbar-custom">
+                          {syncedPages.map((page: any) => {
+                            let pathText = page.storage_path;
+                            try {
+                              const parsed = new URL(page.storage_path);
+                              pathText = parsed.pathname === "/" ? "/" : parsed.pathname + parsed.search;
+                            } catch (e) {
+                              // fallback if not a valid url
+                            }
 
-                          <div className="border-t border-[#B2EA4D]/15 pt-4 space-y-4">
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs text-slate-300 font-semibold">Periodic Auto Sync</span>
-                              <span className="bg-[#B2EA4D]/10 text-[#B2EA4D] border border-[#B2EA4D]/20 px-2 py-0.5 rounded-full text-[10px] font-bold">Active</span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs text-slate-300 font-semibold">Interval</span>
-                              <span className="text-slate-300 text-xs font-mono font-semibold">Weekly</span>
-                            </div>
-                          </div>
-                        </Card>
-
-                        {/* Add Specific Page Form */}
-                        <Card className="bg-[#1b2e11]/50 backdrop-blur border-[#B2EA4D]/15 p-6 rounded-xl border flex flex-col gap-4">
-                          <div>
-                            <h4 className="text-white font-bold text-sm">Add Specific Pages</h4>
-                            <p className="text-slate-400 text-[10px] mt-0.5">Scrape specific paths, multiple pages, or wildcard patterns from your whitelisted domain.</p>
-                          </div>
-
-                          <div className="space-y-3">
-                            <div>
-                              <label className="text-[9px] text-slate-400 uppercase font-bold tracking-wider">Page Paths, URLs, or Wildcards</label>
-                              <Input
-                                type="text"
-                                placeholder="e.g. /about, /faq, /blog/* (comma or newline separated)"
-                                value={websiteUrl}
-                                onChange={(e) => setWebsiteUrl(e.target.value)}
-                                disabled={uploading}
-                                className="mt-1 bg-[#0c1407] border-[#B2EA4D]/15 text-xs h-9"
-                              />
-                            </div>
-
-                            {uploading ? (
-                              <div className="flex flex-col items-center justify-center text-center gap-2 py-3 border border-[#B2EA4D]/15 rounded-xl bg-[#0c1407]/40 min-h-[60px]">
-                                <RefreshCw className="w-5 h-5 text-[#B2EA4D] animate-spin" />
-                                <span className="text-slate-300 text-[10px] animate-pulse font-mono">{uploadProgress}</span>
-                              </div>
-                            ) : (
-                              <Button
-                                onClick={handleAddPage}
-                                disabled={uploading || !websiteUrl.trim()}
-                                className="w-full bg-[#B2EA4D] hover:bg-[#B2EA4D]/90 text-slate-950 font-bold h-9 rounded-lg text-xs"
+                            return (
+                              <div
+                                key={page.id}
+                                className="bg-[#0c1407]/60 border border-[#B2EA4D]/10 rounded-lg p-3 flex items-center justify-between gap-4 hover:border-[#B2EA4D]/25 transition-all"
                               >
-                                Crawl & Index Pages
-                              </Button>
-                            )}
-                          </div>
-                        </Card>
-                      </div>
-
-                      {/* Right Column: Synced Pages List */}
-                      <div className="lg:col-span-2 space-y-4">
-                        <Card className="bg-[#1b2e11]/50 backdrop-blur border-[#B2EA4D]/15 p-6 rounded-xl border">
-                          <div className="border-b border-[#B2EA4D]/15 pb-3 flex items-center justify-between mb-4">
-                            <h4 className="text-sm font-bold text-white uppercase tracking-wider">Configured Specific Pages</h4>
-                            <span className="bg-[#B2EA4D]/15 text-[#B2EA4D] border border-[#B2EA4D]/25 px-2.5 py-0.5 rounded text-[10px] font-bold font-mono">
-                              {syncedPages.length} Pages
-                            </span>
-                          </div>
-
-                          {syncedPages.length === 0 ? (
-                            <div className="text-center py-12 flex flex-col items-center justify-center gap-3">
-                              <span className="text-4xl">🌐</span>
-                              <div>
-                                <p className="text-slate-300 text-xs font-semibold">No specific pages crawled yet</p>
-                                <p className="text-slate-400 text-[10px] mt-1 max-w-sm mx-auto">
-                                  Use the form on the left to add specific page URLs (e.g. `/refund-policy` or `/about`) from your domain to sync.
-                                </p>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="space-y-3 max-h-[480px] overflow-y-auto pr-1 scrollbar-custom">
-                              {syncedPages.map((page: any) => {
-                                let pathText = page.storage_path;
-                                try {
-                                  const parsed = new URL(page.storage_path);
-                                  pathText = parsed.pathname === "/" ? "/" : parsed.pathname + parsed.search;
-                                } catch (e) {
-                                  // fallback if not a valid url
-                                }
-                                
-                                return (
-                                  <div
-                                    key={page.id}
-                                    className="bg-[#0c1407]/60 border border-[#B2EA4D]/10 rounded-lg p-3 flex items-center justify-between gap-4 hover:border-[#B2EA4D]/25 transition-all"
-                                  >
-                                    <div className="flex-1 min-w-0">
-                                      <div className="flex items-center gap-2">
-                                        <span className="text-white text-xs font-semibold truncate font-mono">{pathText}</span>
-                                        <a
-                                          href={page.storage_path}
-                                          target="_blank"
-                                          rel="noreferrer"
-                                          className="text-slate-400 hover:text-[#B2EA4D] transition-colors shrink-0"
-                                        >
-                                          <ExternalLink className="w-3 h-3" />
-                                        </a>
-                                      </div>
-                                      <div className="flex items-center gap-3 mt-1.5 text-[9px] text-slate-400 font-mono">
-                                        <span className="truncate max-w-[180px]">Full URL: {page.storage_path}</span>
-                                        <span>•</span>
-                                        <span>Synced: {new Date(page.last_synced_at || page.created_at).toLocaleString()}</span>
-                                      </div>
-                                    </div>
-
-                                    <div className="flex items-center gap-2 shrink-0">
-                                      {/* Status Tag */}
-                                      <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider font-mono ${
-                                        page.status === "completed"
-                                          ? "bg-green-950/60 text-green-400 border border-green-500/20"
-                                          : page.status === "processing"
-                                          ? "bg-yellow-950/60 text-yellow-400 border border-yellow-500/20 animate-pulse"
-                                          : "bg-red-950/60 text-red-400 border border-red-500/20"
-                                      }`}>
-                                        {page.status}
-                                      </span>
-
-                                      {/* Sync page action */}
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        onClick={() => handleSinglePageSync(page.id, page.storage_path)}
-                                        disabled={uploading}
-                                        className="h-8 w-8 hover:bg-[#B2EA4D]/10 text-slate-300 hover:text-[#B2EA4D] rounded-lg"
-                                        title="Sync this page"
-                                      >
-                                        <RefreshCw className={`w-3.5 h-3.5 ${uploading && uploadProgress.includes(page.storage_path) ? 'animate-spin text-[#B2EA4D]' : ''}`} />
-                                      </Button>
-
-                                      {/* Delete page action */}
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        onClick={() => triggerDeleteDoc(page.id)}
-                                        disabled={uploading}
-                                        className="h-8 w-8 hover:bg-red-500/10 text-slate-300 hover:text-red-400 rounded-lg"
-                                        title="Delete page"
-                                      >
-                                        <Trash2 className="w-3.5 h-3.5" />
-                                      </Button>
-                                    </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-white text-xs font-semibold truncate font-mono">{pathText}</span>
+                                    <a
+                                      href={page.storage_path}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="text-slate-400 hover:text-[#B2EA4D] transition-colors shrink-0"
+                                    >
+                                      <ExternalLink className="w-3 h-3" />
+                                    </a>
                                   </div>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </Card>
-                      </div>
+                                  <div className="flex items-center gap-3 mt-1.5 text-[9px] text-slate-400 font-mono">
+                                    <span className="truncate max-w-[180px]">Full URL: {page.storage_path}</span>
+                                    <span>•</span>
+                                    <span>Synced: {new Date(page.last_synced_at || page.created_at).toLocaleString()}</span>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-2 shrink-0">
+                                  {/* Status Tag */}
+                                  <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider font-mono ${page.status === "completed"
+                                      ? "bg-green-950/60 text-green-400 border border-green-500/20"
+                                      : page.status === "processing"
+                                        ? "bg-yellow-950/60 text-yellow-400 border border-yellow-500/20 animate-pulse"
+                                        : "bg-red-950/60 text-red-400 border border-red-500/20"
+                                    }`}>
+                                    {page.status}
+                                  </span>
+
+                                  {/* Sync page action */}
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => handleSinglePageSync(page.id, page.storage_path)}
+                                    disabled={uploading}
+                                    className="h-8 w-8 hover:bg-[#B2EA4D]/10 text-slate-300 hover:text-[#B2EA4D] rounded-lg"
+                                    title="Sync this page"
+                                  >
+                                    <RefreshCw className={`w-3.5 h-3.5 ${uploading && uploadProgress.includes(page.storage_path) ? 'animate-spin text-[#B2EA4D]' : ''}`} />
+                                  </Button>
+
+                                  {/* Delete page action */}
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => triggerDeleteDoc(page.id)}
+                                    disabled={uploading}
+                                    className="h-8 w-8 hover:bg-red-500/10 text-slate-300 hover:text-red-400 rounded-lg"
+                                    title="Delete page"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </Button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </Card>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* TAB 5: DOCUMENTS */}
+          {activeTab === "documents" && (
+            <div className="space-y-6 animate-mac-page">
+              <div className="border-b border-[#B2EA4D]/15 pb-4">
+                <h3 className="text-lg font-bold text-white">Reference Documents</h3>
+                <p className="text-slate-300 text-xs mt-1">Browse, upload, and edit files that form your AI chatbot's knowledge base.</p>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* Document Upload & List Column */}
+                <div className={`${selectedDoc ? 'lg:col-span-2' : 'lg:col-span-3'} space-y-6 transition-all duration-200`}>
+                  <Card className="bg-[#1b2e11]/50 backdrop-blur border-[#B2EA4D]/15 p-6 rounded-xl border flex items-center justify-between">
+                    <div>
+                      <h4 className="text-sm font-bold text-white">Upload New Reference Document</h4>
+                      <p className="text-slate-300 text-xs mt-0.5">Supports PDF, DOCX, TXT, MD, CSV, JSON.</p>
                     </div>
-                  </div>
-                );
-              })()}
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handleFileUpload}
+                      className="hidden"
+                      accept=".pdf,.docx,.txt,.csv,.json,.md"
+                      disabled={uploading}
+                    />
+                    <Button
+                      onClick={() => !uploading && fileInputRef.current?.click()}
+                      disabled={uploading}
+                      className="bg-[#B2EA4D] hover:bg-[#B2EA4D] text-slate-950 font-bold px-4 h-9 gap-2 text-xs cursor-pointer shadow-sm"
+                    >
+                      {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <UploadCloud className="w-4 h-4" />}
+                      {uploading ? "Processing..." : "Upload File"}
+                    </Button>
+                  </Card>
 
-              {/* TAB 5: DOCUMENTS */}
-              {activeTab === "documents" && (
-                <div className="space-y-6 animate-mac-page">
-                  <div className="border-b border-[#B2EA4D]/15 pb-4">
-                    <h3 className="text-lg font-bold text-white">Reference Documents</h3>
-                    <p className="text-slate-300 text-xs mt-1">Browse, upload, and edit files that form your AI chatbot's knowledge base.</p>
-                  </div>
-
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    {/* Document Upload & List Column */}
-                    <div className={`${selectedDoc ? 'lg:col-span-2' : 'lg:col-span-3'} space-y-6 transition-all duration-200`}>
-                      <Card className="bg-[#1b2e11]/50 backdrop-blur border-[#B2EA4D]/15 p-6 rounded-xl border flex items-center justify-between">
-                        <div>
-                          <h4 className="text-sm font-bold text-white">Upload New Reference Document</h4>
-                          <p className="text-slate-300 text-xs mt-0.5">Supports PDF, DOCX, TXT, MD, CSV, JSON.</p>
-                        </div>
-                        <input
-                          type="file"
-                          ref={fileInputRef}
-                          onChange={handleFileUpload}
-                          className="hidden"
-                          accept=".pdf,.docx,.txt,.csv,.json,.md"
-                          disabled={uploading}
-                        />
-                        <Button
-                          onClick={() => !uploading && fileInputRef.current?.click()}
-                          disabled={uploading}
-                          className="bg-[#B2EA4D] hover:bg-[#B2EA4D] text-slate-950 font-bold px-4 h-9 gap-2 text-xs cursor-pointer shadow-sm"
-                        >
-                          {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <UploadCloud className="w-4 h-4" />}
-                          {uploading ? "Processing..." : "Upload File"}
-                        </Button>
-                      </Card>
-
-                      <Card className="bg-[#1b2e11]/50 border-[#B2EA4D]/15 rounded-xl overflow-hidden">
-                        <div className="p-4 border-b border-[#B2EA4D]/15 flex items-center justify-between">
-                          <h4 className="text-xs font-bold text-white uppercase tracking-widest">Ingested Reference Materials</h4>
-                          <span className="text-[10px] text-slate-400 font-mono">{documents.length} File{documents.length !== 1 ? 's' : ''}</span>
-                        </div>
-                        <table className="w-full text-left text-xs text-slate-300">
-                          <tbody className="divide-y divide-slate-800">
-                            {documents.map((doc: any) => {
-                              const isSelected = selectedDoc?.id === doc.id;
-                              return (
-                                <tr key={doc.id} className={`transition-colors ${isSelected ? 'bg-[#B2EA4D]/10 border-l-2 border-[#B2EA4D]' : 'hover:bg-[#1b2e11]/20'}`}>
-                                  <td className="px-4 py-3 font-semibold text-white truncate max-w-xs">{doc.filename}</td>
-                                  <td className="px-4 py-3 text-slate-300 font-mono">{formatBytes(doc.file_size)}</td>
-                                  <td className="px-4 py-3">
-                                    <span className={`px-2.5 py-0.5 rounded-full border text-[10px] font-black uppercase tracking-wider ${
-                                      doc.status === "published"
-                                        ? "bg-[#B2EA4D]/15 text-[#B2EA4D] border-[#B2EA4D]/30"
-                                        : (doc.status === "draft" || doc.status === "completed")
-                                        ? "bg-amber-500/15 text-amber-400 border-amber-500/30"
-                                        : doc.status === "failed"
+                  <Card className="bg-[#1b2e11]/50 border-[#B2EA4D]/15 rounded-xl overflow-hidden">
+                    <div className="p-4 border-b border-[#B2EA4D]/15 flex items-center justify-between">
+                      <h4 className="text-xs font-bold text-white uppercase tracking-widest">Ingested Reference Materials</h4>
+                      <span className="text-[10px] text-slate-400 font-mono">{documents.length} File{documents.length !== 1 ? 's' : ''}</span>
+                    </div>
+                    <table className="w-full text-left text-xs text-slate-300">
+                      <tbody className="divide-y divide-slate-800">
+                        {documents.map((doc: any) => {
+                          const isSelected = selectedDoc?.id === doc.id;
+                          return (
+                            <tr key={doc.id} className={`transition-colors ${isSelected ? 'bg-[#B2EA4D]/10 border-l-2 border-[#B2EA4D]' : 'hover:bg-[#1b2e11]/20'}`}>
+                              <td className="px-4 py-3 font-semibold text-white truncate max-w-xs">{doc.filename}</td>
+                              <td className="px-4 py-3 text-slate-300 font-mono">{formatBytes(doc.file_size)}</td>
+                              <td className="px-4 py-3">
+                                <span className={`px-2.5 py-0.5 rounded-full border text-[10px] font-black uppercase tracking-wider ${doc.status === "published"
+                                    ? "bg-[#B2EA4D]/15 text-[#B2EA4D] border-[#B2EA4D]/30"
+                                    : (doc.status === "draft" || doc.status === "completed")
+                                      ? "bg-amber-500/15 text-amber-400 border-amber-500/30"
+                                      : doc.status === "failed"
                                         ? "bg-red-500/15 text-red-400 border-red-500/30"
                                         : "bg-white/10 text-slate-300 border-slate-700 animate-pulse"
-                                    }`}>
-                                      {doc.status === "completed" ? "draft" : doc.status}
-                                    </span>
+                                  }`}>
+                                  {doc.status === "completed" ? "draft" : doc.status}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-right">
+                                {(doc.status === "draft" || doc.status === "completed") && (
+                                  <Button
+                                    size="sm"
+                                    onClick={async () => {
+                                      try {
+                                        const res = await fetch("/api/admin/publish-document", {
+                                          method: "POST",
+                                          headers: { "Content-Type": "application/json" },
+                                          body: JSON.stringify({ documentId: doc.id })
+                                        });
+                                        if (res.ok) {
+                                          alert("Document published to Production environment!");
+                                          fetchDocuments();
+                                        } else {
+                                          const data = await res.json();
+                                          alert(`Publish failed: ${data.error}`);
+                                        }
+                                      } catch (err: any) {
+                                        alert(`Publish error: ${err.message}`);
+                                      }
+                                    }}
+                                    className="h-7 bg-[#B2EA4D] hover:bg-[#B2EA4D]/90 text-[#050B06] text-[10px] px-2.5 font-bold rounded mr-2 cursor-pointer shadow-sm"
+                                  >
+                                    Publish to Live Production
+                                  </Button>
+                                )}
+                                <Button size="sm" variant="ghost" onClick={() => fetchChunksForDoc(doc)} className={`h-7 text-[10px] px-2.5 cursor-pointer ${isSelected ? 'bg-[#B2EA4D] text-slate-950 font-bold' : 'text-[#B2EA4D] hover:bg-[#B2EA4D]/8'}`}>
+                                  {isSelected ? 'Viewing Chunks' : 'Explore Chunks'}
+                                </Button>
+                                <Button size="sm" variant="ghost" onClick={() => triggerDeleteDoc(doc.id)} className="h-7 text-rose-400 hover:bg-[#203210]/15 text-[10px] px-2.5 ml-2 cursor-pointer">
+                                  Delete
+                                </Button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </Card>
+                </div>
+
+                {/* Chunk Explorer Column (Only rendered when a document is selected) */}
+                {selectedDoc && (
+                  <Card className="bg-[#1b2e11]/50 backdrop-blur border-[#B2EA4D]/15 rounded-xl overflow-hidden flex flex-col h-[500px] animate-in fade-in duration-200">
+                    <div className="p-4 border-b border-[#B2EA4D]/15 flex items-center justify-between bg-[#1b2e11]/80">
+                      <h3 className="text-xs font-bold text-white uppercase tracking-wider truncate max-w-[200px]" title={selectedDoc.filename}>
+                        Chunks: {selectedDoc.filename}
+                      </h3>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setSelectedDoc(null)}
+                        className="h-7 text-slate-400 hover:text-white text-xs gap-1 hover:bg-[#203210]/40 rounded-lg cursor-pointer shrink-0"
+                        title="Close Chunks Explorer"
+                      >
+                        <X className="w-3.5 h-3.5" /> Close
+                      </Button>
+                    </div>
+                    <ScrollArea className="flex-1 p-4 space-y-4">
+                      {loadingChunks ? (
+                        <div className="flex items-center justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-[#B2EA4D]" /></div>
+                      ) : chunks.length === 0 ? (
+                        <p className="text-slate-400 text-center py-20 text-xs">No chunks found for this document.</p>
+                      ) : (
+                        chunks.map((chunk: any) => (
+                          <div key={chunk.id} className="bg-[#0c1407] border border-[#B2EA4D]/15 p-3 rounded-lg space-y-2">
+                            <span className="text-[9px] font-bold bg-slate-800 text-slate-300 px-1.5 py-0.5 rounded">CHUNK #{chunk.chunk_id}</span>
+                            <p className="text-[11px] text-slate-300 font-mono line-clamp-3 leading-relaxed">{chunk.chunk_text}</p>
+                          </div>
+                        ))
+                      )}
+                    </ScrollArea>
+                  </Card>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* TAB 6: CONVERSATIONS */}
+          {activeTab === "conversations" && (
+            <div className="space-y-6 animate-mac-page">
+              <div className="border-b border-[#B2EA4D]/15 pb-4 flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-bold text-white">Customer Conversations</h3>
+                  <p className="text-slate-300 text-xs mt-1">Real-time transcripts of RAG customer interactions and grounded AI replies.</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* Conversations Table */}
+                <div className={`${selectedConversation ? 'lg:col-span-2' : 'lg:col-span-3'} transition-all duration-200`}>
+                  <Card className="bg-[#1b2e11]/50 backdrop-blur border-[#B2EA4D]/15 rounded-xl overflow-hidden">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-sm text-slate-300">
+                        <thead className="bg-[#1b2e11] text-slate-300 text-xs font-semibold uppercase border-b border-[#B2EA4D]/15">
+                          <tr>
+                            <th className="px-6 py-4">Timestamp</th>
+                            <th className="px-6 py-4">Customer</th>
+                            <th className="px-6 py-4">Shopper Query</th>
+                            <th className="px-6 py-4 text-right">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-800">
+                          {logs.length === 0 ? (
+                            <tr>
+                              <td colSpan={4} className="text-center py-20 text-slate-400 text-xs font-mono">
+                                No customer conversations logged yet.
+                              </td>
+                            </tr>
+                          ) : (
+                            logs.map((log: any) => {
+                              const isSelected = selectedConversation?.id === log.id;
+                              return (
+                                <tr
+                                  key={log.id}
+                                  onClick={() => setSelectedConversation(log)}
+                                  className={`hover:bg-[#1b2e11]/40 cursor-pointer align-middle transition-colors ${isSelected ? "bg-[#B2EA4D]/10 border-l-2 border-[#B2EA4D]" : ""
+                                    }`}
+                                >
+                                  <td className="px-6 py-4 text-slate-300 text-xs font-mono">{new Date(log.created_at).toLocaleString()}</td>
+                                  <td className="px-6 py-4 font-semibold text-white truncate max-w-[120px]">
+                                    {log.details?.customerId || "Anonymous Guest"}
                                   </td>
-                                  <td className="px-4 py-3 text-right">
-                                    {(doc.status === "draft" || doc.status === "completed") && (
-                                      <Button
-                                        size="sm"
-                                        onClick={async () => {
-                                          try {
-                                            const res = await fetch("/api/admin/publish-document", {
-                                              method: "POST",
-                                              headers: { "Content-Type": "application/json" },
-                                              body: JSON.stringify({ documentId: doc.id })
-                                            });
-                                            if (res.ok) {
-                                              alert("Document published to Production environment!");
-                                              fetchDocuments();
-                                            } else {
-                                              const data = await res.json();
-                                              alert(`Publish failed: ${data.error}`);
-                                            }
-                                          } catch (err: any) {
-                                            alert(`Publish error: ${err.message}`);
-                                          }
-                                        }}
-                                        className="h-7 bg-[#B2EA4D] hover:bg-[#B2EA4D]/90 text-[#050B06] text-[10px] px-2.5 font-bold rounded mr-2 cursor-pointer shadow-sm"
-                                      >
-                                        Publish to Live Production
-                                      </Button>
-                                    )}
-                                    <Button size="sm" variant="ghost" onClick={() => fetchChunksForDoc(doc)} className={`h-7 text-[10px] px-2.5 cursor-pointer ${isSelected ? 'bg-[#B2EA4D] text-slate-950 font-bold' : 'text-[#B2EA4D] hover:bg-[#B2EA4D]/8'}`}>
-                                      {isSelected ? 'Viewing Chunks' : 'Explore Chunks'}
-                                    </Button>
-                                    <Button size="sm" variant="ghost" onClick={() => triggerDeleteDoc(doc.id)} className="h-7 text-rose-400 hover:bg-[#203210]/15 text-[10px] px-2.5 ml-2 cursor-pointer">
-                                      Delete
+                                  <td className="px-6 py-4 text-slate-300 truncate max-w-xs font-mono text-xs">
+                                    {log.details?.message}
+                                  </td>
+                                  <td className="px-6 py-4 text-right">
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedConversation(log);
+                                      }}
+                                      className={`h-7 text-[10px] px-2.5 font-bold cursor-pointer ${isSelected ? 'bg-[#B2EA4D] text-slate-950' : 'text-[#B2EA4D] hover:bg-[#B2EA4D]/8'}`}
+                                    >
+                                      {isSelected ? 'Viewing' : 'View Transcript'}
                                     </Button>
                                   </td>
                                 </tr>
                               );
-                            })}
-                          </tbody>
-                        </table>
-                      </Card>
-                    </div>
-
-                    {/* Chunk Explorer Column (Only rendered when a document is selected) */}
-                    {selectedDoc && (
-                      <Card className="bg-[#1b2e11]/50 backdrop-blur border-[#B2EA4D]/15 rounded-xl overflow-hidden flex flex-col h-[500px] animate-in fade-in duration-200">
-                        <div className="p-4 border-b border-[#B2EA4D]/15 flex items-center justify-between bg-[#1b2e11]/80">
-                          <h3 className="text-xs font-bold text-white uppercase tracking-wider truncate max-w-[200px]" title={selectedDoc.filename}>
-                            Chunks: {selectedDoc.filename}
-                          </h3>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setSelectedDoc(null)}
-                            className="h-7 text-slate-400 hover:text-white text-xs gap-1 hover:bg-[#203210]/40 rounded-lg cursor-pointer shrink-0"
-                            title="Close Chunks Explorer"
-                          >
-                            <X className="w-3.5 h-3.5" /> Close
-                          </Button>
-                        </div>
-                        <ScrollArea className="flex-1 p-4 space-y-4">
-                          {loadingChunks ? (
-                            <div className="flex items-center justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-[#B2EA4D]" /></div>
-                          ) : chunks.length === 0 ? (
-                            <p className="text-slate-400 text-center py-20 text-xs">No chunks found for this document.</p>
-                          ) : (
-                            chunks.map((chunk: any) => (
-                              <div key={chunk.id} className="bg-[#0c1407] border border-[#B2EA4D]/15 p-3 rounded-lg space-y-2">
-                                <span className="text-[9px] font-bold bg-slate-800 text-slate-300 px-1.5 py-0.5 rounded">CHUNK #{chunk.chunk_id}</span>
-                                <p className="text-[11px] text-slate-300 font-mono line-clamp-3 leading-relaxed">{chunk.chunk_text}</p>
-                              </div>
-                            ))
-                          )}
-                        </ScrollArea>
-                      </Card>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* TAB 6: CONVERSATIONS */}
-              {activeTab === "conversations" && (
-                <div className="space-y-6 animate-mac-page">
-                  <div className="border-b border-[#B2EA4D]/15 pb-4 flex items-center justify-between">
-                    <div>
-                      <h3 className="text-lg font-bold text-white">Customer Conversations</h3>
-                      <p className="text-slate-300 text-xs mt-1">Real-time transcripts of RAG customer interactions and grounded AI replies.</p>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    {/* Conversations Table */}
-                    <div className={`${selectedConversation ? 'lg:col-span-2' : 'lg:col-span-3'} transition-all duration-200`}>
-                      <Card className="bg-[#1b2e11]/50 backdrop-blur border-[#B2EA4D]/15 rounded-xl overflow-hidden">
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-left text-sm text-slate-300">
-                            <thead className="bg-[#1b2e11] text-slate-300 text-xs font-semibold uppercase border-b border-[#B2EA4D]/15">
-                              <tr>
-                                <th className="px-6 py-4">Timestamp</th>
-                                <th className="px-6 py-4">Customer</th>
-                                <th className="px-6 py-4">Shopper Query</th>
-                                <th className="px-6 py-4 text-right">Actions</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-800">
-                              {logs.length === 0 ? (
-                                <tr>
-                                  <td colSpan={4} className="text-center py-20 text-slate-400 text-xs font-mono">
-                                    No customer conversations logged yet.
-                                  </td>
-                                </tr>
-                              ) : (
-                                logs.map((log: any) => {
-                                  const isSelected = selectedConversation?.id === log.id;
-                                  return (
-                                    <tr
-                                      key={log.id}
-                                      onClick={() => setSelectedConversation(log)}
-                                      className={`hover:bg-[#1b2e11]/40 cursor-pointer align-middle transition-colors ${isSelected ? "bg-[#B2EA4D]/10 border-l-2 border-[#B2EA4D]" : ""
-                                        }`}
-                                    >
-                                      <td className="px-6 py-4 text-slate-300 text-xs font-mono">{new Date(log.created_at).toLocaleString()}</td>
-                                      <td className="px-6 py-4 font-semibold text-white truncate max-w-[120px]">
-                                        {log.details?.customerId || "Anonymous Guest"}
-                                      </td>
-                                      <td className="px-6 py-4 text-slate-300 truncate max-w-xs font-mono text-xs">
-                                        {log.details?.message}
-                                      </td>
-                                      <td className="px-6 py-4 text-right">
-                                        <Button
-                                          size="sm"
-                                          variant="ghost"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            setSelectedConversation(log);
-                                          }}
-                                          className={`h-7 text-[10px] px-2.5 font-bold cursor-pointer ${isSelected ? 'bg-[#B2EA4D] text-slate-950' : 'text-[#B2EA4D] hover:bg-[#B2EA4D]/8'}`}
-                                        >
-                                          {isSelected ? 'Viewing' : 'View Transcript'}
-                                        </Button>
-                                      </td>
-                                    </tr>
-                                  );
-                                })
-                              )}
-                            </tbody>
-                          </table>
-                        </div>
-                      </Card>
-                    </div>
-
-                    {/* Chat Bubble Transcript Viewer (Only rendered when a conversation is selected) */}
-                    {selectedConversation && (
-                      <div className="animate-in fade-in duration-200">
-                        <Card className="bg-[#1b2e11]/50 border-[#B2EA4D]/15 rounded-xl overflow-hidden flex flex-col h-[500px]">
-                          <div className="p-4 border-b border-[#B2EA4D]/15 bg-[#1b2e11]/70 flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <h4 className="text-xs font-bold text-white uppercase tracking-wider">
-                                Transcript Viewer
-                              </h4>
-                              <span className="text-[9px] font-mono text-[#B2EA4D] bg-[#B2EA4D]/8 px-2 py-0.5 border border-[#B2EA4D]/20 rounded">
-                                ACTIVE
-                              </span>
-                            </div>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setSelectedConversation(null)}
-                              className="h-7 text-slate-400 hover:text-white text-xs gap-1 hover:bg-[#203210]/40 rounded-lg cursor-pointer"
-                              title="Close Transcript Viewer"
-                            >
-                              <X className="w-3.5 h-3.5" /> Close
-                            </Button>
-                          </div>
-
-                          <ScrollArea className="flex-1 p-4 bg-[#0c1407]/20">
-                            <div className="space-y-4">
-                              <div className="text-[10px] text-slate-400 text-center font-mono border-b border-[#B2EA4D]/15 pb-2">
-                                Customer Session: {selectedConversation.details?.customerId || "Anonymous Guest"}
-                              </div>
-
-                              {/* Customer message bubble */}
-                              <div className="space-y-1">
-                                <span className="text-[9px] font-bold text-slate-300 uppercase tracking-widest block font-mono">Customer Message</span>
-                                <div className="bg-slate-800/80 border border-slate-700 text-xs text-slate-100 p-3 rounded-2xl rounded-tl-none leading-relaxed">
-                                  {selectedConversation.details?.message}
-                                </div>
-                              </div>
-
-                              {/* AI grounded response bubble */}
-                              <div className="space-y-1">
-                                <span className="text-[9px] font-bold text-[#B2EA4D] uppercase tracking-widest block font-mono">Grounded AI Response</span>
-                                <div className="bg-[#1b2e11]/40 border border-[#B2EA4D]/15 text-xs text-slate-200 p-3 rounded-2xl rounded-tr-none leading-relaxed">
-                                  {renderMarkdown(selectedConversation.details?.answer)}
-                                </div>
-                              </div>
-                            </div>
-                          </ScrollArea>
-                        </Card>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* TAB 7: ANALYTICS */}
-              {activeTab === "analytics" && (
-                <div className="space-y-6 animate-mac-page">
-                  <div className="border-b border-[#B2EA4D]/15 pb-4">
-                    <h3 className="text-lg font-bold text-white">System Analytics</h3>
-                    <p className="text-slate-300 text-xs mt-1">Health metrics, database capacities, and AI request statistics.</p>
-                  </div>
-
-                  {/* System Health */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Card className="bg-[#1b2e11]/50 backdrop-blur border-[#B2EA4D]/15 p-6 rounded-xl flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className="p-3 rounded-lg bg-[#B2EA4D]/8 text-[#B2EA4D]">
-                          <Database className="w-6 h-6" />
-                        </div>
-                        <div>
-                          <h4 className="text-sm font-semibold text-slate-300">Database connection</h4>
-                          <p className="text-xs text-slate-400 mt-0.5">Supabase Postgres Engine</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className={`w-2.5 h-2.5 rounded-full ${health?.database === "healthy" ? "bg-[#B2EA4D] animate-pulse shadow-[0_0_10px_#B2EA4D]" : "bg-rose-500 shadow-[0_0_10px_#ffffff]"}`} />
-                        <span className="text-sm font-bold capitalize text-white">{health?.database || "checking..."}</span>
-                      </div>
-                    </Card>
-
-                    <Card className="bg-[#1b2e11]/50 backdrop-blur border-[#B2EA4D]/15 p-6 rounded-xl flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className="p-3 rounded-lg bg-[#B2EA4D]/8 text-[#B2EA4D]">
-                          <Sparkles className="w-6 h-6" />
-                        </div>
-                        <div>
-                          <h4 className="text-sm font-semibold text-slate-300">Gemini LLM & Embeddings</h4>
-                          <p className="text-xs text-slate-400 mt-0.5">Google AI Dev Suite</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className={`w-2.5 h-2.5 rounded-full ${health?.gemini === "healthy" ? "bg-[#B2EA4D] animate-pulse shadow-[0_0_10px_#B2EA4D]" : "bg-rose-500 shadow-[0_0_10px_#ffffff]"}`} />
-                        <span className="text-sm font-bold capitalize text-white">{health?.gemini || "checking..."}</span>
-                      </div>
-                    </Card>
-                  </div>
-                </div>
-              )}
-
-              {/* TAB 8: TEAM */}
-              {activeTab === "team" && (
-                <div className="space-y-6 animate-mac-page">
-                  <div className="border-b border-[#B2EA4D]/15 pb-4">
-                    <h3 className="text-lg font-bold text-white">Team Management</h3>
-                    <p className="text-slate-300 text-xs mt-1">Manage platform roles, access control levels, and invite team members.</p>
-                  </div>
-
-                  {/* Invite Form */}
-                  <Card className="bg-[#1b2e11]/50 backdrop-blur border-[#B2EA4D]/15 p-6 rounded-xl border shadow-2xl relative z-20">
-                    <div className="flex items-center gap-2 border-b border-[#B2EA4D]/15 pb-3 mb-4">
-                      <Users className="w-5 h-5 text-[#B2EA4D]" />
-                      <div>
-                        <h3 className="text-sm font-bold text-white uppercase tracking-wider">Invite & Assign New Team Member</h3>
-                        <p className="text-[11px] text-slate-400">Register a new login email and provision their initial authorization role.</p>
-                      </div>
-                    </div>
-
-                    <form onSubmit={handleInviteUser} className="flex flex-wrap gap-4 items-end">
-                      <div className="flex-1 min-w-[240px]">
-                        <label className="text-[10px] font-bold text-slate-300 uppercase tracking-widest block mb-1.5 font-mono">User Email Address</label>
-                        <Input
-                          type="email"
-                          required
-                          placeholder="e.g. member@company.com"
-                          value={newUserEmail}
-                          onChange={(e) => setNewUserEmail(e.target.value)}
-                          className="bg-[#0c1407] border-[#B2EA4D]/15 text-xs h-10"
-                        />
-                      </div>
-
-                      <div className="w-52">
-                        <label className="text-[10px] font-bold text-slate-300 uppercase tracking-widest block mb-1.5 font-mono">Initial Access Role</label>
-                        <CustomSelect
-                          value={newUserRole}
-                          onChange={setNewUserRole}
-                          options={["Knowledge Admin", "Content Editor", "Reviewer", "Viewer", "Chatbot User"].map(r => ({ value: r, label: r }))}
-                          className="w-full h-10"
-                        />
-                      </div>
-
-                      <Button
-                        type="submit"
-                        disabled={invitingUser || !newUserEmail.trim()}
-                        className="bg-[#B2EA4D] hover:bg-[#B2EA4D] text-slate-950 font-bold px-6 h-10 gap-2 text-xs"
-                      >
-                        {invitingUser ? <Loader2 className="w-4 h-4 animate-spin" /> : <Users className="w-4 h-4" />}
-                        Invite Member
-                      </Button>
-                    </form>
-                  </Card>
-
-                  {/* Kanban Role Board */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="text-base font-bold text-white">Visual Access Board</h3>
-                        <p className="text-slate-300 text-xs mt-1">Drag and drop team cards between columns to change their authorization level.</p>
-                      </div>
-                      <Button size="icon" variant="outline" onClick={fetchUsers} disabled={loadingUsers} className="h-9 w-9 bg-[#1b2e11] border-[#B2EA4D]/15 text-slate-300 hover:text-white">
-                        <RefreshCw className={`w-4 h-4 ${loadingUsers ? "animate-spin" : ""}`} />
-                      </Button>
-                    </div>
-
-                    {loadingUsers ? (
-                      <div className="py-20 text-center">
-                        <Loader2 className="w-8 h-8 animate-spin text-[#B2EA4D] mx-auto" />
-                        <span className="text-slate-400 text-xs mt-3 block font-mono">Synchronizing RBAC Board...</span>
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                        {[
-                          {
-                            title: "Administrators",
-                            roles: ["Knowledge Admin"],
-                            color: "border-rose-500/20 bg-[#203210]/10",
-                            badge: "bg-[#203210]/15 text-rose-400 border border-rose-500/20"
-                          },
-                          {
-                            title: "Content & Operations",
-                            roles: ["Content Editor", "Reviewer"],
-                            color: "border-indigo-500/20 bg-[#B2EA4D]/5",
-                            badge: "bg-[#FFFFFF]/10 text-[#FFFFFF] border border-indigo-500/20"
-                          },
-                          {
-                            title: "Consumers & Viewers",
-                            roles: ["Viewer", "Chatbot User"],
-                            color: "border-slate-500/20 bg-slate-500/5",
-                            badge: "bg-slate-500/10 text-slate-300 border border-slate-500/20"
-                          }
-                        ].map((col, colIdx) => (
-                          <div
-                            key={colIdx}
-                            className={`flex flex-col border rounded-xl overflow-hidden min-h-[400px] transition-all duration-300 ${col.color}`}
-                          >
-                            <div className="p-4 border-b border-[#B2EA4D]/15 bg-[#1b2e11]/60 flex items-center justify-between">
-                              <span className="text-xs font-bold text-white uppercase tracking-wider">{col.title}</span>
-                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${col.badge}`}>
-                                {usersList.filter((u: any) => col.roles.includes(u.role || "Viewer")).length} Members
-                              </span>
-                            </div>
-
-                            <div className="flex-1 p-4 space-y-4 overflow-y-auto max-h-[500px]">
-                              {col.roles.map((roleName: any) => {
-                                const isColumnHovered = hoveredColumn === roleName;
-                                const roleUsers = usersList.filter((u: any) => (u.role || "Viewer") === roleName);
-
-                                return (
-                                  <div
-                                    key={roleName}
-                                    onDragOver={(e) => e.preventDefault()}
-                                    onDragEnter={(e) => { e.preventDefault(); setHoveredColumn(roleName); }}
-                                    onDragLeave={() => setHoveredColumn(null)}
-                                    onDrop={(e) => {
-                                      setHoveredColumn(null);
-                                      const userId = draggingUserId || e.dataTransfer.getData("text/plain");
-                                      setDraggingUserId(null);
-                                      if (userId) {
-                                        changeUserRole(userId, roleName, true);
-                                      }
-                                    }}
-                                    className={`border rounded-lg p-3 transition-all duration-200 min-h-[120px] flex flex-col gap-2 ${isColumnHovered
-                                        ? "border-[#B2EA4D] bg-[#B2EA4D]/5 shadow-2xl scale-[1.01]"
-                                        : "border-[#B2EA4D]/15 bg-[#0c1407]/40 hover:border-slate-700/80"
-                                      }`}
-                                  >
-                                    <div className="flex items-center justify-between pb-1 border-b border-[#B2EA4D]/15">
-                                      <span className="text-[10px] font-extrabold text-slate-300 uppercase tracking-widest">{roleName}</span>
-                                      <span className="text-[9px] font-mono text-slate-600 font-bold">{roleUsers.length}</span>
-                                    </div>
-
-                                    <div className="flex-1 space-y-2">
-                                      {roleUsers.length === 0 ? (
-                                        <div className="h-full flex items-center justify-center py-6 text-center text-slate-600 text-[10px] font-mono border border-dashed border-[#B2EA4D]/15 rounded bg-[#0c1407]/20">
-                                          Drop users here
-                                        </div>
-                                      ) : (
-                                        roleUsers.map((usr: any) => {
-                                          const isMe = usr.id === user?.id;
-                                          const initials = usr.email ? usr.email.split("@")[0].slice(0, 2).toUpperCase() : "US";
-
-                                          return (
-                                            <div
-                                              key={usr.id}
-                                              draggable={!isMe}
-                                              onDragStart={(e) => {
-                                                e.dataTransfer.setData("text/plain", usr.id);
-                                                setDraggingUserId(usr.id);
-                                              }}
-                                              className={`bg-[#1b2e11] border p-3 rounded-lg shadow-md transition-all flex flex-col gap-2 ${isMe
-                                                  ? "border-amber-500/30 cursor-not-allowed bg-[#1b2e11]/40 opacity-90"
-                                                  : "border-[#B2EA4D]/15 hover:border-slate-700 cursor-grab active:cursor-grabbing"
-                                                }`}
-                                            >
-                                              <div className="flex items-start gap-2.5">
-                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${isMe
-                                                    ? "bg-white/10 text-amber-400 border border-[#B2EA4D]/20"
-                                                    : roleName.includes("Admin")
-                                                      ? "bg-[#203210]/15 text-rose-400 border border-rose-500/20"
-                                                      : "bg-slate-800 text-slate-300 border border-slate-700"
-                                                  }`}>
-                                                  {initials}
-                                                </div>
-
-                                                <div className="flex-1 min-w-0">
-                                                  <p className="text-[11px] font-bold text-white truncate leading-tight flex items-center gap-1">
-                                                    {usr.email}
-                                                    {isMe && <span className="text-[8px] bg-white/10 text-amber-400 px-1 py-0.2 rounded border border-[#B2EA4D]/20">YOU</span>}
-                                                  </p>
-                                                  <p className="text-[9px] text-slate-400 mt-0.5 font-mono">
-                                                    Added: {new Date(usr.created_at).toLocaleDateString()}
-                                                  </p>
-                                                </div>
-                                              </div>
-                                            </div>
-                                          );
-                                        })
-                                      )}
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* TAB: SUPPORT TICKETS & ESCALATIONS */}
-              {activeTab === "tickets" && <TicketsTab />}
-
-              {/* TAB 9: SETTINGS */}
-              {activeTab === "settings" && (
-                <Suspense fallback={<div className="p-8 text-center text-slate-400">Loading settings...</div>}>
-                  <SettingsTab setActiveTab={setActiveTab} onOpenUpgradeModal={openSubscriptionModal} />
-                </Suspense>
-              )}
-
-              {/* TAB 10: AUDIT LOGS */}
-              {activeTab === "audit_logs" && (
-                <div className="space-y-6 animate-mac-page">
-                  <div className="border-b border-[#B2EA4D]/15 pb-4">
-                    <h3 className="text-lg font-bold text-white">System Audit Trail</h3>
-                    <p className="text-slate-300 text-xs mt-1">Append-only compliance log recording administrative changes, authentication events, and document tasks.</p>
-                  </div>
-
-                  <Card className="bg-[#1b2e11]/50 backdrop-blur border-[#B2EA4D]/15 rounded-xl overflow-hidden">
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left text-xs text-slate-300">
-                        <thead className="bg-[#1b2e11] text-slate-300 text-xs font-semibold uppercase border-b border-[#B2EA4D]/15">
-                          <tr>
-                            <th className="px-6 py-4">Timestamp</th>
-                            <th className="px-6 py-4">Action</th>
-                            <th className="px-6 py-4">Details</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-800">
-                          {loadingAuditLogs ? (
-                            <tr>
-                              <td colSpan={3} className="text-center py-20">
-                                <Loader2 className="w-6 h-6 animate-spin text-[#B2EA4D] mx-auto" />
-                                <span className="text-slate-400 text-[10px] mt-2 block">Loading audit logs...</span>
-                              </td>
-                            </tr>
-                          ) : auditLogs.length === 0 ? (
-                            <tr>
-                              <td colSpan={3} className="text-center py-20 text-slate-450 text-center font-mono">
-                                No audit events logged.
-                              </td>
-                            </tr>
-                          ) : (
-                            auditLogs.map((log: any) => (
-                              <tr key={log.id} className="hover:bg-[#1b2e11]/20 align-middle">
-                                <td className="px-6 py-4 text-slate-400 font-mono text-[10px]">
-                                  {new Date(log.created_at).toLocaleString()}
-                                </td>
-                                <td className="px-6 py-4 font-bold text-white">
-                                  <span className={`px-2 py-0.5 rounded text-[9px] font-mono font-extrabold tracking-wider ${log.action.includes("Failed") ? "bg-[#203210]/15 text-rose-400 border border-rose-500/20" :
-                                      log.action.includes("Completed") || log.action.includes("Published") ? "bg-[#B2EA4D]/8 text-[#B2EA4D] border border-[#B2EA4D]/20" :
-                                        "bg-blue-500/10 text-blue-400 border border-blue-500/20"
-                                    }`}>
-                                    {log.action}
-                                  </span>
-                                </td>
-                                <td className="px-6 py-4 font-mono text-[10px] max-w-lg truncate" title={JSON.stringify(log.details)}>
-                                  {JSON.stringify(log.details)}
-                                </td>
-                              </tr>
-                            ))
+                            })
                           )}
                         </tbody>
                       </table>
                     </div>
                   </Card>
                 </div>
-              )}
+
+                {/* Chat Bubble Transcript Viewer (Only rendered when a conversation is selected) */}
+                {selectedConversation && (
+                  <div className="animate-in fade-in duration-200">
+                    <Card className="bg-[#1b2e11]/50 border-[#B2EA4D]/15 rounded-xl overflow-hidden flex flex-col h-[500px]">
+                      <div className="p-4 border-b border-[#B2EA4D]/15 bg-[#1b2e11]/70 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-xs font-bold text-white uppercase tracking-wider">
+                            Transcript Viewer
+                          </h4>
+                          <span className="text-[9px] font-mono text-[#B2EA4D] bg-[#B2EA4D]/8 px-2 py-0.5 border border-[#B2EA4D]/20 rounded">
+                            ACTIVE
+                          </span>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setSelectedConversation(null)}
+                          className="h-7 text-slate-400 hover:text-white text-xs gap-1 hover:bg-[#203210]/40 rounded-lg cursor-pointer"
+                          title="Close Transcript Viewer"
+                        >
+                          <X className="w-3.5 h-3.5" /> Close
+                        </Button>
+                      </div>
+
+                      <ScrollArea className="flex-1 p-4 bg-[#0c1407]/20">
+                        <div className="space-y-4">
+                          <div className="text-[10px] text-slate-400 text-center font-mono border-b border-[#B2EA4D]/15 pb-2">
+                            Customer Session: {selectedConversation.details?.customerId || "Anonymous Guest"}
+                          </div>
+
+                          {/* Customer message bubble */}
+                          <div className="space-y-1">
+                            <span className="text-[9px] font-bold text-slate-300 uppercase tracking-widest block font-mono">Customer Message</span>
+                            <div className="bg-slate-800/80 border border-slate-700 text-xs text-slate-100 p-3 rounded-2xl rounded-tl-none leading-relaxed">
+                              {selectedConversation.details?.message}
+                            </div>
+                          </div>
+
+                          {/* AI grounded response bubble */}
+                          <div className="space-y-1">
+                            <span className="text-[9px] font-bold text-[#B2EA4D] uppercase tracking-widest block font-mono">Grounded AI Response</span>
+                            <div className="bg-[#1b2e11]/40 border border-[#B2EA4D]/15 text-xs text-slate-200 p-3 rounded-2xl rounded-tr-none leading-relaxed">
+                              {renderMarkdown(selectedConversation.details?.answer)}
+                            </div>
+                          </div>
+                        </div>
+                      </ScrollArea>
+                    </Card>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* TAB 7: ANALYTICS */}
+          {activeTab === "analytics" && (
+            <div className="space-y-6 animate-mac-page">
+              <div className="border-b border-[#B2EA4D]/15 pb-4">
+                <h3 className="text-lg font-bold text-white">System Analytics</h3>
+                <p className="text-slate-300 text-xs mt-1">Health metrics, database capacities, and AI request statistics.</p>
+              </div>
+
+              {/* System Health */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Card className="bg-[#1b2e11]/50 backdrop-blur border-[#B2EA4D]/15 p-6 rounded-xl flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 rounded-lg bg-[#B2EA4D]/8 text-[#B2EA4D]">
+                      <Database className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-semibold text-slate-300">Database connection</h4>
+                      <p className="text-xs text-slate-400 mt-0.5">Supabase Postgres Engine</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`w-2.5 h-2.5 rounded-full ${health?.database === "healthy" ? "bg-[#B2EA4D] animate-pulse shadow-[0_0_10px_#B2EA4D]" : "bg-rose-500 shadow-[0_0_10px_#ffffff]"}`} />
+                    <span className="text-sm font-bold capitalize text-white">{health?.database || "checking..."}</span>
+                  </div>
+                </Card>
+
+                <Card className="bg-[#1b2e11]/50 backdrop-blur border-[#B2EA4D]/15 p-6 rounded-xl flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 rounded-lg bg-[#B2EA4D]/8 text-[#B2EA4D]">
+                      <Sparkles className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-semibold text-slate-300">Gemini LLM & Embeddings</h4>
+                      <p className="text-xs text-slate-400 mt-0.5">Google AI Dev Suite</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`w-2.5 h-2.5 rounded-full ${health?.gemini === "healthy" ? "bg-[#B2EA4D] animate-pulse shadow-[0_0_10px_#B2EA4D]" : "bg-rose-500 shadow-[0_0_10px_#ffffff]"}`} />
+                    <span className="text-sm font-bold capitalize text-white">{health?.gemini || "checking..."}</span>
+                  </div>
+                </Card>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 8: TEAM */}
+          {activeTab === "team" && (
+            <div className="space-y-6 animate-mac-page">
+              <div className="border-b border-[#B2EA4D]/15 pb-4">
+                <h3 className="text-lg font-bold text-white">Team Management</h3>
+                <p className="text-slate-300 text-xs mt-1">Manage platform roles, access control levels, and invite team members.</p>
+              </div>
+
+              {/* Invite Form */}
+              <Card className="bg-[#1b2e11]/50 backdrop-blur border-[#B2EA4D]/15 p-6 rounded-xl border shadow-2xl relative z-20">
+                <div className="flex items-center gap-2 border-b border-[#B2EA4D]/15 pb-3 mb-4">
+                  <Users className="w-5 h-5 text-[#B2EA4D]" />
+                  <div>
+                    <h3 className="text-sm font-bold text-white uppercase tracking-wider">Invite & Assign New Team Member</h3>
+                    <p className="text-[11px] text-slate-400">Register a new login email and provision their initial authorization role.</p>
+                  </div>
+                </div>
+
+                <form onSubmit={handleInviteUser} className="flex flex-wrap gap-4 items-end">
+                  <div className="flex-1 min-w-[240px]">
+                    <label className="text-[10px] font-bold text-slate-300 uppercase tracking-widest block mb-1.5 font-mono">User Email Address</label>
+                    <Input
+                      type="email"
+                      required
+                      placeholder="e.g. member@company.com"
+                      value={newUserEmail}
+                      onChange={(e) => setNewUserEmail(e.target.value)}
+                      className="bg-[#0c1407] border-[#B2EA4D]/15 text-xs h-10"
+                    />
+                  </div>
+
+                  <div className="w-52">
+                    <label className="text-[10px] font-bold text-slate-300 uppercase tracking-widest block mb-1.5 font-mono">Initial Access Role</label>
+                    <CustomSelect
+                      value={newUserRole}
+                      onChange={setNewUserRole}
+                      options={["Knowledge Admin", "Content Editor", "Reviewer", "Viewer", "Chatbot User"].map(r => ({ value: r, label: r }))}
+                      className="w-full h-10"
+                    />
+                  </div>
+
+                  <Button
+                    type="submit"
+                    disabled={invitingUser || !newUserEmail.trim()}
+                    className="bg-[#B2EA4D] hover:bg-[#B2EA4D] text-slate-950 font-bold px-6 h-10 gap-2 text-xs"
+                  >
+                    {invitingUser ? <Loader2 className="w-4 h-4 animate-spin" /> : <Users className="w-4 h-4" />}
+                    Invite Member
+                  </Button>
+                </form>
+              </Card>
+
+              {/* Kanban Role Board */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-base font-bold text-white">Visual Access Board</h3>
+                    <p className="text-slate-300 text-xs mt-1">Drag and drop team cards between columns to change their authorization level.</p>
+                  </div>
+                  <Button size="icon" variant="outline" onClick={fetchUsers} disabled={loadingUsers} className="h-9 w-9 bg-[#1b2e11] border-[#B2EA4D]/15 text-slate-300 hover:text-white">
+                    <RefreshCw className={`w-4 h-4 ${loadingUsers ? "animate-spin" : ""}`} />
+                  </Button>
+                </div>
+
+                {loadingUsers ? (
+                  <div className="py-20 text-center">
+                    <Loader2 className="w-8 h-8 animate-spin text-[#B2EA4D] mx-auto" />
+                    <span className="text-slate-400 text-xs mt-3 block font-mono">Synchronizing RBAC Board...</span>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                    {[
+                      {
+                        title: "Administrators",
+                        roles: ["Knowledge Admin"],
+                        color: "border-rose-500/20 bg-[#203210]/10",
+                        badge: "bg-[#203210]/15 text-rose-400 border border-rose-500/20"
+                      },
+                      {
+                        title: "Content & Operations",
+                        roles: ["Content Editor", "Reviewer"],
+                        color: "border-indigo-500/20 bg-[#B2EA4D]/5",
+                        badge: "bg-[#FFFFFF]/10 text-[#FFFFFF] border border-indigo-500/20"
+                      },
+                      {
+                        title: "Consumers & Viewers",
+                        roles: ["Viewer", "Chatbot User"],
+                        color: "border-slate-500/20 bg-slate-500/5",
+                        badge: "bg-slate-500/10 text-slate-300 border border-slate-500/20"
+                      }
+                    ].map((col, colIdx) => (
+                      <div
+                        key={colIdx}
+                        className={`flex flex-col border rounded-xl overflow-hidden min-h-[400px] transition-all duration-300 ${col.color}`}
+                      >
+                        <div className="p-4 border-b border-[#B2EA4D]/15 bg-[#1b2e11]/60 flex items-center justify-between">
+                          <span className="text-xs font-bold text-white uppercase tracking-wider">{col.title}</span>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${col.badge}`}>
+                            {usersList.filter((u: any) => col.roles.includes(u.role || "Viewer")).length} Members
+                          </span>
+                        </div>
+
+                        <div className="flex-1 p-4 space-y-4 overflow-y-auto max-h-[500px]">
+                          {col.roles.map((roleName: any) => {
+                            const isColumnHovered = hoveredColumn === roleName;
+                            const roleUsers = usersList.filter((u: any) => (u.role || "Viewer") === roleName);
+
+                            return (
+                              <div
+                                key={roleName}
+                                onDragOver={(e) => e.preventDefault()}
+                                onDragEnter={(e) => { e.preventDefault(); setHoveredColumn(roleName); }}
+                                onDragLeave={() => setHoveredColumn(null)}
+                                onDrop={(e) => {
+                                  setHoveredColumn(null);
+                                  const userId = draggingUserId || e.dataTransfer.getData("text/plain");
+                                  setDraggingUserId(null);
+                                  if (userId) {
+                                    changeUserRole(userId, roleName, true);
+                                  }
+                                }}
+                                className={`border rounded-lg p-3 transition-all duration-200 min-h-[120px] flex flex-col gap-2 ${isColumnHovered
+                                  ? "border-[#B2EA4D] bg-[#B2EA4D]/5 shadow-2xl scale-[1.01]"
+                                  : "border-[#B2EA4D]/15 bg-[#0c1407]/40 hover:border-slate-700/80"
+                                  }`}
+                              >
+                                <div className="flex items-center justify-between pb-1 border-b border-[#B2EA4D]/15">
+                                  <span className="text-[10px] font-extrabold text-slate-300 uppercase tracking-widest">{roleName}</span>
+                                  <span className="text-[9px] font-mono text-slate-600 font-bold">{roleUsers.length}</span>
+                                </div>
+
+                                <div className="flex-1 space-y-2">
+                                  {roleUsers.length === 0 ? (
+                                    <div className="h-full flex items-center justify-center py-6 text-center text-slate-600 text-[10px] font-mono border border-dashed border-[#B2EA4D]/15 rounded bg-[#0c1407]/20">
+                                      Drop users here
+                                    </div>
+                                  ) : (
+                                    roleUsers.map((usr: any) => {
+                                      const isMe = usr.id === user?.id;
+                                      const initials = usr.email ? usr.email.split("@")[0].slice(0, 2).toUpperCase() : "US";
+
+                                      return (
+                                        <div
+                                          key={usr.id}
+                                          draggable={!isMe}
+                                          onDragStart={(e) => {
+                                            e.dataTransfer.setData("text/plain", usr.id);
+                                            setDraggingUserId(usr.id);
+                                          }}
+                                          className={`bg-[#1b2e11] border p-3 rounded-lg shadow-md transition-all flex flex-col gap-2 ${isMe
+                                            ? "border-amber-500/30 cursor-not-allowed bg-[#1b2e11]/40 opacity-90"
+                                            : "border-[#B2EA4D]/15 hover:border-slate-700 cursor-grab active:cursor-grabbing"
+                                            }`}
+                                        >
+                                          <div className="flex items-start gap-2.5">
+                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${isMe
+                                              ? "bg-white/10 text-amber-400 border border-[#B2EA4D]/20"
+                                              : roleName.includes("Admin")
+                                                ? "bg-[#203210]/15 text-rose-400 border border-rose-500/20"
+                                                : "bg-slate-800 text-slate-300 border border-slate-700"
+                                              }`}>
+                                              {initials}
+                                            </div>
+
+                                            <div className="flex-1 min-w-0">
+                                              <p className="text-[11px] font-bold text-white truncate leading-tight flex items-center gap-1">
+                                                {usr.email}
+                                                {isMe && <span className="text-[8px] bg-white/10 text-amber-400 px-1 py-0.2 rounded border border-[#B2EA4D]/20">YOU</span>}
+                                              </p>
+                                              <p className="text-[9px] text-slate-400 mt-0.5 font-mono">
+                                                Added: {new Date(usr.created_at).toLocaleDateString()}
+                                              </p>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      );
+                                    })
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* TAB: SUPPORT TICKETS & ESCALATIONS */}
+          {activeTab === "tickets" && <TicketsTab />}
+
+          {/* TAB: KEY CONTACTS & EMERGENCY DIRECTORY */}
+          {activeTab === "contacts" && <KeyContactsTab workspaceId={workspaceId} />}
+
+          {/* TAB: LEADS CHANNEL & PIPELINE */}
+          {activeTab === "leads" && <LeadsTab workspaceId={workspaceId} />}
+
+          {/* TAB 9: SETTINGS */}
+          {activeTab === "settings" && (
+            <Suspense fallback={<div className="p-8 text-center text-slate-400">Loading settings...</div>}>
+              <SettingsTab setActiveTab={setActiveTab} onOpenUpgradeModal={openSubscriptionModal} />
+            </Suspense>
+          )}
+
+          {/* TAB 10: AUDIT LOGS */}
+          {activeTab === "audit_logs" && (
+            <div className="space-y-6 animate-mac-page">
+              <div className="border-b border-[#B2EA4D]/15 pb-4">
+                <h3 className="text-lg font-bold text-white">System Audit Trail</h3>
+                <p className="text-slate-300 text-xs mt-1">Append-only compliance log recording administrative changes, authentication events, and document tasks.</p>
+              </div>
+
+              <Card className="bg-[#1b2e11]/50 backdrop-blur border-[#B2EA4D]/15 rounded-xl overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs text-slate-300">
+                    <thead className="bg-[#1b2e11] text-slate-300 text-xs font-semibold uppercase border-b border-[#B2EA4D]/15">
+                      <tr>
+                        <th className="px-6 py-4">Timestamp</th>
+                        <th className="px-6 py-4">Action</th>
+                        <th className="px-6 py-4">Details</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800">
+                      {loadingAuditLogs ? (
+                        <tr>
+                          <td colSpan={3} className="text-center py-20">
+                            <Loader2 className="w-6 h-6 animate-spin text-[#B2EA4D] mx-auto" />
+                            <span className="text-slate-400 text-[10px] mt-2 block">Loading audit logs...</span>
+                          </td>
+                        </tr>
+                      ) : auditLogs.length === 0 ? (
+                        <tr>
+                          <td colSpan={3} className="text-center py-20 text-slate-450 text-center font-mono">
+                            No audit events logged.
+                          </td>
+                        </tr>
+                      ) : (
+                        auditLogs.map((log: any) => (
+                          <tr key={log.id} className="hover:bg-[#1b2e11]/20 align-middle">
+                            <td className="px-6 py-4 text-slate-400 font-mono text-[10px]">
+                              {new Date(log.created_at).toLocaleString()}
+                            </td>
+                            <td className="px-6 py-4 font-bold text-white">
+                              <span className={`px-2 py-0.5 rounded text-[9px] font-mono font-extrabold tracking-wider ${log.action.includes("Failed") ? "bg-[#203210]/15 text-rose-400 border border-rose-500/20" :
+                                log.action.includes("Completed") || log.action.includes("Published") ? "bg-[#B2EA4D]/8 text-[#B2EA4D] border border-[#B2EA4D]/20" :
+                                  "bg-blue-500/10 text-blue-400 border border-blue-500/20"
+                                }`}>
+                                {log.action}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 font-mono text-[10px] max-w-lg truncate" title={JSON.stringify(log.details)}>
+                              {JSON.stringify(log.details)}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            </div>
+          )}
         </div>
       </main>
 
@@ -2777,11 +2868,10 @@ export default function WorkspaceDashboard() {
                   setSubscriptionModalTab("pro");
                   setCheckoutError(null);
                 }}
-                className={`py-2.5 px-3 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                  subscriptionModalTab === "pro"
+                className={`py-2.5 px-3 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${subscriptionModalTab === "pro"
                     ? "bg-gradient-to-r from-lime-400 to-[#B2EA4D] text-[#050B06] shadow-md"
                     : "text-slate-400 hover:text-white"
-                }`}
+                  }`}
               >
                 <span>⚡ Pro Plan (₹2,999/mo)</span>
               </button>
@@ -2791,11 +2881,10 @@ export default function WorkspaceDashboard() {
                   setSubscriptionModalTab("branding");
                   setCheckoutError(null);
                 }}
-                className={`py-2.5 px-3 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                  subscriptionModalTab === "branding"
+                className={`py-2.5 px-3 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${subscriptionModalTab === "branding"
                     ? "bg-gradient-to-r from-lime-400 to-[#B2EA4D] text-[#050B06] shadow-md"
                     : "text-slate-400 hover:text-white"
-                }`}
+                  }`}
               >
                 <span>🎨 Custom Brand (₹540)</span>
               </button>

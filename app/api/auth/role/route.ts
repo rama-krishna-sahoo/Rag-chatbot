@@ -29,9 +29,11 @@ export async function GET() {
     return NextResponse.json({
       role,
       email: user.email,
+      isEmailVerified: user.isEmailVerified,
       user: {
         id: user.id,
         email: user.email,
+        isEmailVerified: user.isEmailVerified,
       },
       workspaceId,
       isSimulated,
