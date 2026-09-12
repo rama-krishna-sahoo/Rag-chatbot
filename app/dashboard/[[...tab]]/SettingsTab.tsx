@@ -257,6 +257,13 @@ export function SettingsTab({ setActiveTab, onOpenUpgradeModal }: SettingsTabPro
             adminEmail: storedEmail,
             avatarUrl: data.avatar_url || storedAvatar || prev.avatarUrl
           }));
+
+          if (typeof window !== "undefined") {
+            if (data.sync_frequency) localStorage.setItem("oogway_sync_frequency", data.sync_frequency);
+            if (data.sync_enabled !== undefined) localStorage.setItem("oogway_sync_enabled", String(data.sync_enabled));
+            if (data.website_url) localStorage.setItem("oogway_simulated_website", data.website_url);
+            window.dispatchEvent(new Event("oogway-settings-updated"));
+          }
         } else {
           setFormData(prev => ({
             ...prev,
@@ -353,11 +360,14 @@ export function SettingsTab({ setActiveTab, onOpenUpgradeModal }: SettingsTabPro
       if (typeof window !== "undefined") {
         localStorage.setItem("oogway_simulated_company", formData.companyName);
         localStorage.setItem("oogway_simulated_website", formData.websiteUrl);
+        localStorage.setItem("oogway_sync_frequency", formData.syncFrequency);
+        localStorage.setItem("oogway_sync_enabled", String(formData.syncEnabled));
         if (formData.companyLogo) localStorage.setItem("oogway_simulated_logo", formData.companyLogo);
         if (formData.avatarUrl) localStorage.setItem("oogway_admin_avatar", formData.avatarUrl);
         
         window.dispatchEvent(new Event("oogway-logo-updated"));
         window.dispatchEvent(new Event("oogway-avatar-updated"));
+        window.dispatchEvent(new Event("oogway-settings-updated"));
       }
 
       alert("All Admin Settings saved successfully!");

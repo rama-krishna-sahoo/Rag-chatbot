@@ -86,6 +86,19 @@ export async function PUT(req: Request) {
         .eq("id", workspaceId);
     }
 
+    // Update website documents sync_frequency & sync_enabled for this workspace
+    if (newSettings.sync_frequency) {
+      await supabase
+        .from("uploaded_documents")
+        .update({
+          sync_frequency: newSettings.sync_frequency,
+          sync_enabled: newSettings.sync_enabled,
+          updated_at: new Date().toISOString()
+        })
+        .eq("workspace_id", workspaceId)
+        .eq("mime_type", "text/html");
+    }
+
     return NextResponse.json({ success: true, settings: newSettings });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });

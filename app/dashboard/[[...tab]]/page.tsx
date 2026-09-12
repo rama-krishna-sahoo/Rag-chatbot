@@ -340,6 +340,58 @@ export default function WorkspaceDashboard() {
     if (typeof window !== "undefined") return localStorage.getItem("oogway_simulated_website") || "";
     return "";
   });
+  const [syncFrequency, setSyncFrequency] = useState<string>(() => {
+    if (typeof window !== "undefined") return localStorage.getItem("oogway_sync_frequency") || "daily";
+    return "daily";
+  });
+  const [syncEnabled, setSyncEnabled] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      const val = localStorage.getItem("oogway_sync_enabled");
+      return val !== null ? val === "true" : true;
+    }
+    return true;
+  });
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const res = await fetch("/api/settings");
+        if (res.ok) {
+          const data = await res.json();
+          if (data.sync_frequency) {
+            setSyncFrequency(data.sync_frequency);
+            if (typeof window !== "undefined") localStorage.setItem("oogway_sync_frequency", data.sync_frequency);
+          }
+          if (data.sync_enabled !== undefined) {
+            setSyncEnabled(Boolean(data.sync_enabled));
+            if (typeof window !== "undefined") localStorage.setItem("oogway_sync_enabled", String(data.sync_enabled));
+          }
+          if (data.website_url) {
+            setWebsite(data.website_url);
+            if (typeof window !== "undefined") localStorage.setItem("oogway_simulated_website", data.website_url);
+          }
+        }
+      } catch (e) {}
+    };
+
+    fetchSettings();
+
+    const handleSettingsUpdate = () => {
+      if (typeof window !== "undefined") {
+        const freq = localStorage.getItem("oogway_sync_frequency");
+        const enabled = localStorage.getItem("oogway_sync_enabled");
+        const site = localStorage.getItem("oogway_simulated_website");
+        if (freq) setSyncFrequency(freq);
+        if (enabled !== null) setSyncEnabled(enabled === "true");
+        if (site) setWebsite(site);
+      }
+      fetchSettings();
+    };
+
+    window.addEventListener("oogway-settings-updated", handleSettingsUpdate);
+    return () => window.removeEventListener("oogway-settings-updated", handleSettingsUpdate);
+  }, []);
+
   const [autoLogoUrl, setAutoLogoUrl] = useState<string | null>(null);
 
   // Helper to extract domain from website URL
@@ -2170,11 +2222,15 @@ export default function WorkspaceDashboard() {
                       <div className="border-t border-[#B2EA4D]/15 pt-4 space-y-4">
                         <div className="flex items-center justify-between">
                           <span className="text-xs text-slate-300 font-semibold">Periodic Auto Sync</span>
-                          <span className="bg-[#B2EA4D]/10 text-[#B2EA4D] border border-[#B2EA4D]/20 px-2 py-0.5 rounded-full text-[10px] font-bold">Active</span>
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${syncEnabled ? "bg-[#B2EA4D]/10 text-[#B2EA4D] border border-[#B2EA4D]/20" : "bg-slate-800 text-slate-400 border border-slate-700"}`}>
+                            {syncEnabled ? "Active" : "Disabled"}
+                          </span>
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-xs text-slate-300 font-semibold">Interval</span>
-                          <span className="text-slate-300 text-xs font-mono font-semibold">Weekly</span>
+                          <span className="text-slate-300 text-xs font-mono font-semibold capitalize">
+                            {syncFrequency || "Weekly"}
+                          </span>
                         </div>
                       </div>
                     </Card>
