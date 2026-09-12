@@ -24,7 +24,7 @@ function FormattedMessage({ text }: { text: string }) {
   const lines = text.split("\n");
 
   return (
-    <div className="space-y-1.5 text-xs sm:text-sm leading-relaxed">
+    <div className="space-y-1.5 text-xs sm:text-sm leading-relaxed break-words min-w-0">
       {lines.map((line, lineIdx) => {
         const trimmed = line.trim();
         if (!trimmed) return <div key={lineIdx} className="h-1" />;
@@ -48,15 +48,15 @@ function FormattedMessage({ text }: { text: string }) {
 
         if (isBullet) {
           return (
-            <div key={lineIdx} className="flex items-start gap-1.5 pl-1 my-0.5">
-              <span className="text-[#B2EA4D] font-extrabold select-none text-xs">•</span>
-              <span className="text-neutral-700">{renderedParts}</span>
+            <div key={lineIdx} className="flex items-start gap-1.5 pl-1 my-0.5 min-w-0">
+              <span className="text-[#B2EA4D] font-extrabold select-none text-xs shrink-0">•</span>
+              <span className="text-neutral-700 break-words min-w-0 flex-1">{renderedParts}</span>
             </div>
           );
         }
 
         return (
-          <p key={lineIdx} className="text-neutral-700">
+          <p key={lineIdx} className="text-neutral-700 break-words min-w-0">
             {renderedParts}
           </p>
         );
@@ -947,26 +947,21 @@ export function Chatbot({
 
                   <p className="text-[10px] text-neutral-400 font-mono">
                     🔒 Security Gate: Chatbot will not process queries without a valid matching OTP.
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <>
-                {/* Scrollable Chat Area */}
+                                 {/* Scrollable Chat Area */}
                 <div
                   ref={scrollRef}
-                  className="flex-1 overflow-y-auto px-4 py-3 min-h-0 space-y-4"
+                  className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-3 min-h-0 space-y-4"
                 >
                   {/* Inline Lead Capture Prompt Card for New Users */}
                   {showLeadPrompt && (
-                    <div className="bg-gradient-to-r from-lime-500/10 to-emerald-500/10 border border-[#B2EA4D]/40 rounded-2xl p-3.5 space-y-2.5 font-sans my-2 shadow-md">
-                      <div className="flex items-center gap-2">
+                    <div className="bg-gradient-to-r from-lime-500/10 to-emerald-500/10 border border-[#B2EA4D]/40 rounded-2xl p-3.5 space-y-2.5 font-sans my-2 shadow-md min-w-0 overflow-hidden">
+                      <div className="flex items-center gap-2 min-w-0">
                         <div className="p-1.5 rounded-lg bg-[#B2EA4D] text-[#203210] shrink-0">
                           <UserCheck className="w-4 h-4" />
                         </div>
-                        <div>
-                          <h5 className="text-xs font-black text-neutral-900 leading-tight">Welcome! Introduce Yourself</h5>
-                          <p className="text-[10px] text-neutral-500 leading-tight mt-0.5">Please share your Name and Phone/Email so we can assist you better.</p>
+                        <div className="min-w-0 flex-1">
+                          <h5 className="text-xs font-black text-neutral-900 leading-tight truncate">Welcome! Introduce Yourself</h5>
+                          <p className="text-[10px] text-neutral-500 leading-tight mt-0.5 truncate">Please share your Name and Phone/Email so we can assist you better.</p>
                         </div>
                       </div>
 
@@ -1001,8 +996,7 @@ export function Chatbot({
                   {messages.map((msg) => (
                     <div
                       key={msg.id}
-                      className={`flex gap-2.5 items-start ${msg.from === "user" ? "justify-end" : "justify-start"
-                        }`}
+                      className={`flex gap-2.5 items-start ${msg.from === "user" ? "justify-end" : "justify-start"} min-w-0 max-w-full`}
                     >
                       {/* Bot Avatar Icon next to message bubbles */}
                       {msg.from === "bot" && (
@@ -1012,7 +1006,7 @@ export function Chatbot({
                       )}
 
                       <div
-                        className={`rounded-2xl px-3.5 py-2.5 max-w-[82%] shadow-sm ${msg.from === "user"
+                        className={`rounded-2xl px-3.5 py-2.5 max-w-[85%] sm:max-w-[82%] min-w-0 shadow-sm overflow-hidden ${msg.from === "user"
                             ? "bg-[#B2EA4D] text-[#203210] text-white text-sm font-medium"
                             : "bg-neutral-100 text-neutral-800"
                           }`}
@@ -1028,11 +1022,11 @@ export function Chatbot({
 
                         {/* Suggested products integration */}
                         {msg.from === "bot" && msg.recs && msg.recs.length > 0 && (
-                          <div className="mt-3 pt-3 border-t border-neutral-200 space-y-2.5 w-full font-sans">
+                          <div className="mt-3 pt-3 border-t border-neutral-200 space-y-2.5 w-full min-w-0 font-sans">
                             <p className="text-[9px] font-black text-neutral-400 uppercase tracking-widest font-mono">Suggested Products</p>
-                            <div className="flex flex-col gap-2">
+                            <div className="flex flex-col gap-2 min-w-0">
                               {msg.recs.map(prod => (
-                                <div key={prod.id} className="flex gap-3 bg-white border border-neutral-150 rounded-xl p-2.5 shadow-sm items-center hover:shadow-md transition-all">
+                                <div key={prod.id} className="flex gap-3 bg-white border border-neutral-150 rounded-xl p-2.5 shadow-sm items-center hover:shadow-md transition-all min-w-0">
                                   <div className="w-11 h-11 rounded-lg bg-neutral-100 flex items-center justify-center shrink-0 relative overflow-hidden border border-neutral-200">
                                     <img
                                       src={prod.slug === "organic-swaddle-wrap" ? "/images/organic_swaddle.png" : prod.slug === "bamboo-feeding-bottle" ? "/images/bamboo_bottle.png" : "/images/natural_baby_hero.png"}
@@ -1078,11 +1072,11 @@ export function Chatbot({
 
                         {/* Key Directory Contact Cards integration */}
                         {msg.from === "bot" && msg.contacts && msg.contacts.length > 0 && (
-                          <div className="mt-3 pt-3 border-t border-neutral-200 space-y-2.5 w-full font-sans">
+                          <div className="mt-3 pt-3 border-t border-neutral-200 space-y-2.5 w-full min-w-0 overflow-hidden font-sans">
                             <p className="text-[9px] font-black text-neutral-500 uppercase tracking-widest font-mono flex items-center gap-1.5">
-                              <PhoneCall className="w-3 h-3 text-[#203210]" /> Official Key Contacts ({msg.contacts.length})
+                              <PhoneCall className="w-3 h-3 text-[#203210] shrink-0" /> Official Key Contacts ({msg.contacts.length})
                             </p>
-                            <div className="flex flex-col gap-2.5">
+                            <div className="flex flex-col gap-2.5 w-full min-w-0">
                               {msg.contacts.map((contact) => {
                                 const initials = contact.name
                                   .split(" ")
@@ -1094,67 +1088,69 @@ export function Chatbot({
                                 return (
                                   <div
                                     key={contact.id}
-                                    className="bg-white border border-neutral-200 rounded-xl p-3 shadow-sm hover:shadow-md transition-all space-y-2 text-neutral-900"
+                                    className="bg-white border border-neutral-200 rounded-xl p-2.5 sm:p-3 shadow-sm hover:shadow-md transition-all space-y-2 text-neutral-900 w-full min-w-0 overflow-hidden"
                                   >
-                                    <div className="flex items-start justify-between gap-2">
-                                      <div className="flex items-center gap-2.5">
+                                    <div className="flex items-start justify-between gap-1.5 min-w-0">
+                                      <div className="flex items-center gap-2 min-w-0 flex-1">
                                         <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#B2EA4D] to-lime-500 text-[#203210] font-black text-xs flex items-center justify-center shrink-0 shadow-sm border border-lime-300 font-mono">
                                           {initials}
                                         </div>
                                         <div className="min-w-0 flex-1">
-                                          <h5 className="text-xs font-black text-neutral-900 leading-tight truncate">{contact.name}</h5>
-                                          <p className="text-[10px] font-medium text-neutral-500 truncate leading-tight mt-0.5">{contact.designation}</p>
+                                          <h5 className="text-xs font-black text-neutral-900 leading-tight truncate" title={contact.name}>{contact.name}</h5>
+                                          <p className="text-[10px] font-medium text-neutral-500 truncate leading-tight mt-0.5" title={contact.designation}>{contact.designation}</p>
                                         </div>
                                       </div>
-                                      <span className="text-[8px] font-extrabold uppercase font-mono px-2 py-0.5 rounded bg-[#B2EA4D]/30 text-[#203210] shrink-0 border border-[#B2EA4D]/40">
-                                        {contact.department}
-                                      </span>
+                                      {contact.department && (
+                                        <span className="text-[8px] font-extrabold uppercase font-mono px-1.5 py-0.5 rounded bg-[#B2EA4D]/30 text-[#203210] shrink-0 border border-[#B2EA4D]/40 truncate max-w-[80px]">
+                                          {contact.department}
+                                        </span>
+                                      )}
                                     </div>
 
-                                    <div className="bg-neutral-50 rounded-lg p-2 border border-neutral-150 space-y-1 text-[10px] font-mono text-neutral-700">
+                                    <div className="bg-neutral-50 rounded-lg p-2 border border-neutral-150 space-y-1 text-[10px] font-mono text-neutral-700 min-w-0 overflow-hidden">
                                       {contact.phone && (
-                                        <div className="flex items-center justify-between">
-                                          <span className="text-neutral-400">📞 Phone:</span>
-                                          <a href={`tel:${contact.phone.replace(/[^0-9+]/g, "")}`} className="font-bold text-[#203210] hover:underline">
+                                        <div className="flex items-center justify-between gap-1 min-w-0">
+                                          <span className="text-neutral-400 shrink-0">📞 Phone:</span>
+                                          <a href={`tel:${contact.phone.replace(/[^0-9+]/g, "")}`} className="font-bold text-[#203210] hover:underline truncate min-w-0">
                                             {contact.phone}
                                           </a>
                                         </div>
                                       )}
                                       {contact.email && (
-                                        <div className="flex items-center justify-between">
-                                          <span className="text-neutral-400">✉️ Email:</span>
-                                          <a href={`mailto:${contact.email}`} className="font-bold text-neutral-800 hover:text-[#203210] hover:underline truncate max-w-[140px]">
+                                        <div className="flex items-center justify-between gap-1 min-w-0">
+                                          <span className="text-neutral-400 shrink-0">✉️ Email:</span>
+                                          <a href={`mailto:${contact.email}`} className="font-bold text-neutral-800 hover:text-[#203210] hover:underline truncate min-w-0">
                                             {contact.email}
                                           </a>
                                         </div>
                                       )}
                                       {contact.availability && (
-                                        <div className="flex items-center justify-between text-neutral-400 text-[9px]">
-                                          <span>⏰ Hours:</span>
-                                          <span className="truncate">{contact.availability}</span>
+                                        <div className="flex items-center justify-between gap-1 text-neutral-400 text-[9px] min-w-0">
+                                          <span className="shrink-0">⏰ Hours:</span>
+                                          <span className="truncate min-w-0">{contact.availability}</span>
                                         </div>
                                       )}
                                     </div>
 
                                     {/* Action buttons: Call, Email, Copy, Share */}
-                                    <div className="grid grid-cols-4 gap-1.5 pt-0.5 font-sans">
+                                    <div className="grid grid-cols-4 gap-1 pt-0.5 font-sans min-w-0">
                                       {contact.phone ? (
                                         <a
                                           href={`tel:${contact.phone.replace(/[^0-9+]/g, "")}`}
-                                          className="inline-flex items-center justify-center gap-1 py-1.5 px-2 text-[9px] font-black bg-[#B2EA4D] text-[#203210] hover:bg-[#B2EA4D]/90 rounded-md transition-all shadow-sm"
+                                          className="inline-flex items-center justify-center gap-1 py-1.5 px-1 text-[9px] font-black bg-[#B2EA4D] text-[#203210] hover:bg-[#B2EA4D]/90 rounded-md transition-all shadow-sm min-w-0 truncate"
                                           title="Direct Call"
                                         >
-                                          <PhoneCall className="w-2.5 h-2.5" /> Call
+                                          <PhoneCall className="w-2.5 h-2.5 shrink-0" /> <span className="truncate">Call</span>
                                         </a>
                                       ) : <div />}
 
                                       {contact.email ? (
                                         <a
                                           href={`mailto:${contact.email}`}
-                                          className="inline-flex items-center justify-center gap-1 py-1.5 px-2 text-[9px] font-extrabold bg-neutral-900 text-white hover:bg-neutral-800 rounded-md transition-all shadow-sm"
+                                          className="inline-flex items-center justify-center gap-1 py-1.5 px-1 text-[9px] font-extrabold bg-neutral-900 text-white hover:bg-neutral-800 rounded-md transition-all shadow-sm min-w-0 truncate"
                                           title="Send Email"
                                         >
-                                          <Mail className="w-2.5 h-2.5" /> Email
+                                          <Mail className="w-2.5 h-2.5 shrink-0" /> <span className="truncate">Email</span>
                                         </a>
                                       ) : <div />}
 
@@ -1165,11 +1161,11 @@ export function Chatbot({
                                           setCopiedContactId(contact.id);
                                           setTimeout(() => setCopiedContactId(null), 2000);
                                         }}
-                                        className="inline-flex items-center justify-center gap-1 py-1.5 px-2 text-[9px] font-bold bg-white text-neutral-700 hover:bg-neutral-100 rounded-md border border-neutral-250 transition-all shadow-sm"
+                                        className="inline-flex items-center justify-center gap-1 py-1.5 px-1 text-[9px] font-bold bg-white text-neutral-700 hover:bg-neutral-100 rounded-md border border-neutral-250 transition-all shadow-sm min-w-0 truncate"
                                         title="Copy Details"
                                       >
-                                        {copiedContactId === contact.id ? <Check className="w-2.5 h-2.5 text-emerald-600" /> : <Copy className="w-2.5 h-2.5 text-neutral-500" />}
-                                        {copiedContactId === contact.id ? "Copied" : "Copy"}
+                                        {copiedContactId === contact.id ? <Check className="w-2.5 h-2.5 text-emerald-600 shrink-0" /> : <Copy className="w-2.5 h-2.5 text-neutral-500 shrink-0" />}
+                                        <span className="truncate">{copiedContactId === contact.id ? "Copied" : "Copy"}</span>
                                       </button>
 
                                       <button
@@ -1183,10 +1179,10 @@ export function Chatbot({
                                             setTimeout(() => setCopiedContactId(null), 2000);
                                           }
                                         }}
-                                        className="inline-flex items-center justify-center gap-1 py-1.5 px-2 text-[9px] font-bold bg-white text-neutral-700 hover:bg-neutral-100 rounded-md border border-neutral-250 transition-all shadow-sm"
+                                        className="inline-flex items-center justify-center gap-1 py-1.5 px-1 text-[9px] font-bold bg-white text-neutral-700 hover:bg-neutral-100 rounded-md border border-neutral-250 transition-all shadow-sm min-w-0 truncate"
                                         title="Share Contact"
                                       >
-                                        <Share2 className="w-2.5 h-2.5 text-amber-500" /> Share
+                                        <Share2 className="w-2.5 h-2.5 text-amber-500 shrink-0" /> <span className="truncate">Share</span>
                                       </button>
                                     </div>
                                   </div>
