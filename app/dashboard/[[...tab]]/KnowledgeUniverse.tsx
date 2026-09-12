@@ -150,6 +150,37 @@ const renderMarkdown = (text: string) => {
 
 export function KnowledgeUniverse() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  const toggleFullscreen = () => {
+    if (!containerRef.current) return;
+    if (!document.fullscreenElement) {
+      containerRef.current.requestFullscreen().then(() => {
+        setIsFullscreen(true);
+      }).catch(() => {
+        setIsFullscreen((prev) => !prev);
+      });
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen().then(() => {
+          setIsFullscreen(false);
+        }).catch(() => {
+          setIsFullscreen(false);
+        });
+      } else {
+        setIsFullscreen(false);
+      }
+    }
+  };
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+  }, []);
   
   // Graph Data States
   const [nodes, setNodes] = useState<NodeData[]>([]);
@@ -734,7 +765,7 @@ export function KnowledgeUniverse() {
     handleResize();
 
     return () => window.removeEventListener("resize", handleResize);
-  }, [loading]);
+  }, [loading, isFullscreen]);
 
   // Click & Drag Canvas Mouse Handlers
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -989,7 +1020,14 @@ export function KnowledgeUniverse() {
     <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 lg:h-[calc(100vh-10rem)] min-h-[700px] lg:min-h-0 animate-mac-page">
       
       {/* 90% Main Canvas Visualizer Panel */}
-      <Card className="lg:col-span-3 bg-[#16250e]/60 backdrop-blur border-[#B2EA4D]/15 rounded-xl overflow-hidden relative flex flex-col h-full border shadow-2xl">
+      <Card
+        ref={containerRef}
+        className={`bg-[#16250e]/60 backdrop-blur border-[#B2EA4D]/15 rounded-xl overflow-hidden relative flex flex-col border shadow-2xl transition-all duration-200 ${
+          isFullscreen
+            ? "fixed inset-0 z-50 rounded-none w-screen h-screen border-none"
+            : "lg:col-span-3 h-full"
+        }`}
+      >
         
         {/* Top Floating Toolbar Overlay */}
         <div className="absolute top-4 left-4 right-4 z-10 flex flex-wrap gap-3 items-center justify-between pointer-events-none">
@@ -1054,12 +1092,21 @@ export function KnowledgeUniverse() {
           </div>
 
           <div className="flex gap-2 items-center pointer-events-auto">
-            {/* Screenshot & Reset */}
+            {/* Screenshot, Reset & Fullscreen */}
             <Button size="icon" variant="outline" onClick={captureScreenshot} className="h-9 w-9 bg-[#0c1407]/80 border-[#B2EA4D]/15 text-slate-400 hover:text-white" title="Export graph screenshot">
               <Camera className="w-4 h-4" />
             </Button>
             <Button size="icon" variant="outline" onClick={loadGraphData} className="h-9 w-9 bg-[#0c1407]/80 border-[#B2EA4D]/15 text-slate-400 hover:text-white" title="Refresh network">
               <RefreshCw className="w-4 h-4" />
+            </Button>
+            <Button
+              size="icon"
+              variant="outline"
+              onClick={toggleFullscreen}
+              className={`h-9 w-9 bg-[#0c1407]/80 border-[#B2EA4D]/15 text-slate-400 hover:text-white ${isFullscreen ? "text-[#B2EA4D] border-[#B2EA4D]/40" : ""}`}
+              title={isFullscreen ? "Exit full screen mode" : "Full screen mode"}
+            >
+              {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
             </Button>
           </div>
         </div>
