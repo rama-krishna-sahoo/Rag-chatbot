@@ -698,6 +698,7 @@ export default function WorkspaceDashboard() {
     enabled: !!user && ["documents", "knowledge_base", "website_sync"].includes(activeTab)
   });
   const [uploading, setUploading] = useState(false);
+  const [publishingAll, setPublishingAll] = useState(false);
   const [uploadProgress, setUploadProgress] = useState("");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -890,6 +891,29 @@ export default function WorkspaceDashboard() {
       setUploadProgress("");
       setUploading(false);
       fetchDocuments();
+    }
+  };
+
+  const handlePublishAll = async () => {
+    if (documents.length === 0) return;
+    try {
+      setPublishingAll(true);
+      const res = await fetch("/api/admin/publish-document", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ publishAll: true })
+      });
+      if (res.ok) {
+        alert("All reference materials published to live production!");
+        fetchDocuments();
+      } else {
+        const data = await res.json();
+        alert(`Publish All failed: ${data.error}`);
+      }
+    } catch (err: any) {
+      alert(`Publish All error: ${err.message}`);
+    } finally {
+      setPublishingAll(false);
     }
   };
 
@@ -2281,7 +2305,20 @@ export default function WorkspaceDashboard() {
                   <Card className="bg-[#1b2e11]/50 border-[#B2EA4D]/15 rounded-xl overflow-hidden">
                     <div className="p-4 border-b border-[#B2EA4D]/15 flex items-center justify-between">
                       <h4 className="text-xs font-bold text-white uppercase tracking-widest">Ingested Reference Materials</h4>
-                      <span className="text-[10px] text-slate-400 font-mono">{documents.length} File{documents.length !== 1 ? 's' : ''}</span>
+                      <div className="flex items-center gap-3">
+                        <span className="text-[10px] text-slate-400 font-mono">{documents.length} File{documents.length !== 1 ? 's' : ''}</span>
+                        {documents.length > 0 && (
+                          <Button
+                            size="sm"
+                            onClick={handlePublishAll}
+                            disabled={publishingAll || uploading}
+                            className="h-7 bg-[#B2EA4D] hover:bg-[#B2EA4D]/90 text-[#050B06] text-[10px] px-3 font-bold rounded cursor-pointer shadow-sm gap-1.5"
+                          >
+                            {publishingAll ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                            {publishingAll ? "Publishing All..." : "Publish All"}
+                          </Button>
+                        )}
+                      </div>
                     </div>
                     <table className="w-full text-left text-xs text-slate-300">
                       <tbody className="divide-y divide-slate-800">

@@ -10,9 +10,55 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
-    const { documentId } = await req.json();
+    const { documentId, publishAll } = await req.json();
+
+    if (publishAll) {
+      // 1. Get all documents in workspace
+      const { data: docs, error: docsFetchErr } = await supabase
+        .from("uploaded_documents")
+        .select("id")
+        .eq("workspace_id", workspaceId);
+
+      if (docsFetchErr) {
+        return NextResponse.json({ error: docsFetchErr.message }, { status: 500 });
+      }
+
+      const docIds = docs?.map((d) => d.id) || [];
+
+      // 2. Update status of chunks in knowledge_base to 'published'
+      if (docIds.length > 0) {
+        await supabase
+          .from("knowledge_base")
+          .update({ status: "published" })
+          .in("document_id", docIds);
+      }
+
+      await supabase
+        .from("knowledge_base")
+        .update({ status: "published" })
+        .eq("workspace_id", workspaceId);
+
+      // 3. Update status of uploaded_documents
+      const { error: docUpdateError } = await supabase
+        .from("uploaded_documents")
+        .update({ status: "published" })
+        .eq("workspace_id", workspaceId);
+
+      if (docUpdateError) {
+        return NextResponse.json({ error: docUpdateError.message }, { status: 500 });
+      }
+
+      await supabase.rpc("log_audit_event", {
+        p_action: "All Documents Published to Production",
+        p_workspace_id: workspaceId,
+        p_details: { publish_all: true, count: docIds.length }
+      });
+
+      return NextResponse.json({ success: true, message: "All documents successfully published to live chatbot production environment." });
+    }
+
     if (!documentId) {
-      return NextResponse.json({ error: "Missing documentId" }, { status: 400 });
+      return NextResponse.json({ error: "Missing documentId or publishAll flag" }, { status: 400 });
     }
 
     // 1. Get document details
