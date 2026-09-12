@@ -3,6 +3,19 @@ import { createClient } from "@supabase/supabase-js";
 import { sendVerificationEmail } from "@/lib/email";
 import crypto from "crypto";
 
+function formatErrorMessage(err: any): string {
+  if (!err) return "Failed to resend verification email.";
+  if (typeof err === "string") return err;
+  if (typeof err.message === "string" && err.message.trim() && err.message !== "{}") return err.message;
+  if (typeof err.error_description === "string" && err.error_description.trim()) return err.error_description;
+  if (typeof err.msg === "string" && err.msg.trim()) return err.msg;
+  try {
+    const json = JSON.stringify(err);
+    if (json && json !== "{}" && json !== "null") return json;
+  } catch (e) {}
+  return "Failed to resend verification email.";
+}
+
 export async function POST(req: Request) {
   try {
     const { email } = await req.json();
@@ -67,16 +80,18 @@ export async function POST(req: Request) {
       verificationUrl,
     });
 
+    const emailErrFormatted = emailResult.error ? formatErrorMessage(emailResult.error) : null;
+
     return NextResponse.json({
       success: true,
       emailSent: emailResult.success,
-      emailError: emailResult.error || null,
+      emailError: emailErrFormatted,
       message: emailResult.success
         ? "Verification email sent successfully. Please check your email inbox."
-        : `Email delivery issue (${emailResult.error || "Email service unavailable"}). You can verify your email directly below.`,
+        : `Email delivery issue (${emailErrFormatted || "Email service unavailable"}). You can verify your email directly below.`,
       verificationUrl,
     });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message || "Failed to resend verification email." }, { status: 500 });
+    return NextResponse.json({ error: formatErrorMessage(err) }, { status: 500 });
   }
 }

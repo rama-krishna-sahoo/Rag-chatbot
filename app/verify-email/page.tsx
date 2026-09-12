@@ -34,6 +34,9 @@ function VerifyEmailContent() {
         const data = await res.json();
         if (res.ok && data.success) {
           setSuccess(true);
+          setTimeout(() => {
+            window.location.href = "/setup?onboarding=true";
+          }, 1500);
         } else {
           setErrorMsg(data.error || "Email verification failed or token expired.");
         }
@@ -91,10 +94,15 @@ function VerifyEmailContent() {
               <div className="w-12 h-12 rounded-full bg-lime-500/15 border border-lime-500/30 text-lime-400 flex items-center justify-center mx-auto shadow-[0_0_20px_rgba(163,230,53,0.2)]">
                 <ShieldCheck className="w-6 h-6" />
               </div>
-              <h2 className="text-xl font-bold text-white">Email Verified!</h2>
-              <p className="text-gray-400 text-sm">Thank you. Your email address {email ? <strong>{email}</strong> : "address"} has been successfully verified in the software. You can now access all features.</p>
-              <Link href="/dashboard" className="block w-full h-11 bg-gradient-to-r from-lime-300 to-lime-500 hover:from-lime-200 hover:to-lime-400 text-[#050B06] font-semibold rounded-xl flex items-center justify-center pt-0.5 transition-all shadow-[0_0_20px_rgba(163,230,53,0.3)] mt-6">
-                Proceed to Dashboard
+              <h2 className="text-2xl font-extrabold text-white tracking-tight">Email Verified! 🎉</h2>
+              <p className="text-gray-300 text-sm leading-relaxed">
+                Thank you! {email ? <strong className="text-lime-300 font-mono">{email}</strong> : "Your email address"} has been successfully confirmed.
+              </p>
+              <p className="text-xs text-lime-400 font-semibold animate-pulse pt-1">
+                Redirecting you to the onboarding process...
+              </p>
+              <Link href="/setup?onboarding=true" className="block w-full h-11 bg-gradient-to-r from-lime-300 to-lime-500 hover:from-lime-200 hover:to-lime-400 text-[#050B06] font-bold rounded-xl flex items-center justify-center pt-0.5 transition-all shadow-[0_0_20px_rgba(163,230,53,0.3)] mt-6">
+                Proceed to Onboarding Process →
               </Link>
             </div>
           ) : (
@@ -106,8 +114,8 @@ function VerifyEmailContent() {
               <p className="text-rose-300 text-xs bg-rose-500/10 p-3 rounded-xl border border-rose-500/20 leading-relaxed">
                 {errorMsg}
               </p>
-              <Link href="/setup?onboarding=true" className="block w-full h-11 bg-[#162319]/80 hover:bg-[#1f3323] border border-white/10 hover:border-lime-500/30 text-gray-200 hover:text-white font-medium rounded-xl flex items-center justify-center pt-0.5 transition-all mt-6">
-                Return to Setup & Resend Link
+              <Link href="/register" className="block w-full h-11 bg-[#162319]/80 hover:bg-[#1f3323] border border-white/10 hover:border-lime-500/30 text-gray-200 hover:text-white font-medium rounded-xl flex items-center justify-center pt-0.5 transition-all mt-6">
+                Back to Sign Up & Resend Link
               </Link>
             </div>
           )}

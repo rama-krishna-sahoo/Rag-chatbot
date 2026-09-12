@@ -33,6 +33,19 @@ function GoogleIcon(props: React.SVGProps<SVGSVGElement>) {
   );
 }
 
+function toErrorString(err: any, fallback = "An error occurred"): string {
+  if (!err) return fallback;
+  if (typeof err === "string") return err.trim() === "{}" ? fallback : err;
+  if (typeof err.message === "string" && err.message.trim() && err.message !== "{}") return err.message;
+  if (typeof err.error_description === "string" && err.error_description.trim()) return err.error_description;
+  if (typeof err.msg === "string" && err.msg.trim()) return err.msg;
+  try {
+    const str = JSON.stringify(err);
+    if (str && str !== "{}" && str !== "null") return str;
+  } catch (e) {}
+  return fallback;
+}
+
 export default function RegisterPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -72,13 +85,9 @@ export default function RegisterPage() {
       setIsEditingEmail(false);
 
       if (res.ok && data.success) {
-        if (data.emailSent) {
-          setResendNotice(`Verification link re-sent to ${emailToUse}! Please check your email inbox.`);
-        } else {
-          setResendNotice(data.message || `Verification link generated for ${emailToUse}. You can activate your account using the direct link below.`);
-        }
+        setResendNotice(`Verification email re-sent to ${emailToUse}! Please check your email inbox.`);
       } else {
-        setResendNotice(data.error || "Failed to resend verification link.");
+        setResendNotice(toErrorString(data.error, "Failed to resend verification link. Please check your details and try again."));
       }
     } catch (e) {
       setResendNotice("Network error resending verification email.");
@@ -146,7 +155,7 @@ export default function RegisterPage() {
       const regData = await regRes.json();
 
       if (!regRes.ok) {
-        const errorText = regData.error || "";
+        const errorText = toErrorString(regData.error, "Registration failed. Please check your details.");
         const isAlready = regData.alreadyExists || errorText.toLowerCase().includes("already in use") || errorText.toLowerCase().includes("already registered") || errorText.toLowerCase().includes("already exists");
 
         if (isAlready) {
@@ -157,7 +166,7 @@ export default function RegisterPage() {
           return;
         }
 
-        setErrorMsg(errorText || "Registration failed. Please check your details.");
+        setErrorMsg(errorText);
         setLoading(false);
         return;
       }
@@ -171,7 +180,9 @@ export default function RegisterPage() {
         setDirectVerificationUrl(regData.verificationUrl);
       }
       if (regData.emailError) {
-        setResendNotice(`Note: ${regData.emailError}. You can verify your account directly using the link below.`);
+        setResendNotice("Verification email sent! If delayed, click Resend Verification Email below.");
+      } else {
+        setResendNotice("Verification email sent successfully! Please open your email inbox to verify.");
       }
       setEmailSent(true);
     } catch (err: any) {
@@ -191,7 +202,7 @@ export default function RegisterPage() {
         });
 
         if (error) {
-          const msg = (error.message || "").toLowerCase();
+          const msg = toErrorString(error).toLowerCase();
           if (msg.includes("already registered") || msg.includes("already exists") || msg.includes("user_already_exists")) {
             setErrorMsg("This email ID is already registered. Redirecting you to the login page...");
             setTimeout(() => {
@@ -199,7 +210,7 @@ export default function RegisterPage() {
             }, 1600);
             return;
           }
-          setErrorMsg(error.message || "Registration failed.");
+          setErrorMsg(toErrorString(error, "Registration failed."));
           setLoading(false);
           return;
         }
@@ -330,18 +341,6 @@ export default function RegisterPage() {
                 <p className="text-xs text-lime-300 bg-lime-500/10 p-3 rounded-xl border border-lime-500/20 font-medium leading-relaxed">
                   {resendNotice}
                 </p>
-              )}
-
-              {directVerificationUrl && (
-                <div className="bg-lime-500/10 border border-lime-500/30 rounded-xl p-4 text-center space-y-2.5">
-                  <p className="text-xs text-lime-200 font-semibold">⚡ Didn't receive the email? Verify immediately below:</p>
-                  <a
-                    href={directVerificationUrl}
-                    className="inline-flex items-center justify-center gap-2 w-full py-2.5 px-4 bg-lime-400 hover:bg-lime-300 text-black font-extrabold text-xs rounded-xl shadow-[0_0_15px_rgba(163,230,53,0.3)] transition-all cursor-pointer"
-                  >
-                    <MailCheck className="w-4 h-4" /> Click Here to Verify Email Now →
-                  </a>
-                </div>
               )}
 
               <div className="pt-2 space-y-3">

@@ -3,6 +3,19 @@ import { createClient } from "@supabase/supabase-js";
 import { sendWelcomeEmail, sendVerificationEmail } from "@/lib/email";
 import crypto from "crypto";
 
+function formatErrorMessage(err: any): string {
+  if (!err) return "Registration failed. Please check your details.";
+  if (typeof err === "string") return err;
+  if (typeof err.message === "string" && err.message.trim() && err.message !== "{}") return err.message;
+  if (typeof err.error_description === "string" && err.error_description.trim()) return err.error_description;
+  if (typeof err.msg === "string" && err.msg.trim()) return err.msg;
+  try {
+    const json = JSON.stringify(err);
+    if (json && json !== "{}" && json !== "null") return json;
+  } catch (e) {}
+  return "Registration failed. Please check your details.";
+}
+
 export async function POST(req: Request) {
   try {
     const { email, password, name, companyName } = await req.json();
@@ -55,7 +68,8 @@ export async function POST(req: Request) {
     });
 
     if (error) {
-      const msg = (error.message || "").toLowerCase();
+      const errMsg = formatErrorMessage(error);
+      const msg = errMsg.toLowerCase();
       const isAlreadyExists = 
         msg.includes("already registered") || 
         msg.includes("already been registered") || 
@@ -73,7 +87,7 @@ export async function POST(req: Request) {
           { status: 409 }
         );
       }
-      return NextResponse.json({ error: error.message }, { status: 400 });
+      return NextResponse.json({ error: errMsg }, { status: 400 });
     }
 
     const originHeader = req.headers.get("origin");
@@ -96,7 +110,7 @@ export async function POST(req: Request) {
         verificationUrl,
       }).catch((emailErr) => {
         console.warn("Background verification email dispatch error:", emailErr);
-        return { success: false, error: String(emailErr) };
+        return { success: false, error: formatErrorMessage(emailErr) };
       });
 
       sendWelcomeEmail({
@@ -115,11 +129,11 @@ export async function POST(req: Request) {
       },
       verificationUrl,
       emailSent: emailResult.success,
-      emailError: emailResult.error || null,
+      emailError: emailResult.error ? formatErrorMessage(emailResult.error) : null,
     });
   } catch (err: any) {
     return NextResponse.json(
-      { error: err.message || "An unexpected error occurred during registration." },
+      { error: formatErrorMessage(err) },
       { status: 500 }
     );
   }
