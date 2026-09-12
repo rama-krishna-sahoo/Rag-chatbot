@@ -48,20 +48,35 @@ export default function RegisterPage() {
   const [registeredEmail, setRegisteredEmail] = useState("");
   const [resending, setResending] = useState(false);
   const [resendNotice, setResendNotice] = useState<string | null>(null);
+  const [directVerificationUrl, setDirectVerificationUrl] = useState<string | null>(null);
+  const [isEditingEmail, setIsEditingEmail] = useState(false);
+  const [editableEmail, setEditableEmail] = useState("");
 
-  const handleResendVerification = async () => {
-    if (!registeredEmail) return;
+  const handleResendVerification = async (overrideEmail?: string) => {
+    const emailToUse = (overrideEmail || editableEmail || registeredEmail || email).trim();
+    if (!emailToUse) return;
     setResending(true);
     setResendNotice(null);
     try {
       const res = await fetch("/api/auth/resend-verification", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: registeredEmail }),
+        body: JSON.stringify({ email: emailToUse }),
       });
       const data = await res.json();
+      if (data.verificationUrl) {
+        setDirectVerificationUrl(data.verificationUrl);
+      }
+      setRegisteredEmail(emailToUse);
+      setEditableEmail(emailToUse);
+      setIsEditingEmail(false);
+
       if (res.ok && data.success) {
-        setResendNotice("Verification link re-sent! Please check your email inbox.");
+        if (data.emailSent) {
+          setResendNotice(`Verification link re-sent to ${emailToUse}! Please check your email inbox.`);
+        } else {
+          setResendNotice(data.message || `Verification link generated for ${emailToUse}. You can activate your account using the direct link below.`);
+        }
       } else {
         setResendNotice(data.error || "Failed to resend verification link.");
       }
@@ -74,7 +89,15 @@ export default function RegisterPage() {
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const code = new URLSearchParams(window.location.search).get("code");
+      const params = new URLSearchParams(window.location.search);
+      const emailQuery = params.get("email");
+      if (emailQuery) {
+        setEmail(emailQuery);
+        setRegisteredEmail(emailQuery);
+        setEditableEmail(emailQuery);
+      }
+
+      const code = params.get("code");
       if (code) {
         setOauthLoading(true);
         const supabase = createClient();
@@ -141,7 +164,15 @@ export default function RegisterPage() {
 
       // 2. Account created! Require email verification link click before logging in
       setLoading(false);
-      setRegisteredEmail(email);
+      const regEmail = email.trim();
+      setRegisteredEmail(regEmail);
+      setEditableEmail(regEmail);
+      if (regData.verificationUrl) {
+        setDirectVerificationUrl(regData.verificationUrl);
+      }
+      if (regData.emailError) {
+        setResendNotice(`Note: ${regData.emailError}. You can verify your account directly using the link below.`);
+      }
       setEmailSent(true);
     } catch (err: any) {
       // Fallback: standard client signup if API endpoint encountered an issue
@@ -174,7 +205,9 @@ export default function RegisterPage() {
         }
 
         setLoading(false);
-        setRegisteredEmail(email);
+        const regEmail = email.trim();
+        setRegisteredEmail(regEmail);
+        setEditableEmail(regEmail);
         setEmailSent(true);
       } catch (fallbackErr: any) {
         setErrorMsg("An unexpected error occurred during signup.");
@@ -246,25 +279,74 @@ export default function RegisterPage() {
               <div className="w-16 h-16 rounded-full bg-lime-500/15 border border-lime-500/30 text-lime-400 flex items-center justify-center mx-auto shadow-[0_0_24px_rgba(163,230,53,0.2)]">
                 <MailCheck className="w-8 h-8" />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <h2 className="text-2xl font-extrabold text-white tracking-tight">Check your email inbox!</h2>
-                <p className="text-sm text-gray-300 max-w-sm mx-auto leading-relaxed">
-                  We sent a verification link to <strong className="text-lime-300 font-mono">{registeredEmail}</strong>.
+                <p className="text-xs text-gray-300 max-w-sm mx-auto leading-relaxed">
+                  We sent a verification link to:
                 </p>
+
+                {isEditingEmail ? (
+                  <div className="flex items-center gap-2 max-w-xs mx-auto mt-1">
+                    <Input
+                      type="email"
+                      value={editableEmail}
+                      onChange={(e) => setEditableEmail(e.target.value)}
+                      placeholder="Enter your mail ID"
+                      className="h-10 bg-[#162319] border-lime-500/40 text-lime-300 font-mono text-sm focus:ring-lime-500 focus:border-lime-500 rounded-lg"
+                    />
+                    <Button
+                      size="sm"
+                      onClick={() => handleResendVerification(editableEmail)}
+                      disabled={resending || !editableEmail.trim()}
+                      className="h-10 bg-lime-500 hover:bg-lime-400 text-black font-bold text-xs px-3.5 rounded-lg shrink-0 cursor-pointer"
+                    >
+                      Update & Send
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center gap-2.5 mt-1">
+                    <strong className="text-lime-300 font-mono text-sm bg-lime-950/70 border border-lime-500/40 px-3.5 py-1.5 rounded-lg shadow-inner">
+                      {registeredEmail || "your email address"}
+                    </strong>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditableEmail(registeredEmail);
+                        setIsEditingEmail(true);
+                      }}
+                      className="text-xs text-gray-400 hover:text-lime-300 underline font-medium cursor-pointer transition-colors"
+                    >
+                      Change
+                    </button>
+                  </div>
+                )}
+
                 <p className="text-xs text-gray-400 max-w-sm mx-auto leading-relaxed pt-1">
-                  Please open your email inbox and click the verification link to activate your account before logging in.
+                  Please open your inbox and click the link to activate your account.
                 </p>
               </div>
 
               {resendNotice && (
-                <p className="text-xs text-lime-300 bg-lime-500/10 p-2.5 rounded-xl border border-lime-500/20 font-medium leading-relaxed">
+                <p className="text-xs text-lime-300 bg-lime-500/10 p-3 rounded-xl border border-lime-500/20 font-medium leading-relaxed">
                   {resendNotice}
                 </p>
               )}
 
-              <div className="pt-4 space-y-3">
+              {directVerificationUrl && (
+                <div className="bg-lime-500/10 border border-lime-500/30 rounded-xl p-4 text-center space-y-2.5">
+                  <p className="text-xs text-lime-200 font-semibold">⚡ Didn't receive the email? Verify immediately below:</p>
+                  <a
+                    href={directVerificationUrl}
+                    className="inline-flex items-center justify-center gap-2 w-full py-2.5 px-4 bg-lime-400 hover:bg-lime-300 text-black font-extrabold text-xs rounded-xl shadow-[0_0_15px_rgba(163,230,53,0.3)] transition-all cursor-pointer"
+                  >
+                    <MailCheck className="w-4 h-4" /> Click Here to Verify Email Now →
+                  </a>
+                </div>
+              )}
+
+              <div className="pt-2 space-y-3">
                 <Button
-                  onClick={handleResendVerification}
+                  onClick={() => handleResendVerification(registeredEmail)}
                   disabled={resending}
                   variant="outline"
                   className="w-full h-11 border-lime-500/30 bg-lime-500/10 hover:bg-lime-500/20 text-lime-300 font-semibold rounded-xl transition-all cursor-pointer"

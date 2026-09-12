@@ -87,14 +87,16 @@ export async function POST(req: Request) {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || requestOrigin || "http://localhost:3000";
     const verificationUrl = `${appUrl}/verify-email?token=${verifyToken}&email=${encodeURIComponent(email)}`;
 
-    // Dispatch verification link to the given email address asynchronously
+    // Dispatch verification link to the given email address
+    let emailResult: any = { success: false };
     if (data.user && data.user.email) {
-      sendVerificationEmail({
+      emailResult = await sendVerificationEmail({
         email: data.user.email,
         name: name || undefined,
         verificationUrl,
       }).catch((emailErr) => {
         console.warn("Background verification email dispatch error:", emailErr);
+        return { success: false, error: String(emailErr) };
       });
 
       sendWelcomeEmail({
@@ -111,6 +113,9 @@ export async function POST(req: Request) {
         id: data.user.id,
         email: data.user.email,
       },
+      verificationUrl,
+      emailSent: emailResult.success,
+      emailError: emailResult.error || null,
     });
   } catch (err: any) {
     return NextResponse.json(

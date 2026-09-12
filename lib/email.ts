@@ -93,6 +93,7 @@ export async function sendWelcomeEmail({ email, name, companyName }: WelcomeEmai
   try {
     const resendApiKey = process.env.RESEND_API_KEY;
     if (resendApiKey) {
+      const fromEmail = process.env.EMAIL_FROM || "Oogway AI <onboarding@resend.dev>";
       const res = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: {
@@ -100,7 +101,7 @@ export async function sendWelcomeEmail({ email, name, companyName }: WelcomeEmai
           Authorization: `Bearer ${resendApiKey}`,
         },
         body: JSON.stringify({
-          from: process.env.EMAIL_FROM || "Oogway AI <welcome@oogway.ai>",
+          from: fromEmail,
           to: [email],
           subject,
           html: htmlContent,
@@ -108,7 +109,8 @@ export async function sendWelcomeEmail({ email, name, companyName }: WelcomeEmai
       });
       const data = await res.json();
       console.log("Welcome Email dispatched via Resend:", data);
-      return { success: true, provider: "resend", data, htmlContent, subject };
+      const isSuccess = res.ok && !data?.error && (!data?.statusCode || data?.statusCode < 400);
+      return { success: isSuccess, provider: "resend", data, error: isSuccess ? null : (data?.message || data?.error), htmlContent, subject };
     } else {
       console.log(`[WELCOME EMAIL DISPATCH] (Simulated / Development Mode) To: ${email} | Subject: ${subject}`);
       return { success: true, provider: "simulated", email, subject, htmlContent };
@@ -202,6 +204,7 @@ export async function sendVerificationEmail({ email, name, verificationUrl }: Ve
   try {
     const resendApiKey = process.env.RESEND_API_KEY;
     if (resendApiKey) {
+      const fromEmail = process.env.EMAIL_FROM || "Oogway AI <onboarding@resend.dev>";
       const res = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: {
@@ -209,7 +212,7 @@ export async function sendVerificationEmail({ email, name, verificationUrl }: Ve
           Authorization: `Bearer ${resendApiKey}`,
         },
         body: JSON.stringify({
-          from: process.env.EMAIL_FROM || "Oogway AI <verify@oogway.ai>",
+          from: fromEmail,
           to: [email],
           subject,
           html: htmlContent,
@@ -217,14 +220,23 @@ export async function sendVerificationEmail({ email, name, verificationUrl }: Ve
       });
       const data = await res.json();
       console.log("Verification Email dispatched via Resend:", data);
-      return { success: true, provider: "resend", data, htmlContent, subject };
+      const isSuccess = res.ok && !data?.error && (!data?.statusCode || data?.statusCode < 400);
+      return {
+        success: isSuccess,
+        provider: "resend",
+        data,
+        error: isSuccess ? null : (data?.message || data?.error || `Resend HTTP ${res.status}`),
+        verificationUrl,
+        htmlContent,
+        subject,
+      };
     } else {
       console.log(`[VERIFICATION EMAIL DISPATCH] (Simulated / Dev Mode) To: ${email} | Link: ${verificationUrl}`);
       return { success: true, provider: "simulated", email, subject, verificationUrl, htmlContent };
     }
   } catch (err: any) {
     console.warn("Failed to dispatch Verification Email:", err?.message || err);
-    return { success: false, error: err?.message || err, htmlContent, subject };
+    return { success: false, error: err?.message || err, verificationUrl, htmlContent, subject };
   }
 }
 

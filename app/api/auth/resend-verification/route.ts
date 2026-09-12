@@ -61,7 +61,7 @@ export async function POST(req: Request) {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || requestOrigin || "http://localhost:3000";
     const verificationUrl = `${appUrl}/verify-email?token=${verifyToken}&email=${encodeURIComponent(email)}`;
 
-    await sendVerificationEmail({
+    const emailResult = await sendVerificationEmail({
       email,
       name: targetUser.user_metadata?.full_name,
       verificationUrl,
@@ -69,8 +69,12 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       success: true,
-      message: "Verification email sent successfully. Please check your inbox.",
-      verificationUrl, // included for dev convenience
+      emailSent: emailResult.success,
+      emailError: emailResult.error || null,
+      message: emailResult.success
+        ? "Verification email sent successfully. Please check your email inbox."
+        : `Email delivery issue (${emailResult.error || "Email service unavailable"}). You can verify your email directly below.`,
+      verificationUrl,
     });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || "Failed to resend verification email." }, { status: 500 });
