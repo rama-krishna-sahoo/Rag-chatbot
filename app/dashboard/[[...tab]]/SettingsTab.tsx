@@ -147,7 +147,7 @@ export function SettingsTab({ setActiveTab, onOpenUpgradeModal }: SettingsTabPro
     responseLength: "balanced",
     notifyFailures: true,
     notifySuccess: false,
-    adminEmail: "sangram@yopmail.com",
+    adminEmail: "admin@example.com",
     avatarUrl: ""
   });
 
@@ -197,7 +197,7 @@ export function SettingsTab({ setActiveTab, onOpenUpgradeModal }: SettingsTabPro
   useEffect(() => {
     async function loadSettings() {
       try {
-        const storedEmail = typeof window !== "undefined" ? localStorage.getItem("oogway_cached_user_email") || "sangram@yopmail.com" : "sangram@yopmail.com";
+        const storedEmail = typeof window !== "undefined" ? localStorage.getItem("oogway_cached_user_email") || "admin@example.com" : "admin@example.com";
         const storedAvatar = typeof window !== "undefined" ? localStorage.getItem("oogway_admin_avatar") || "" : "";
         const storedLogo = typeof window !== "undefined" ? localStorage.getItem("oogway_simulated_logo") || "" : "";
         const storedCompany = typeof window !== "undefined" ? localStorage.getItem("oogway_simulated_company") || "" : "";

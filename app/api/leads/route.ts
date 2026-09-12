@@ -2,6 +2,7 @@
 
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { verifyAdminAccess } from "@/lib/admin-auth";
 
 export type CapturedLead = {
   id: string;
@@ -18,14 +19,14 @@ export type CapturedLead = {
 // In-memory global store for zero-latency lead caching
 const globalLeadsStore = new Map<string, CapturedLead[]>();
 
-// Initial demo leads for workspace initialization
+// Clean, anonymized demo leads for initial workspace preview
 const INITIAL_DEMO_LEADS: CapturedLead[] = [
   {
     id: "lead-101",
-    name: "Sangram Sahoo",
-    phone: "+91 98765 43210",
-    email: "sangram@yopmail.com",
-    firstQuery: "Interested in B.Tech Computer Science admissions & fee structure for 2026.",
+    name: "Sample Lead (Computer Science)",
+    phone: "+1 555-0101",
+    email: "inquiry1@example.com",
+    firstQuery: "Interested in B.Tech Computer Science admissions & fee structure.",
     source: "Embedded Chatbot Widget",
     status: "new",
     workspaceId: "00000000-0000-0000-0000-000000000000",
@@ -33,9 +34,9 @@ const INITIAL_DEMO_LEADS: CapturedLead[] = [
   },
   {
     id: "lead-102",
-    name: "Priyanka Mohanty",
-    phone: "+91 94370 88990",
-    email: "priyanka.m@gmail.com",
+    name: "Sample Lead (Placements Desk)",
+    phone: "+1 555-0102",
+    email: "inquiry2@example.com",
     firstQuery: "What is the average salary package for MCA placements?",
     source: "Website Live Chat",
     status: "contacted",
@@ -44,9 +45,9 @@ const INITIAL_DEMO_LEADS: CapturedLead[] = [
   },
   {
     id: "lead-103",
-    name: "Amitav Pattnaik",
-    phone: "+91 674 250 1122",
-    email: "amitav.p@yahoo.com",
+    name: "Sample Lead (Hostel & Transport)",
+    phone: "+1 555-0103",
+    email: "inquiry3@example.com",
     firstQuery: "Need hostel facility details and transport route timings.",
     source: "Mobile Chatbot",
     status: "qualified",
@@ -62,12 +63,37 @@ function getSupabaseClient() {
   return createClient(url, key);
 }
 
+/**
+ * GET /api/leads
+ * Strictly protected endpoint: requires authenticated user session & matching workspace access.
+ */
 export async function GET(req: Request) {
   try {
+    const auth = await verifyAdminAccess();
     const { searchParams } = new URL(req.url);
-    const workspaceId = searchParams.get("workspaceId") || "00000000-0000-0000-0000-000000000000";
+    const requestedWsId = searchParams.get("workspaceId");
 
-    // 1. Return from in-memory cache if populated
+    // 1. Verify authentication
+    if (!auth.authorized && auth.user.id === "00000000-0000-0000-0000-000000000000") {
+      return NextResponse.json(
+        { error: "Authentication required to access workspace leads." },
+        { status: 401 }
+      );
+    }
+
+    // 2. Resolve workspace ID and check authorization
+    const workspaceId = (auth.role === "Super Admin" && requestedWsId)
+      ? requestedWsId
+      : (auth.workspaceId || requestedWsId || "00000000-0000-0000-0000-000000000000");
+
+    if (auth.role !== "Super Admin" && requestedWsId && requestedWsId !== auth.workspaceId && auth.workspaceId !== "00000000-0000-0000-0000-000000000000") {
+      return NextResponse.json(
+        { error: "Unauthorized access to requested workspace leads." },
+        { status: 403 }
+      );
+    }
+
+    // 3. Return from in-memory cache if populated
     if (globalLeadsStore.has(workspaceId)) {
       return NextResponse.json({
         success: true,
@@ -75,7 +101,7 @@ export async function GET(req: Request) {
       });
     }
 
-    // 2. Query Supabase database workspace settings if available
+    // 4. Query Supabase database workspace settings if available
     const supabase = getSupabaseClient();
     if (supabase && workspaceId !== "00000000-0000-0000-0000-000000000000") {
       try {
@@ -97,17 +123,22 @@ export async function GET(req: Request) {
       }
     }
 
-    // Default demo list
+    // Default anonymized preview list
     globalLeadsStore.set(workspaceId, INITIAL_DEMO_LEADS);
     return NextResponse.json({
       success: true,
       leads: INITIAL_DEMO_LEADS
     });
   } catch (err: any) {
-    return NextResponse.json({ success: false, leads: INITIAL_DEMO_LEADS }, { status: 500 });
+    return NextResponse.json({ error: "Failed to retrieve leads." }, { status: 500 });
   }
 }
 
+/**
+ * POST /api/leads
+ * Public Chatbot Lead Capture or Admin Lead Addition.
+ * SECURITY: Never returns the full workspace leads array to unauthenticated clients!
+ */
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -123,6 +154,9 @@ export async function POST(req: Request) {
     if (!name || (!phone && !email)) {
       return NextResponse.json({ error: "Name and phone or email required" }, { status: 400 });
     }
+
+    const auth = await verifyAdminAccess();
+    const isDashboardAdmin = auth.authorized && auth.user.id !== "00000000-0000-0000-0000-000000000000";
 
     let currentLeads = globalLeadsStore.get(workspaceId) || [...INITIAL_DEMO_LEADS];
 
@@ -176,10 +210,20 @@ export async function POST(req: Request) {
       }
     }
 
+    // SECURITY: Only return full leads list to authenticated dashboard admins!
+    if (isDashboardAdmin) {
+      return NextResponse.json({
+        success: true,
+        lead: newLead,
+        leads: currentLeads,
+        message: "Lead captured successfully!"
+      });
+    }
+
+    // Public chatbot visitors only receive a success acknowledgement
     return NextResponse.json({
       success: true,
-      lead: newLead,
-      leads: currentLeads,
+      leadId: newLead.id,
       message: "Lead captured successfully!"
     });
   } catch (err: any) {
@@ -187,20 +231,32 @@ export async function POST(req: Request) {
   }
 }
 
+/**
+ * PUT /api/leads
+ * Protected endpoint for status updates.
+ */
 export async function PUT(req: Request) {
   try {
+    const auth = await verifyAdminAccess();
+    if (!auth.authorized && auth.user.id === "00000000-0000-0000-0000-000000000000") {
+      return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+    }
+
     const body = await req.json();
-    const { id, status, workspaceId = "00000000-0000-0000-0000-000000000000" } = body;
+    const { id, status, workspaceId = auth.workspaceId || "00000000-0000-0000-0000-000000000000" } = body;
 
     if (!id || !status) {
       return NextResponse.json({ error: "Lead ID and status required" }, { status: 400 });
+    }
+
+    if (auth.role !== "Super Admin" && workspaceId !== auth.workspaceId && auth.workspaceId !== "00000000-0000-0000-0000-000000000000") {
+      return NextResponse.json({ error: "Unauthorized workspace access." }, { status: 403 });
     }
 
     let currentLeads = globalLeadsStore.get(workspaceId) || [...INITIAL_DEMO_LEADS];
     currentLeads = currentLeads.map((l) => (l.id === id ? { ...l, status } : l));
     globalLeadsStore.set(workspaceId, currentLeads);
 
-    // Sync status change to database if connected
     const supabase = getSupabaseClient();
     if (supabase && workspaceId !== "00000000-0000-0000-0000-000000000000") {
       try {
@@ -235,21 +291,34 @@ export async function PUT(req: Request) {
   }
 }
 
+/**
+ * DELETE /api/leads
+ * Protected endpoint for lead deletion.
+ */
 export async function DELETE(req: Request) {
   try {
+    const auth = await verifyAdminAccess();
+    if (!auth.authorized && auth.user.id === "00000000-0000-0000-0000-000000000000") {
+      return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+    }
+
     const { searchParams } = new URL(req.url);
-    const workspaceId = searchParams.get("workspaceId") || "00000000-0000-0000-0000-000000000000";
+    const requestedWsId = searchParams.get("workspaceId");
+    const workspaceId = requestedWsId || auth.workspaceId || "00000000-0000-0000-0000-000000000000";
     const id = searchParams.get("id");
 
     if (!id) {
       return NextResponse.json({ error: "Lead ID required" }, { status: 400 });
     }
 
+    if (auth.role !== "Super Admin" && workspaceId !== auth.workspaceId && auth.workspaceId !== "00000000-0000-0000-0000-000000000000") {
+      return NextResponse.json({ error: "Unauthorized workspace access." }, { status: 403 });
+    }
+
     let currentLeads = globalLeadsStore.get(workspaceId) || [...INITIAL_DEMO_LEADS];
     currentLeads = currentLeads.filter((l) => l.id !== id);
     globalLeadsStore.set(workspaceId, currentLeads);
 
-    // Sync deletion to database if connected
     const supabase = getSupabaseClient();
     if (supabase && workspaceId !== "00000000-0000-0000-0000-000000000000") {
       try {

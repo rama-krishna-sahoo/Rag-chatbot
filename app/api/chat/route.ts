@@ -271,32 +271,32 @@ export async function POST(req: Request) {
         contactsList = [
           {
             id: "cnt-1",
-            name: "Dr. Sangram K. Sahoo",
-            designation: "Director of Admissions & Student Affairs",
+            name: "Admissions & Student Affairs Desk",
+            designation: "Director of Admissions",
             department: "Admissions",
-            phone: "+91 98765 43210",
-            email: "admissions@institute.edu",
+            phone: "+1 555-0199",
+            email: "admissions@example.com",
             availability: "Mon - Fri (9:00 AM - 5:00 PM)",
             keywords: ["admission", "apply", "fee structure", "seat booking", "counseling", "entrance"]
           },
           {
             id: "cnt-2",
-            name: "Prof. Rajesh Kumar Rout",
-            designation: "Head of Training & Placement Cell",
+            name: "Training & Placement Cell",
+            designation: "Placement Desk Officer",
             department: "Placements",
-            phone: "+91 94370 12345",
-            email: "placements@institute.edu",
+            phone: "+1 555-0198",
+            email: "placements@example.com",
             availability: "Mon - Sat (9:30 AM - 6:00 PM)",
             keywords: ["placement", "job", "campus recruitment", "internship", "salary package", "companies"]
           },
           {
             id: "cnt-3",
-            name: "Er. Priyabrata Dash",
-            designation: "Central IT & Technical Helpdesk Lead",
+            name: "Central Technical Helpdesk",
+            designation: "IT Support Lead",
             department: "IT Support",
-            phone: "+91 674 230 9999",
-            email: "itsupport@institute.edu",
-            availability: "24/7 Priority Desk",
+            phone: "+1 555-0197",
+            email: "itsupport@example.com",
+            availability: "24/7 Support Desk",
             keywords: ["it support", "wifi", "portal login", "email reset", "technical issue", "hardware"]
           }
         ];

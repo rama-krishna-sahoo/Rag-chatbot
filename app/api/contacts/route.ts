@@ -2,6 +2,7 @@
 
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { verifyAdminAccess } from "@/lib/admin-auth";
 
 export type KeyContact = {
   id: string;
@@ -18,36 +19,36 @@ export type KeyContact = {
 // In-memory store for instant zero-latency caching
 const globalContactsStore = new Map<string, KeyContact[]>();
 
-// Pre-fill initial contacts for default demo workspace
+// Anonymized default demo contacts for initial workspace preview
 const DEFAULT_CONTACTS: KeyContact[] = [
   {
     id: "cnt-1",
-    name: "Dr. Sangram K. Sahoo",
-    designation: "Director of Admissions & Student Affairs",
+    name: "Admissions & Student Affairs Desk",
+    designation: "Director of Admissions",
     department: "Admissions",
-    phone: "+91 98765 43210",
-    email: "admissions@institute.edu",
+    phone: "+1 555-0199",
+    email: "admissions@example.com",
     availability: "Mon - Fri (9:00 AM - 5:00 PM)",
     keywords: ["admission", "apply", "fee structure", "seat booking", "counseling", "entrance"]
   },
   {
     id: "cnt-2",
-    name: "Prof. Rajesh Kumar Rout",
-    designation: "Head of Training & Placement Cell",
+    name: "Training & Placement Cell",
+    designation: "Placement Desk Officer",
     department: "Placements",
-    phone: "+91 94370 12345",
-    email: "placements@institute.edu",
+    phone: "+1 555-0198",
+    email: "placements@example.com",
     availability: "Mon - Sat (9:30 AM - 6:00 PM)",
     keywords: ["placement", "job", "campus recruitment", "internship", "salary package", "companies"]
   },
   {
     id: "cnt-3",
-    name: "Er. Priyabrata Dash",
-    designation: "Central IT & Technical Helpdesk Lead",
+    name: "Central Technical Helpdesk",
+    designation: "IT Support Lead",
     department: "IT Support",
-    phone: "+91 674 230 9999",
-    email: "itsupport@institute.edu",
-    availability: "24/7 Priority Desk",
+    phone: "+1 555-0197",
+    email: "itsupport@example.com",
+    availability: "24/7 Support Desk",
     keywords: ["it support", "wifi", "portal login", "email reset", "technical issue", "hardware"]
   }
 ];
@@ -107,8 +108,17 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
+    const auth = await verifyAdminAccess();
+    if (!auth.authorized && auth.user?.id === "00000000-0000-0000-0000-000000000000") {
+      return NextResponse.json({ error: "Authentication required to modify key contacts." }, { status: 401 });
+    }
+
     const body = await req.json();
-    const { workspaceId = "00000000-0000-0000-0000-000000000000", contacts, contact } = body;
+    const { workspaceId = auth.workspaceId || "00000000-0000-0000-0000-000000000000", contacts, contact } = body;
+
+    if (auth.role !== "Super Admin" && workspaceId !== auth.workspaceId && auth.workspaceId !== "00000000-0000-0000-0000-000000000000") {
+      return NextResponse.json({ error: "Unauthorized workspace access." }, { status: 403 });
+    }
 
     let currentList = globalContactsStore.get(workspaceId) || [...DEFAULT_CONTACTS];
 
@@ -174,12 +184,22 @@ export async function POST(req: Request) {
 
 export async function DELETE(req: Request) {
   try {
+    const auth = await verifyAdminAccess();
+    if (!auth.authorized && auth.user?.id === "00000000-0000-0000-0000-000000000000") {
+      return NextResponse.json({ error: "Authentication required to delete contacts." }, { status: 401 });
+    }
+
     const { searchParams } = new URL(req.url);
-    const workspaceId = searchParams.get("workspaceId") || "00000000-0000-0000-0000-000000000000";
+    const requestedWsId = searchParams.get("workspaceId");
+    const workspaceId = requestedWsId || auth.workspaceId || "00000000-0000-0000-0000-000000000000";
     const contactId = searchParams.get("id");
 
     if (!contactId) {
       return NextResponse.json({ error: "Contact ID required" }, { status: 400 });
+    }
+
+    if (auth.role !== "Super Admin" && workspaceId !== auth.workspaceId && auth.workspaceId !== "00000000-0000-0000-0000-000000000000") {
+      return NextResponse.json({ error: "Unauthorized workspace access." }, { status: 403 });
     }
 
     let currentList = globalContactsStore.get(workspaceId) || [...DEFAULT_CONTACTS];
