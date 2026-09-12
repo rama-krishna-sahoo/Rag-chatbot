@@ -27,7 +27,10 @@ import {
   User,
   Mail,
   Wand2,
-  Upload
+  Upload,
+  Trash2,
+  AlertTriangle,
+  X
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -102,7 +105,7 @@ interface SettingsTabProps {
 
 export function SettingsTab({ setActiveTab, onOpenUpgradeModal }: SettingsTabProps) {
   const [expandedSections, setExpandedSections] = useState<string[]>([
-    "general", "profile", "subscription", "branding", "website", "chatbot", "notifications", "updates"
+    "general", "profile", "subscription", "branding", "website", "chatbot", "notifications", "updates", "danger"
   ]);
 
   const searchParams = useSearchParams();
@@ -110,6 +113,36 @@ export function SettingsTab({ setActiveTab, onOpenUpgradeModal }: SettingsTabPro
 
   // Premium feature state
   const [isPremiumUnlocked, setIsPremiumUnlocked] = useState(false);
+
+  // Account Deletion state
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+
+  const handleDeleteAccount = async () => {
+    setIsDeletingAccount(true);
+    setDeleteError("");
+    try {
+      const res = await fetch("/api/account", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" }
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        throw new Error(data.error || "Failed to delete account.");
+      }
+
+      if (typeof window !== "undefined") {
+        localStorage.clear();
+      }
+
+      alert("Your account and database records have been deleted successfully.");
+      window.location.href = "/auth/signup";
+    } catch (err: any) {
+      setDeleteError(err.message || "An error occurred while deleting your account.");
+      setIsDeletingAccount(false);
+    }
+  };
 
   useEffect(() => {
     if (typeof window !== "undefined" && localStorage.getItem("oogway_premium_unlocked") === "true") {
@@ -960,6 +993,114 @@ export function SettingsTab({ setActiveTab, onOpenUpgradeModal }: SettingsTabPro
           ))}
         </div>
       </SectionCard>
+
+      {/* 9. Danger Zone & Account Deletion */}
+      <SectionCard 
+        id="danger" 
+        icon={AlertTriangle} 
+        title="9. Danger Zone & Account Deletion"
+        description="Permanently delete your user account, workspace configuration, stored knowledge base, and chatbot records."
+        badge={
+          <span className="bg-rose-500/15 text-rose-400 text-[10px] font-bold px-2 py-0.5 rounded border border-rose-500/25 flex items-center gap-1 uppercase tracking-wider">
+            Irreversible
+          </span>
+        }
+        isExpanded={expandedSections.includes("danger")}
+        onToggle={() => toggleSection("danger")}
+      >
+        <div className="bg-rose-950/20 border border-rose-500/20 p-5 rounded-xl space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h4 className="text-sm font-bold text-rose-200 flex items-center gap-2">
+                <Trash2 className="w-4 h-4 text-rose-400" />
+                Delete Account & Database Records
+              </h4>
+              <p className="text-xs text-rose-300/70 mt-1 leading-relaxed max-w-xl">
+                Once you delete your account, all your settings, custom brandings, knowledge base documents, and leads will be permanently wiped from the database. This action cannot be undone.
+              </p>
+            </div>
+            <Button 
+              onClick={() => {
+                setShowDeleteModal(true);
+                setDeleteError("");
+              }}
+              className="bg-rose-600 hover:bg-rose-700 text-white font-bold h-10 px-6 rounded-xl text-xs flex items-center gap-2 shadow-lg shadow-rose-950 shrink-0 cursor-pointer"
+            >
+              <Trash2 className="w-4 h-4" />
+              Delete Account
+            </Button>
+          </div>
+        </div>
+      </SectionCard>
+
+      {/* Delete Account Confirmation Modal Alert */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-[#121c0c] border border-rose-500/30 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-5 relative">
+            <button 
+              onClick={() => setShowDeleteModal(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-3 text-rose-400">
+              <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-white">Delete Account?</h3>
+                <p className="text-xs text-rose-300/80">This action is permanent and database-connected.</p>
+              </div>
+            </div>
+
+            <div className="bg-rose-950/40 border border-rose-500/20 p-3.5 rounded-xl text-xs text-slate-300 leading-relaxed space-y-2">
+              <p>
+                Are you sure you want to permanently delete your account (<strong className="text-white font-mono">{formData.adminEmail || "admin@example.com"}</strong>)?
+              </p>
+              <p className="text-rose-300/90 font-medium">
+                • User account & authentication data will be deleted.<br />
+                • Knowledge base vectors & uploaded documents will be removed.<br />
+                • Custom brandings, workspace settings, and leads will be wiped.
+              </p>
+            </div>
+
+            {deleteError && (
+              <div className="bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs p-3 rounded-lg">
+                {deleteError}
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <Button
+                variant="ghost"
+                onClick={() => setShowDeleteModal(false)}
+                disabled={isDeletingAccount}
+                className="text-slate-400 hover:text-white h-10 px-5 text-xs font-semibold"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleDeleteAccount}
+                disabled={isDeletingAccount}
+                className="bg-rose-600 hover:bg-rose-700 text-white font-bold h-10 px-6 rounded-xl text-xs flex items-center justify-center gap-2 shadow-lg shadow-rose-950"
+              >
+                {isDeletingAccount ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    Deleting Data...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    Yes, Delete My Account
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Bottom Sticky Action Bar */}
       <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] md:w-full max-w-xl z-50">
