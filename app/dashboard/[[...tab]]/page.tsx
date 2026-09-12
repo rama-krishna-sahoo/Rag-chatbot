@@ -707,6 +707,45 @@ export default function WorkspaceDashboard() {
   const [uploadProgress, setUploadProgress] = useState("");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
+  // Custom Inline Popup Alert Modal State
+  const [customAlert, setCustomAlert] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    type: "success" | "error" | "info" | "warning";
+    onConfirm?: () => void;
+    confirmText?: string;
+    showCancel?: boolean;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    type: "info"
+  });
+
+  const showAlert = (
+    message: string,
+    title = "Notification",
+    type: "success" | "error" | "info" | "warning" = "info",
+    onConfirm?: () => void,
+    confirmText = "OK",
+    showCancel = false
+  ) => {
+    setCustomAlert({
+      isOpen: true,
+      title,
+      message,
+      type,
+      onConfirm,
+      confirmText,
+      showCancel
+    });
+  };
+
+  const closeAlert = () => {
+    setCustomAlert(prev => ({ ...prev, isOpen: false }));
+  };
+
   // States for chunk explorer
   const [selectedDoc, setSelectedDoc] = useState<any>(null);
   const { data: chunks = [], isLoading: loadingChunks } = useQuery({
@@ -892,7 +931,7 @@ export default function WorkspaceDashboard() {
 
     } catch (err: any) {
       console.error(err);
-      alert(`Upload/Process failed: ${err.message}`);
+      showAlert(`Upload/Process failed: ${err.message}`, "Upload Error", "error");
       setUploadProgress("");
       setUploading(false);
       fetchDocuments();
@@ -909,14 +948,14 @@ export default function WorkspaceDashboard() {
         body: JSON.stringify({ publishAll: true })
       });
       if (res.ok) {
-        alert("All reference materials published to live production!");
+        showAlert("All reference materials published to live production!", "Success", "success");
         fetchDocuments();
       } else {
         const data = await res.json();
-        alert(`Publish All failed: ${data.error}`);
+        showAlert(data.error || "Failed to publish all documents", "Publish All Failed", "error");
       }
     } catch (err: any) {
-      alert(`Publish All error: ${err.message}`);
+      showAlert(err.message || "Failed to publish all documents", "Publish All Error", "error");
     } finally {
       setPublishingAll(false);
     }
@@ -931,7 +970,7 @@ export default function WorkspaceDashboard() {
     if (!target.startsWith("http://") && !target.startsWith("https://")) {
       let base = website.trim();
       if (!base) {
-        alert("Please configure your website URL in Settings first.");
+        showAlert("Please configure your website URL in Settings first.", "Configuration Required", "info");
         return null;
       }
       if (!base.startsWith("http")) base = "https://" + base;
@@ -950,12 +989,12 @@ export default function WorkspaceDashboard() {
       const baseHost = parsedBase.hostname.replace(/^www\./, "");
 
       if (targetHost !== baseHost && !targetHost.endsWith("." + baseHost)) {
-        alert(`Domain Mismatch: The page URL domain (${parsedTarget.hostname}) must match your whitelisted domain (${parsedBase.hostname}).`);
+        showAlert(`Domain Mismatch: The page URL domain (${parsedTarget.hostname}) must match your whitelisted domain (${parsedBase.hostname}).`, "Domain Mismatch", "error");
         return null;
       }
       return target;
     } catch (e) {
-      alert("Please enter a valid URL or page path.");
+      showAlert("Please enter a valid URL or page path.", "Invalid URL", "error");
       return null;
     }
   };
@@ -1066,26 +1105,33 @@ export default function WorkspaceDashboard() {
   const handleUrlIngest = handleAddPage;
 
   // Delete a document
-  const triggerDeleteDoc = async (docId: string) => {
-    if (!confirm("Are you sure you want to permanently delete this document and all its chunks? This cannot be undone.")) return;
-
-    try {
-      const res = await fetch(`/api/admin/documents?id=${docId}`, {
-        method: "DELETE"
-      });
-      if (res.ok) {
-        alert("Document deleted successfully.");
-        fetchDocuments();
-        if (selectedDoc?.id === docId) {
-          setSelectedDoc(null);
+  const triggerDeleteDoc = (docId: string) => {
+    showAlert(
+      "Are you sure you want to permanently delete this document and all its chunks? This action cannot be undone.",
+      "Delete Document?",
+      "warning",
+      async () => {
+        try {
+          const res = await fetch(`/api/admin/documents?id=${docId}`, {
+            method: "DELETE"
+          });
+          if (res.ok) {
+            showAlert("Document deleted successfully.", "Document Deleted", "success");
+            fetchDocuments();
+            if (selectedDoc?.id === docId) {
+              setSelectedDoc(null);
+            }
+          } else {
+            const data = await res.json();
+            showAlert(`Failed to delete: ${data.error}`, "Delete Failed", "error");
+          }
+        } catch (err: any) {
+          showAlert(`Delete error: ${err.message}`, "Delete Error", "error");
         }
-      } else {
-        const data = await res.json();
-        alert(`Failed to delete: ${data.error}`);
-      }
-    } catch (err: any) {
-      alert(`Delete error: ${err.message}`);
-    }
+      },
+      "Delete",
+      true
+    );
   };
 
   // Test search query sandbox
@@ -2357,14 +2403,14 @@ export default function WorkspaceDashboard() {
                                           body: JSON.stringify({ documentId: doc.id })
                                         });
                                         if (res.ok) {
-                                          alert("Document published to Production environment!");
+                                          showAlert("Document published to Production environment!", "Published to Production", "success");
                                           fetchDocuments();
                                         } else {
                                           const data = await res.json();
-                                          alert(`Publish failed: ${data.error}`);
+                                          showAlert(`Publish failed: ${data.error}`, "Publish Failed", "error");
                                         }
                                       } catch (err: any) {
-                                        alert(`Publish error: ${err.message}`);
+                                        showAlert(`Publish error: ${err.message}`, "Publish Error", "error");
                                       }
                                     }}
                                     className="h-7 bg-[#B2EA4D] hover:bg-[#B2EA4D]/90 text-[#050B06] text-[10px] px-2.5 font-bold rounded mr-2 cursor-pointer shadow-sm"
@@ -3058,6 +3104,72 @@ export default function WorkspaceDashboard() {
             <p className="text-center text-[11px] text-gray-400">
               Secured Stripe Checkout. Invoice and receipt sent instantly to your email.
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* Small Inline Custom Popup Alert Modal */}
+      {customAlert.isOpen && (
+        <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="bg-[#13220d] border border-[#B2EA4D]/25 rounded-2xl w-full max-w-sm p-5 shadow-2xl relative select-none animate-in zoom-in-95 duration-150 space-y-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-xl shrink-0 ${
+                  customAlert.type === "success"
+                    ? "bg-[#B2EA4D]/15 border border-[#B2EA4D]/30 text-[#B2EA4D]"
+                    : customAlert.type === "error"
+                      ? "bg-rose-500/15 border border-rose-500/30 text-rose-400"
+                      : customAlert.type === "warning"
+                        ? "bg-amber-500/15 border border-amber-500/30 text-amber-400"
+                        : "bg-cyan-500/15 border border-cyan-500/30 text-cyan-400"
+                }`}>
+                  {customAlert.type === "success" ? (
+                    <CheckCircle2 className="w-5 h-5" />
+                  ) : customAlert.type === "error" || customAlert.type === "warning" ? (
+                    <AlertCircle className="w-5 h-5" />
+                  ) : (
+                    <Sparkles className="w-5 h-5" />
+                  )}
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-white leading-snug">{customAlert.title}</h4>
+                  <p className="text-[11px] text-slate-300 mt-1 leading-relaxed">{customAlert.message}</p>
+                </div>
+              </div>
+              <button
+                onClick={closeAlert}
+                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors cursor-pointer shrink-0"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#B2EA4D]/10">
+              {customAlert.showCancel && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={closeAlert}
+                  className="h-8 text-xs text-slate-300 hover:text-white hover:bg-white/10 px-3 rounded-lg cursor-pointer"
+                >
+                  Cancel
+                </Button>
+              )}
+              <Button
+                size="sm"
+                onClick={() => {
+                  if (customAlert.onConfirm) customAlert.onConfirm();
+                  closeAlert();
+                }}
+                className={`h-8 text-xs px-4 font-bold rounded-lg cursor-pointer shadow-sm ${
+                  customAlert.type === "error" || customAlert.type === "warning"
+                    ? "bg-rose-500 hover:bg-rose-600 text-white"
+                    : "bg-[#B2EA4D] hover:bg-[#B2EA4D]/90 text-slate-950"
+                }`}
+              >
+                {customAlert.confirmText || "OK"}
+              </Button>
+            </div>
           </div>
         </div>
       )}
