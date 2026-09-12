@@ -51,32 +51,72 @@ export async function POST(req: Request) {
       },
     });
 
+    const originHeader = req.headers.get("origin");
+    const refererHeader = req.headers.get("referer");
+    let requestOrigin = originHeader;
+    if (!requestOrigin && refererHeader) {
+      try {
+        requestOrigin = new URL(refererHeader).origin;
+      } catch (e) {}
+    }
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || requestOrigin || "http://localhost:3000";
+
+    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+    const supabaseClient = createClient(supabaseUrl, anonKey || serviceKey);
+
     const verifyToken = crypto.randomUUID();
 
-    // Create user with email_confirm: false requiring link click verification
-    const { data, error } = await supabaseAdmin.auth.admin.createUser({
+    // Register user via Supabase Auth signUp to trigger automatic native email delivery to specified email ID
+    let signUpRes = await supabaseClient.auth.signUp({
       email,
       password,
-      email_confirm: false,
-      user_metadata: {
-        source: "web_registration",
-        full_name: name,
-        username: name,
-        verification_token: verifyToken,
-        email_verified: false,
+      options: {
+        data: {
+          source: "web_registration",
+          full_name: name,
+          username: name,
+          verification_token: verifyToken,
+          email_verified: false,
+        },
+        emailRedirectTo: `${appUrl}/verify-email`,
       },
     });
 
-    if (error) {
-      const errMsg = formatErrorMessage(error);
+    let createdUser = signUpRes.data?.user || null;
+    let authError = signUpRes.error;
+
+    if (authError || !createdUser) {
+      // Fallback: create user via admin API if client signUp encountered an issue
+      const adminRes = await supabaseAdmin.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: false,
+        user_metadata: {
+          source: "web_registration",
+          full_name: name,
+          username: name,
+          verification_token: verifyToken,
+          email_verified: false,
+        },
+      });
+      if (adminRes.error && !createdUser) {
+        authError = adminRes.error;
+      } else if (adminRes.data?.user) {
+        createdUser = adminRes.data.user;
+        authError = null;
+      }
+    }
+
+    if (authError || !createdUser) {
+      const errMsg = formatErrorMessage(authError);
       const msg = errMsg.toLowerCase();
       const isAlreadyExists = 
         msg.includes("already registered") || 
         msg.includes("already been registered") || 
         msg.includes("already exists") || 
         msg.includes("user_already_exists") || 
-        error.code === "user_already_exists" ||
-        (error as any).status === 422;
+        (authError as any)?.code === "user_already_exists" ||
+        (authError as any)?.status === 422;
 
       if (isAlreadyExists) {
         return NextResponse.json(
@@ -90,22 +130,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: errMsg }, { status: 400 });
     }
 
-    const originHeader = req.headers.get("origin");
-    const refererHeader = req.headers.get("referer");
-    let requestOrigin = originHeader;
-    if (!requestOrigin && refererHeader) {
-      try {
-        requestOrigin = new URL(refererHeader).origin;
-      } catch (e) {}
-    }
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || requestOrigin || "http://localhost:3000";
     const verificationUrl = `${appUrl}/verify-email?token=${verifyToken}&email=${encodeURIComponent(email)}`;
 
     // Dispatch verification link to the given email address
     let emailResult: any = { success: false };
-    if (data.user && data.user.email) {
+    if (createdUser.email) {
+      // 1. Send via custom email service / Resend if configured
       emailResult = await sendVerificationEmail({
-        email: data.user.email,
+        email: createdUser.email,
         name: name || undefined,
         verificationUrl,
       }).catch((emailErr) => {
@@ -113,8 +145,25 @@ export async function POST(req: Request) {
         return { success: false, error: formatErrorMessage(emailErr) };
       });
 
+      // 2. Also trigger Supabase Auth native email dispatch directly to the user's specific email address
+      if (anonKey) {
+        try {
+          const supabaseAnon = createClient(supabaseUrl, anonKey);
+          await supabaseAnon.auth.resend({
+            type: "signup",
+            email: createdUser.email,
+            options: {
+              emailRedirectTo: `${appUrl}/verify-email`,
+            },
+          });
+          emailResult.success = true;
+        } catch (resendErr) {
+          console.warn("Supabase native auth resend error:", resendErr);
+        }
+      }
+
       sendWelcomeEmail({
-        email: data.user.email,
+        email: createdUser.email,
         name: name || undefined,
         companyName: companyName || undefined,
       }).catch(() => {});
@@ -124,8 +173,8 @@ export async function POST(req: Request) {
       success: true,
       message: "Account created successfully.",
       user: {
-        id: data.user.id,
-        email: data.user.email,
+        id: createdUser.id,
+        email: createdUser.email,
       },
       verificationUrl,
       emailSent: emailResult.success,

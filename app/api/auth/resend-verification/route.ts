@@ -80,6 +80,24 @@ export async function POST(req: Request) {
       verificationUrl,
     });
 
+    // Also trigger Supabase Auth native email dispatch directly to the user's specific email address
+    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+    if (anonKey) {
+      try {
+        const supabaseAnon = createClient(supabaseUrl, anonKey);
+        await supabaseAnon.auth.resend({
+          type: "signup",
+          email: email,
+          options: {
+            emailRedirectTo: `${appUrl}/verify-email`,
+          },
+        });
+        emailResult.success = true;
+      } catch (resendErr) {
+        console.warn("Supabase native auth resend error:", resendErr);
+      }
+    }
+
     const emailErrFormatted = emailResult.error ? formatErrorMessage(emailResult.error) : null;
 
     return NextResponse.json({
