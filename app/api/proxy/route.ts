@@ -28,14 +28,60 @@ export async function GET(req: NextRequest) {
       if (contentType.includes("text/html")) {
         let html = await response.text();
 
-        // Inject <base href="..."> so relative scripts, styles, and images resolve correctly
-        const baseTag = `<base href="${targetUrl}">`;
+        const finalUrl = response.url || targetUrl;
+        let baseUrl = finalUrl;
+        if (!baseUrl.endsWith("/") && !baseUrl.substring(baseUrl.lastIndexOf("/")).includes(".")) {
+          baseUrl += "/";
+        }
+
+        // 1. Fix link tags rel attribute (convert rel='preload stylesheet preconnect' etc. to rel="stylesheet")
+        html = html.replace(/<link\s+([^>]*?)rel=['"][^'"]*stylesheet[^'"]*['"]([^>]*?)>/gi, (match, p1, p2) => {
+          return `<link ${p1}rel="stylesheet"${p2}>`;
+        });
+
+        // 2. Fix lazy-loaded images by replacing existing src attribute with data-lazy-src / data-src / data-original if present
+        html = html.replace(/<img\s+([^>]*?)>/gi, (imgTag) => {
+          const lazySrcMatch = imgTag.match(/data-(?:lazy-src|src|original)=['"]([^'"]+)['"]/i);
+          if (lazySrcMatch && lazySrcMatch[1]) {
+            const realSrc = lazySrcMatch[1];
+            if (/src=['"][^'"]*['"]/i.test(imgTag)) {
+              imgTag = imgTag.replace(/src=['"][^'"]*['"]/i, `src="${realSrc}"`);
+            } else {
+              imgTag = imgTag.replace(/<img\s+/i, `<img src="${realSrc}" `);
+            }
+          }
+          const lazySrcsetMatch = imgTag.match(/data-(?:lazy-srcset|srcset)=['"]([^'"]+)['"]/i);
+          if (lazySrcsetMatch && lazySrcsetMatch[1]) {
+            const realSrcset = lazySrcsetMatch[1];
+            if (/srcset=['"][^'"]*['"]/i.test(imgTag)) {
+              imgTag = imgTag.replace(/srcset=['"][^'"]*['"]/i, `srcset="${realSrcset}"`);
+            } else {
+              imgTag = imgTag.replace(/<img\s+/i, `<img srcset="${realSrcset}" `);
+            }
+          }
+          return imgTag;
+        });
+
+        // 3. Strip framebusting scripts (e.g. if (top != self) top.location = self.location)
+        html = html.replace(/if\s*\(\s*(?:top|window\.top)\s*!==?\s*(?:self|window\.self)\s*\)[^}]*}/gi, '');
+
+        // 4. Inject <base href="..."> so relative scripts, styles, and images resolve correctly, plus safety CSS
+        const baseTag = `<base href="${baseUrl}">`;
+        const resetCss = `<style id="oogway-proxy-styles">
+          img { max-width: 100% !important; height: auto !important; }
+          svg { max-width: 100% !important; }
+          iframe { max-width: 100% !important; }
+          body { overflow-x: hidden !important; }
+        </style>`;
+
+        const headInject = `${baseTag}\n${resetCss}`;
+
         if (html.includes("<head>")) {
-          html = html.replace("<head>", `<head>${baseTag}`);
+          html = html.replace("<head>", `<head>${headInject}`);
         } else if (html.includes("<HEAD>")) {
-          html = html.replace("<HEAD>", `<HEAD>${baseTag}`);
+          html = html.replace("<HEAD>", `<HEAD>${headInject}`);
         } else {
-          html = `${baseTag}${html}`;
+          html = `${headInject}${html}`;
         }
 
         // Return live website HTML stripped of X-Frame-Options & CSP frame restrictions
@@ -45,6 +91,8 @@ export async function GET(req: NextRequest) {
             "Content-Type": "text/html; charset=utf-8",
             "Cache-Control": "no-cache, no-store, must-revalidate, max-age=0",
             Pragma: "no-cache",
+            "X-Frame-Options": "ALLOWALL",
+            "Access-Control-Allow-Origin": "*",
           },
         });
       }
