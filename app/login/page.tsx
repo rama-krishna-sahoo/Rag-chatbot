@@ -55,7 +55,21 @@ function LoginForm() {
     if (alreadyExistsParam) {
       setExistingNotice(true);
     }
-  }, [emailParam, alreadyExistsParam]);
+
+    const code = searchParams.get("code");
+    if (code) {
+      setOauthLoading(true);
+      const supabase = createClient();
+      supabase.auth.exchangeCodeForSession(code).then(({ data, error }) => {
+        if (!error && data?.session) {
+          window.location.href = "/setup?onboarding=true";
+        } else {
+          setOauthLoading(false);
+          setErrorMsg("Authentication session exchange failed. Please try signing in again.");
+        }
+      }).catch(() => setOauthLoading(false));
+    }
+  }, [emailParam, alreadyExistsParam, searchParams]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

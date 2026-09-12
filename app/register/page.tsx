@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -44,6 +44,24 @@ export default function RegisterPage() {
   const [successMsg, setSuccessMsg] = useState("");
   const [providerDisabledNotice, setProviderDisabledNotice] = useState(false);
   const [showConfigGuide, setShowConfigGuide] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const code = new URLSearchParams(window.location.search).get("code");
+      if (code) {
+        setOauthLoading(true);
+        const supabase = createClient();
+        supabase.auth.exchangeCodeForSession(code).then(({ data, error }) => {
+          if (!error && data?.session) {
+            window.location.href = "/setup?onboarding=true";
+          } else {
+            setOauthLoading(false);
+            setErrorMsg("Authentication session exchange failed. Please try signing up again.");
+          }
+        }).catch(() => setOauthLoading(false));
+      }
+    }
+  }, []);
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();

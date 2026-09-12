@@ -9,9 +9,31 @@ import Link from "next/link";
 
 export default function SaaSLandingPage() {
   const [user, setUser] = useState<any>(null);
+  const [codeExchanging, setCodeExchanging] = useState<boolean>(false);
 
   useEffect(() => {
     const supabase = createClient();
+
+    // Automatically process PKCE OAuth authorization code if redirected to root URL
+    if (typeof window !== "undefined") {
+      const searchParams = new URLSearchParams(window.location.search);
+      const code = searchParams.get("code");
+
+      if (code) {
+        setCodeExchanging(true);
+        supabase.auth.exchangeCodeForSession(code).then(({ data, error }) => {
+          if (!error && data?.session) {
+            window.location.href = "/setup?onboarding=true";
+          } else {
+            setCodeExchanging(false);
+          }
+        }).catch(() => {
+          setCodeExchanging(false);
+        });
+        return;
+      }
+    }
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
     });
@@ -20,6 +42,17 @@ export default function SaaSLandingPage() {
     });
     return () => subscription.unsubscribe();
   }, []);
+
+  if (codeExchanging) {
+    return (
+      <div className="min-h-screen bg-[#050B06] text-white flex flex-col items-center justify-center p-6 space-y-4">
+        <div className="w-12 h-12 rounded-2xl bg-lime-500/20 border border-lime-500/40 flex items-center justify-center">
+          <RefreshCw className="w-6 h-6 text-lime-400 animate-spin" />
+        </div>
+        <p className="text-sm font-semibold text-lime-300 font-mono animate-pulse">Completing Authentication & Setting Up Workspace...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#050B06] text-white font-sans antialiased overflow-x-hidden selection:bg-lime-500/30 selection:text-lime-200">
