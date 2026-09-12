@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { ArrowRight, AlertTriangle, ExternalLink, Loader2, Info } from "lucide-react";
+import { ArrowRight, AlertTriangle, ExternalLink, Loader2, Info, MailCheck } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { safeSignInWithOAuth } from "@/utils/supabase/oauth";
 import Image from "next/image";
@@ -44,6 +44,33 @@ export default function RegisterPage() {
   const [successMsg, setSuccessMsg] = useState("");
   const [providerDisabledNotice, setProviderDisabledNotice] = useState(false);
   const [showConfigGuide, setShowConfigGuide] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
+  const [registeredEmail, setRegisteredEmail] = useState("");
+  const [resending, setResending] = useState(false);
+  const [resendNotice, setResendNotice] = useState<string | null>(null);
+
+  const handleResendVerification = async () => {
+    if (!registeredEmail) return;
+    setResending(true);
+    setResendNotice(null);
+    try {
+      const res = await fetch("/api/auth/resend-verification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: registeredEmail }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setResendNotice("Verification link re-sent! Please check your email inbox.");
+      } else {
+        setResendNotice(data.error || "Failed to resend verification link.");
+      }
+    } catch (e) {
+      setResendNotice("Network error resending verification email.");
+    } finally {
+      setResending(false);
+    }
+  };
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -112,24 +139,10 @@ export default function RegisterPage() {
         return;
       }
 
-      // 2. Immediately sign in the newly registered and verified user
-      const supabase = createClient();
-      const { error: loginError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (loginError) {
-        setSuccessMsg("Account created! Please sign in with your credentials.");
-        setLoading(false);
-        setTimeout(() => {
-          window.location.href = "/login";
-        }, 1500);
-        return;
-      }
-
-      // 3. User is signed in, redirect straight to setup onboarding pipeline
-      window.location.href = "/setup?onboarding=true";
+      // 2. Account created! Require email verification link click before logging in
+      setLoading(false);
+      setRegisteredEmail(email);
+      setEmailSent(true);
     } catch (err: any) {
       // Fallback: standard client signup if API endpoint encountered an issue
       try {
@@ -142,7 +155,7 @@ export default function RegisterPage() {
               full_name: name.trim(),
               username: name.trim(),
             },
-            emailRedirectTo: `${window.location.origin}/setup?onboarding=true`,
+            emailRedirectTo: `${window.location.origin}/verify-email`,
           },
         });
 
@@ -160,12 +173,9 @@ export default function RegisterPage() {
           return;
         }
 
-        if (data.session) {
-          window.location.href = "/setup?onboarding=true";
-        } else {
-          setSuccessMsg("Account created! Please check your email inbox to confirm your account.");
-          setLoading(false);
-        }
+        setLoading(false);
+        setRegisteredEmail(email);
+        setEmailSent(true);
       } catch (fallbackErr: any) {
         setErrorMsg("An unexpected error occurred during signup.");
         setLoading(false);
@@ -230,157 +240,207 @@ export default function RegisterPage() {
           <p className="text-gray-400 mt-1.5 text-sm">Join Oogway Platform to automate customer experience.</p>
         </div>
 
-        <Card className="p-8 shadow-[0_8px_32px_rgba(0,0,0,0.5)] border border-white/10 bg-[#111A13]/70 backdrop-blur-xl rounded-2xl">
-          {/* Google Sign Up Button */}
-          <Button 
-            onClick={handleOAuth}
-            disabled={oauthLoading || loading}
-            variant="outline" 
-            className="w-full h-11 mb-4 bg-[#162319]/80 hover:bg-[#1f3323] border border-white/10 hover:border-lime-500/30 text-gray-200 hover:text-white font-medium shadow-sm transition-all flex items-center justify-center gap-2.5 rounded-xl disabled:opacity-60"
-          >
-            {oauthLoading ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin text-lime-400 shrink-0" />
-                <span>Connecting to Google...</span>
-              </>
-            ) : (
-              <>
-                <GoogleIcon className="w-4 h-4 shrink-0" />
-                <span>Sign up with Google</span>
-              </>
-            )}
-          </Button>
-
-          {/* Graceful Provider Disabled Alert (prevents raw 400 JSON crash) */}
-          {providerDisabledNotice && (
-            <div className="mb-5 p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-200 text-xs space-y-2 animate-in fade-in duration-200">
-              <div className="flex items-start gap-2.5">
-                <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                <div className="space-y-1">
-                  <p className="font-semibold text-amber-300">Google OAuth is not enabled in Supabase</p>
-                  <p className="text-gray-300 text-[11px] leading-relaxed">
-                    Google Sign-In is currently disabled on your Supabase backend project. 
-                    You can register instantly using your <strong>Email and Password</strong> below.
-                  </p>
-                </div>
+        {emailSent ? (
+          <Card className="p-8 shadow-[0_8px_32px_rgba(0,0,0,0.5)] border border-white/10 bg-[#111A13]/70 backdrop-blur-xl rounded-2xl font-sans">
+            <div className="text-center space-y-5">
+              <div className="w-16 h-16 rounded-full bg-lime-500/15 border border-lime-500/30 text-lime-400 flex items-center justify-center mx-auto shadow-[0_0_24px_rgba(163,230,53,0.2)]">
+                <MailCheck className="w-8 h-8" />
+              </div>
+              <div className="space-y-2">
+                <h2 className="text-2xl font-extrabold text-white tracking-tight">Check your email inbox!</h2>
+                <p className="text-sm text-gray-300 max-w-sm mx-auto leading-relaxed">
+                  We sent a verification link to <strong className="text-lime-300 font-mono">{registeredEmail}</strong>.
+                </p>
+                <p className="text-xs text-gray-400 max-w-sm mx-auto leading-relaxed pt-1">
+                  Please open your email inbox and click the verification link to activate your account before logging in.
+                </p>
               </div>
 
-              <div className="pt-2 border-t border-amber-500/20 flex items-center justify-between text-[11px]">
-                <button
-                  type="button"
-                  onClick={() => setShowConfigGuide(!showConfigGuide)}
-                  className="text-lime-400 hover:text-lime-300 font-semibold underline underline-offset-2 flex items-center gap-1"
-                >
-                  <Info className="w-3 h-3" />
-                  {showConfigGuide ? "Hide setup instructions" : "How to enable Google OAuth"}
-                </button>
-                <a 
-                  href="https://supabase.com/dashboard/project/zrwlmodsukegpupxqykw/auth/providers" 
-                  target="_blank" 
-                  rel="noreferrer"
-                  className="text-amber-400 hover:text-amber-300 flex items-center gap-1 underline underline-offset-2 font-medium"
-                >
-                  Supabase Dashboard <ExternalLink className="w-3 h-3" />
-                </a>
-              </div>
-
-              {showConfigGuide && (
-                <div className="mt-2 p-2.5 rounded-lg bg-black/40 border border-white/5 text-[11px] text-gray-300 space-y-1.5 font-mono">
-                  <p className="font-sans font-semibold text-lime-300 text-xs">Steps to enable:</p>
-                  <p>1. In Supabase Dashboard &rarr; <strong>Authentication &rarr; Providers</strong></p>
-                  <p>2. Expand <strong>Google</strong> and toggle <strong>Enable</strong></p>
-                  <p>3. Enter your Google Client ID & Client Secret</p>
-                  <p>4. Authorized Redirect URI: <span className="text-lime-400 break-all select-all">https://zrwlmodsukegpupxqykw.supabase.co/auth/v1/callback</span></p>
-                </div>
+              {resendNotice && (
+                <p className="text-xs text-lime-300 bg-lime-500/10 p-2.5 rounded-xl border border-lime-500/20 font-medium leading-relaxed">
+                  {resendNotice}
+                </p>
               )}
-            </div>
-          )}
 
-          <div className="relative mb-6">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-white/10" />
-            </div>
-            <div className="relative flex justify-center text-[10px] uppercase tracking-widest font-bold">
-              <span className="bg-[#111A13] px-3 text-gray-400">Or continue with details</span>
-            </div>
-          </div>
-
-          <form onSubmit={handleSignUp} className="space-y-4">
-            {errorMsg && (
-              <div className="bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs p-3 rounded-xl leading-relaxed">
-                <strong>Error:</strong> {errorMsg}
+              <div className="pt-4 space-y-3">
+                <Button
+                  onClick={handleResendVerification}
+                  disabled={resending}
+                  variant="outline"
+                  className="w-full h-11 border-lime-500/30 bg-lime-500/10 hover:bg-lime-500/20 text-lime-300 font-semibold rounded-xl transition-all cursor-pointer"
+                >
+                  {resending ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin text-lime-400" /> Resending Verification Email...
+                    </span>
+                  ) : (
+                    "Resend Verification Email ✉️"
+                  )}
+                </Button>
+                <Link href={`/login?email=${encodeURIComponent(registeredEmail)}`} className="block w-full">
+                  <Button
+                    variant="ghost"
+                    className="w-full h-11 text-gray-400 hover:text-white font-medium rounded-xl cursor-pointer"
+                  >
+                    Go to Sign In Page →
+                  </Button>
+                </Link>
               </div>
-            )}
-            {successMsg && (
-              <div className="bg-lime-500/10 border border-lime-500/30 text-lime-300 text-xs p-3 rounded-xl leading-relaxed">
-                <strong>Success:</strong> {successMsg}
-              </div>
-            )}
-            <div className="space-y-1.5">
-              <label className="text-sm font-semibold text-gray-300">Full Name / Username</label>
-              <Input 
-                type="text" 
-                placeholder="e.g. Alex Rivera" 
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="h-11 bg-[#080e09]/80 border-white/10 text-white placeholder:text-gray-500 focus-visible:border-lime-400 focus-visible:ring-1 focus-visible:ring-lime-400 transition-all rounded-xl"
-                required
-              />
             </div>
-            <div className="space-y-1.5">
-              <label className="text-sm font-semibold text-gray-300">Email Address</label>
-              <Input 
-                type="email" 
-                placeholder="you@company.com" 
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="h-11 bg-[#080e09]/80 border-white/10 text-white placeholder:text-gray-500 focus-visible:border-lime-400 focus-visible:ring-1 focus-visible:ring-lime-400 transition-all rounded-xl"
-                required
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-sm font-semibold text-gray-300">Password</label>
-              <Input 
-                type="password" 
-                placeholder="••••••••" 
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="h-11 bg-[#080e09]/80 border-white/10 text-white placeholder:text-gray-500 focus-visible:border-lime-400 focus-visible:ring-1 focus-visible:ring-lime-400 transition-all rounded-xl"
-                required
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-sm font-semibold text-gray-300">Confirm Password</label>
-              <Input 
-                type="password" 
-                placeholder="••••••••" 
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="h-11 bg-[#080e09]/80 border-white/10 text-white placeholder:text-gray-500 focus-visible:border-lime-400 focus-visible:ring-1 focus-visible:ring-lime-400 transition-all rounded-xl"
-                required
-              />
-            </div>
+          </Card>
+        ) : (
+          <Card className="p-8 shadow-[0_8px_32px_rgba(0,0,0,0.5)] border border-white/10 bg-[#111A13]/70 backdrop-blur-xl rounded-2xl">
+            {/* Google Sign Up Button */}
             <Button 
-              type="submit" 
-              disabled={loading || oauthLoading}
-              className="w-full h-11 mt-2 bg-gradient-to-r from-lime-300 to-lime-500 hover:from-lime-200 hover:to-lime-400 text-[#050B06] font-semibold shadow-[0_0_20px_rgba(163,230,53,0.3)] group transition-all rounded-xl disabled:opacity-50 cursor-pointer"
+              onClick={handleOAuth}
+              disabled={oauthLoading || loading}
+              variant="outline" 
+              className="w-full h-11 mb-4 bg-[#162319]/80 hover:bg-[#1f3323] border border-white/10 hover:border-lime-500/30 text-gray-200 hover:text-white font-medium shadow-sm transition-all flex items-center justify-center gap-2.5 rounded-xl disabled:opacity-60"
             >
-              {loading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <Loader2 className="w-4 h-4 animate-spin text-[#050B06]" /> Creating account...
-                </span>
+              {oauthLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin text-lime-400 shrink-0" />
+                  <span>Connecting to Google...</span>
+                </>
               ) : (
-                <span className="flex items-center justify-center">
-                  Get Started <ArrowRight className="w-4 h-4 ml-1.5 opacity-70 group-hover:translate-x-0.5 transition-transform" />
-                </span>
+                <>
+                  <GoogleIcon className="w-4 h-4 shrink-0" />
+                  <span>Sign up with Google</span>
+                </>
               )}
             </Button>
-          </form>
 
-          <p className="text-center text-xs text-gray-400 mt-6">
-            Already have an account? <Link href="/login" className="text-lime-400 font-semibold hover:text-lime-300 hover:underline">Sign in</Link>
-          </p>
-        </Card>
+            {/* Graceful Provider Disabled Alert (prevents raw 400 JSON crash) */}
+            {providerDisabledNotice && (
+              <div className="mb-5 p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-200 text-xs space-y-2 animate-in fade-in duration-200">
+                <div className="flex items-start gap-2.5">
+                  <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <p className="font-semibold text-amber-300">Google OAuth is not enabled in Supabase</p>
+                    <p className="text-gray-300 text-[11px] leading-relaxed">
+                      Google Sign-In is currently disabled on your Supabase backend project. 
+                      You can register instantly using your <strong>Email and Password</strong> below.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-amber-500/20 flex items-center justify-between text-[11px]">
+                  <button
+                    type="button"
+                    onClick={() => setShowConfigGuide(!showConfigGuide)}
+                    className="text-lime-400 hover:text-lime-300 font-semibold underline underline-offset-2 flex items-center gap-1"
+                  >
+                    <Info className="w-3 h-3" />
+                    {showConfigGuide ? "Hide setup instructions" : "How to enable Google OAuth"}
+                  </button>
+                  <a 
+                    href="https://supabase.com/dashboard/project/zrwlmodsukegpupxqykw/auth/providers" 
+                    target="_blank" 
+                    rel="noreferrer"
+                    className="text-amber-400 hover:text-amber-300 flex items-center gap-1 underline underline-offset-2 font-medium"
+                  >
+                    Supabase Dashboard <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+
+                {showConfigGuide && (
+                  <div className="mt-2 p-2.5 rounded-lg bg-black/40 border border-white/5 text-[11px] text-gray-300 space-y-1.5 font-mono">
+                    <p className="font-sans font-semibold text-lime-300 text-xs">Steps to enable:</p>
+                    <p>1. In Supabase Dashboard &rarr; <strong>Authentication &rarr; Providers</strong></p>
+                    <p>2. Expand <strong>Google</strong> and toggle <strong>Enable</strong></p>
+                    <p>3. Enter your Google Client ID & Client Secret</p>
+                    <p>4. Authorized Redirect URI: <span className="text-lime-400 break-all select-all">https://zrwlmodsukegpupxqykw.supabase.co/auth/v1/callback</span></p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="relative mb-6">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-white/10" />
+              </div>
+              <div className="relative flex justify-center text-[10px] uppercase tracking-widest font-bold">
+                <span className="bg-[#111A13] px-3 text-gray-400">Or continue with details</span>
+              </div>
+            </div>
+
+            <form onSubmit={handleSignUp} className="space-y-4">
+              {errorMsg && (
+                <div className="bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs p-3 rounded-xl leading-relaxed">
+                  <strong>Error:</strong> {errorMsg}
+                </div>
+              )}
+              {successMsg && (
+                <div className="bg-lime-500/10 border border-lime-500/30 text-lime-300 text-xs p-3 rounded-xl leading-relaxed">
+                  <strong>Success:</strong> {successMsg}
+                </div>
+              )}
+              <div className="space-y-1.5">
+                <label className="text-sm font-semibold text-gray-300">Full Name / Username</label>
+                <Input 
+                  type="text" 
+                  placeholder="e.g. Alex Rivera" 
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="h-11 bg-[#080e09]/80 border-white/10 text-white placeholder:text-gray-500 focus-visible:border-lime-400 focus-visible:ring-1 focus-visible:ring-lime-400 transition-all rounded-xl"
+                  required
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-semibold text-gray-300">Email Address</label>
+                <Input 
+                  type="email" 
+                  placeholder="you@company.com" 
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="h-11 bg-[#080e09]/80 border-white/10 text-white placeholder:text-gray-500 focus-visible:border-lime-400 focus-visible:ring-1 focus-visible:ring-lime-400 transition-all rounded-xl"
+                  required
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-semibold text-gray-300">Password</label>
+                <Input 
+                  type="password" 
+                  placeholder="••••••••" 
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="h-11 bg-[#080e09]/80 border-white/10 text-white placeholder:text-gray-500 focus-visible:border-lime-400 focus-visible:ring-1 focus-visible:ring-lime-400 transition-all rounded-xl"
+                  required
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-semibold text-gray-300">Confirm Password</label>
+                <Input 
+                  type="password" 
+                  placeholder="••••••••" 
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="h-11 bg-[#080e09]/80 border-white/10 text-white placeholder:text-gray-500 focus-visible:border-lime-400 focus-visible:ring-1 focus-visible:ring-lime-400 transition-all rounded-xl"
+                  required
+                />
+              </div>
+              <Button 
+                type="submit" 
+                disabled={loading || oauthLoading}
+                className="w-full h-11 mt-2 bg-gradient-to-r from-lime-300 to-lime-500 hover:from-lime-200 hover:to-lime-400 text-[#050B06] font-semibold shadow-[0_0_20px_rgba(163,230,53,0.3)] group transition-all rounded-xl disabled:opacity-50 cursor-pointer"
+              >
+                {loading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin text-[#050B06]" /> Creating account...
+                  </span>
+                ) : (
+                  <span className="flex items-center justify-center">
+                    Get Started <ArrowRight className="w-4 h-4 ml-1.5 opacity-70 group-hover:translate-x-0.5 transition-transform" />
+                  </span>
+                )}
+              </Button>
+            </form>
+
+            <p className="text-center text-xs text-gray-400 mt-6">
+              Already have an account? <Link href="/login" className="text-lime-400 font-semibold hover:text-lime-300 hover:underline">Sign in</Link>
+            </p>
+          </Card>
+        )}
       </div>
     </div>
   );

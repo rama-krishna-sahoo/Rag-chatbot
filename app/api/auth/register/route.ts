@@ -76,7 +76,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    const originHeader = req.headers.get("origin");
+    const refererHeader = req.headers.get("referer");
+    let requestOrigin = originHeader;
+    if (!requestOrigin && refererHeader) {
+      try {
+        requestOrigin = new URL(refererHeader).origin;
+      } catch (e) {}
+    }
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || requestOrigin || "http://localhost:3000";
     const verificationUrl = `${appUrl}/verify-email?token=${verifyToken}&email=${encodeURIComponent(email)}`;
 
     // Dispatch verification link to the given email address asynchronously
