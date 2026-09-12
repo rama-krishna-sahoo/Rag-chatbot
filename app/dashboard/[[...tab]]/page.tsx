@@ -494,7 +494,10 @@ export default function WorkspaceDashboard() {
 
       // Perform secure redirection checks
       if (typeof window !== "undefined") {
-        if (!authRoleData.user && !authRoleData.isSimulated) {
+        const isUserAuthenticated = Boolean(authRoleData.user || authRoleData.isSimulated);
+        if (!isUserAuthenticated) {
+          localStorage.removeItem("oogway_cached_user_email");
+          localStorage.removeItem("oogway_simulated_role");
           window.location.href = "/login";
           return;
         }
@@ -512,6 +515,8 @@ export default function WorkspaceDashboard() {
     } else if (!authRoleLoading) {
       setLoadingAuth(false);
       if (typeof window !== "undefined") {
+        localStorage.removeItem("oogway_cached_user_email");
+        localStorage.removeItem("oogway_simulated_role");
         window.location.href = "/login";
       }
     }
@@ -783,10 +788,10 @@ export default function WorkspaceDashboard() {
     const originalFetch = window.fetch;
     window.fetch = async (input, init) => {
       const headers = new Headers(init?.headers || {});
-      const storedRole = localStorage.getItem("oogway_simulated_role") || "Knowledge Admin";
-      const storedWorkspace = localStorage.getItem("oogway_simulated_workspace_id") || "ffffffff-ffff-ffff-ffff-ffffffffffff";
-      headers.set("x-simulated-role", storedRole);
-      headers.set("x-simulated-workspace-id", storedWorkspace);
+      const storedRole = localStorage.getItem("oogway_simulated_role");
+      const storedWorkspace = localStorage.getItem("oogway_simulated_workspace_id");
+      if (storedRole) headers.set("x-simulated-role", storedRole);
+      if (storedWorkspace) headers.set("x-simulated-workspace-id", storedWorkspace);
       return originalFetch(input, {
         ...init,
         headers

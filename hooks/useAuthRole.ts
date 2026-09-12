@@ -31,17 +31,19 @@ export function useAuthRole() {
             role: null,
             workspaceId: null,
             workspaceInfo: null,
-            email: fallbackUser?.email,
+            email: fallbackUser?.email || null,
             user: fallbackUser,
+            authenticated: Boolean(fallbackUser),
           };
         }
 
         const data = await res.json();
+        const effectiveUser = session?.user || (data?.user?.id && !data.user.id.startsWith("00000000") && !data.user.id.startsWith("mock-") ? data.user : null);
         return {
           ...data,
-          // Preserve user from server response if client session is not yet loaded
-          user: session?.user || data?.user || null,
-          email: session?.user?.email || data?.email || data?.user?.email || null,
+          user: effectiveUser,
+          email: effectiveUser?.email || data?.email || null,
+          authenticated: Boolean(effectiveUser || data?.isSimulated),
         };
       } catch (err: any) {
         clearTimeout(timeoutId);

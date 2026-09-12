@@ -7,6 +7,20 @@ export async function GET() {
   try {
     const { user, role, workspaceId, isSimulated, supabase } = await verifyAdminAccess();
     
+    const isGuest = user.id === "00000000-0000-0000-0000-000000000000" || user.id.startsWith("mock-");
+    const isAuthenticated = !isGuest || isSimulated;
+
+    if (!isAuthenticated) {
+      return NextResponse.json({
+        authenticated: false,
+        user: null,
+        role: null,
+        workspaceId: null,
+        isSimulated: false,
+        error: "Unauthenticated"
+      }, { status: 401 });
+    }
+    
     let workspaceInfo = null;
     if (workspaceId && workspaceId !== "ffffffff-ffff-ffff-ffff-ffffffffffff") {
       const { data } = await supabase
