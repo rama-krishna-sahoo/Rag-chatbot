@@ -1,10 +1,27 @@
-// lib/email.ts
+import nodemailer from "nodemailer";
 
 export type WelcomeEmailOptions = {
   email: string;
   name?: string;
   companyName?: string;
 };
+
+function getTransporter() {
+  const host = process.env.SMTP_HOST || "smtp.gmail.com";
+  const port = Number(process.env.SMTP_PORT) || 587;
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
+
+  if (user && pass) {
+    return nodemailer.createTransport({
+      host,
+      port,
+      secure: port === 465,
+      auth: { user, pass },
+    });
+  }
+  return null;
+}
 
 export async function sendWelcomeEmail({ email, name, companyName }: WelcomeEmailOptions) {
   const userName = name || email.split("@")[0].replace(/[._-]/g, " ").replace(/\b\w/g, c => c.toUpperCase());
@@ -91,28 +108,19 @@ export async function sendWelcomeEmail({ email, name, companyName }: WelcomeEmai
   `;
 
   try {
-    const resendApiKey = process.env.RESEND_API_KEY;
-    if (resendApiKey) {
-      const fromEmail = process.env.EMAIL_FROM || "Oogway AI <onboarding@resend.dev>";
-      const res = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${resendApiKey}`,
-        },
-        body: JSON.stringify({
-          from: fromEmail,
-          to: [email],
-          subject,
-          html: htmlContent,
-        }),
+    const transporter = getTransporter();
+    if (transporter) {
+      const from = process.env.EMAIL_FROM || process.env.SMTP_USER || "Oogway AI <no-reply@oogway.ai>";
+      const info = await transporter.sendMail({
+        from,
+        to: email,
+        subject,
+        html: htmlContent,
       });
-      const data = await res.json();
-      console.log("Welcome Email dispatched via Resend:", data);
-      const isSuccess = res.ok && !data?.error && (!data?.statusCode || data?.statusCode < 400);
-      return { success: isSuccess, provider: "resend", data, error: isSuccess ? null : (data?.message || data?.error), htmlContent, subject };
+      console.log("Welcome Email dispatched via SMTP:", info.messageId);
+      return { success: true, provider: "smtp", messageId: info.messageId, htmlContent, subject };
     } else {
-      console.log(`[WELCOME EMAIL DISPATCH] (Simulated / Development Mode) To: ${email} | Subject: ${subject}`);
+      console.log(`[WELCOME EMAIL DISPATCH] (Simulated Mode - Configure SMTP_USER & SMTP_PASS to enable) To: ${email} | Subject: ${subject}`);
       return { success: true, provider: "simulated", email, subject, htmlContent };
     }
   } catch (err: any) {
@@ -202,40 +210,30 @@ export async function sendVerificationEmail({ email, name, verificationUrl }: Ve
   `;
 
   try {
-    const resendApiKey = process.env.RESEND_API_KEY;
-    if (resendApiKey) {
-      const fromEmail = process.env.EMAIL_FROM || "Oogway AI <onboarding@resend.dev>";
-      const res = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${resendApiKey}`,
-        },
-        body: JSON.stringify({
-          from: fromEmail,
-          to: [email],
-          subject,
-          html: htmlContent,
-        }),
+    const transporter = getTransporter();
+    if (transporter) {
+      const from = process.env.EMAIL_FROM || process.env.SMTP_USER || "Oogway AI <no-reply@oogway.ai>";
+      const info = await transporter.sendMail({
+        from,
+        to: email,
+        subject,
+        html: htmlContent,
       });
-      const data = await res.json();
-      console.log("Verification Email dispatched via Resend:", data);
-      const isSuccess = res.ok && !data?.error && (!data?.statusCode || data?.statusCode < 400);
+      console.log("Verification Email dispatched via SMTP:", info.messageId);
       return {
-        success: isSuccess,
-        provider: "resend",
-        data,
-        error: isSuccess ? null : (data?.message || data?.error || `Resend HTTP ${res.status}`),
+        success: true,
+        provider: "smtp",
+        messageId: info.messageId,
         verificationUrl,
         htmlContent,
         subject,
       };
     } else {
-      console.log(`[VERIFICATION EMAIL DISPATCH] (Simulated / Dev Mode) To: ${email} | Link: ${verificationUrl}`);
+      console.log(`[VERIFICATION EMAIL DISPATCH] (Simulated Mode - Configure SMTP_USER & SMTP_PASS in .env.local to enable) To: ${email} | Link: ${verificationUrl}`);
       return { success: true, provider: "simulated", email, subject, verificationUrl, htmlContent };
     }
   } catch (err: any) {
-    console.warn("Failed to dispatch Verification Email:", err?.message || err);
+    console.warn("Failed to dispatch Verification Email via SMTP:", err?.message || err);
     return { success: false, error: err?.message || err, verificationUrl, htmlContent, subject };
   }
 }

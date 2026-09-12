@@ -343,6 +343,18 @@ export default function RegisterPage() {
                 </p>
               )}
 
+              {directVerificationUrl && (
+                <div className="bg-lime-500/10 border border-lime-500/30 rounded-xl p-4 text-center space-y-2.5">
+                  <p className="text-xs text-lime-200 font-semibold">⚡ Quick Verification Mode:</p>
+                  <a
+                    href={directVerificationUrl}
+                    className="inline-flex items-center justify-center gap-2 w-full py-3 px-4 bg-gradient-to-r from-lime-300 to-lime-500 hover:from-lime-200 hover:to-lime-400 text-black font-extrabold text-xs uppercase tracking-wider rounded-xl shadow-[0_0_20px_rgba(163,230,53,0.3)] transition-all cursor-pointer"
+                  >
+                    <MailCheck className="w-4 h-4" /> Verify Email & Continue to Onboarding →
+                  </a>
+                </div>
+              )}
+
               <div className="pt-2 space-y-3">
                 <Button
                   onClick={() => handleResendVerification(registeredEmail)}
