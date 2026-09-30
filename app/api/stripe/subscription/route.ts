@@ -2,17 +2,17 @@ import { NextResponse } from "next/server";
 import { verifyAdminAccess } from "@/lib/admin-auth";
 import { createClient } from "@supabase/supabase-js";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_KEY!
-);
-
 export async function GET() {
   try {
     const { authorized, workspaceId } = await verifyAdminAccess();
     if (!authorized) {
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
+
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_KEY!
+    );
 
     // Check subscription status
     const { data: subscription } = await supabase

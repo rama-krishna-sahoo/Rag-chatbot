@@ -6,35 +6,11 @@ import { generateEmbedding, generateGroundedAnswer, generateGroundedAnswerStream
 import { getLocalProductAnswer } from "@/lib/rag-fallback";
 import { getSemanticCache, setSemanticCache } from "@/lib/semantic-cache";
 
-let supabaseClient: any = null;
-
 function getSupabaseClient() {
-  if (supabaseClient) return supabaseClient;
-
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
-    try {
-      const fs = require("fs");
-      const path = require("path");
-      const envPath = path.join(process.cwd(), ".env.local");
-      if (fs.existsSync(envPath)) {
-        const content = fs.readFileSync(envPath, "utf-8");
-        content.split("\n").forEach((line: string) => {
-          const [key, ...values] = line.split("=");
-          if (key && values.length > 0) {
-            process.env[key.trim()] = values.join("=").trim();
-          }
-        });
-      }
-    } catch (e) {
-      console.warn("Failed to load .env.local dynamically in chat route:", e);
-    }
-  }
-
-  supabaseClient = createClient(
+  return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || "",
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || ""
   );
-  return supabaseClient;
 }
 
 const MOCK_CUSTOMERS: Record<string, string> = {

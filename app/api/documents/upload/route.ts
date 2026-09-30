@@ -33,7 +33,7 @@ export async function POST(req: Request) {
     // GAP 1 FIX: Automatically trigger document processing pipeline after upload registration.
     // Fire-and-forget: don't await so the upload response is immediate.
     if (data?.id && !storagePath.startsWith("http")) {
-      const origin = req.headers.get("origin") || req.headers.get("referer") || "http://localhost:3000";
+      const origin = req.headers.get("origin") || req.headers.get("referer") || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
       try {
         const baseUrl = new URL(origin).origin;
         fetch(`${baseUrl}/api/documents/process`, {

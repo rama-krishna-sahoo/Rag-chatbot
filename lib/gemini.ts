@@ -1,34 +1,17 @@
-import fs from "fs";
-import path from "path";
-
 const BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 
-// Dynamically read keys from .env.local if dev server wasn't restarted
-function loadLocalEnv() {
-  if (process.env.NEXT_PUBLIC_GOOGLE_API_KEY) return;
-  try {
-    const envPath = path.join(process.cwd(), ".env.local");
-    if (fs.existsSync(envPath)) {
-      const content = fs.readFileSync(envPath, "utf-8");
-      content.split("\n").forEach((line) => {
-        const [key, ...values] = line.split("=");
-        if (key && values.length > 0) {
-          process.env[key.trim()] = values.join("=").trim();
-        }
-      });
-    }
-  } catch (err) {
-    console.warn("Failed to load .env.local dynamically in gemini wrapper:", err);
-  }
+/** Returns the Google API key from environment variables. Server-side only. */
+function getApiKey(): string {
+  // Prefer server-only key; fall back to public key for backwards-compat.
+  return process.env.GOOGLE_API_KEY || process.env.NEXT_PUBLIC_GOOGLE_API_KEY || "";
 }
 
 /**
  * Generates a 1536-dimension vector embedding for the given text using gemini-embedding-2.
  */
 export async function generateEmbedding(text: string): Promise<number[]> {
-  loadLocalEnv();
-  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_API_KEY || process.env.GOOGLE_API_KEY || "";
-  
+  const apiKey = getApiKey();
+
   if (!apiKey) {
     throw new Error("Google API Key is not configured.");
   }
@@ -216,8 +199,7 @@ export async function generateGroundedAnswer(
   workspaceName: string = "Oogway",
   workspaceIndustry: string = "products and services"
 ): Promise<string> {
-  loadLocalEnv();
-  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_API_KEY || process.env.GOOGLE_API_KEY || "";
+  const apiKey = getApiKey();
   const isFollowUp = !!(history && history.length > 0);
   
   if (!apiKey) {
@@ -298,8 +280,7 @@ export async function generateGroundedAnswerStream(
   workspaceName: string = "Oogway",
   workspaceIndustry: string = "products and services"
 ): Promise<ReadableStream<Uint8Array>> {
-  loadLocalEnv();
-  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_API_KEY || process.env.GOOGLE_API_KEY || "";
+  const apiKey = getApiKey();
   const encoder = new TextEncoder();
   const isFollowUp = !!(history && history.length > 0);
 
@@ -448,9 +429,8 @@ export async function extractDocumentFeatures(
   filename: string,
   contextHint?: string
 ): Promise<ExtractedFeatures> {
-  loadLocalEnv();
-  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_API_KEY || process.env.GOOGLE_API_KEY || "";
-  
+  const apiKey = getApiKey();
+
   if (!apiKey) {
     throw new Error("Google API Key is not configured.");
   }

@@ -2,19 +2,25 @@ import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2025-05-28.basil" as any,
-});
+function getStripe() {
+  return new Stripe(process.env.STRIPE_SECRET_KEY!, {
+    apiVersion: "2025-05-28.basil" as any,
+  });
+}
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_KEY!
-);
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_KEY!
+  );
+}
 
 // Disable Next.js body parsing — Stripe needs the raw body for signature verification
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
+  const stripe = getStripe();
+  const supabase = getSupabase();
   let event: Stripe.Event;
 
   try {

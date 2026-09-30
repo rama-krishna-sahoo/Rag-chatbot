@@ -22,7 +22,7 @@ export async function POST(req: Request) {
     }
 
     // Fan out async calls to the process route for each doc
-    const origin = req.headers.get("origin") || req.headers.get("referer") || "http://localhost:3000";
+    const origin = req.headers.get("origin") || req.headers.get("referer") || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
     const baseUrl = new URL(origin).origin;
 
     const results = await Promise.allSettled(

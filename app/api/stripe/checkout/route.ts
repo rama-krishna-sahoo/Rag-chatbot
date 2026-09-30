@@ -2,12 +2,10 @@ import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { verifyAdminAccess } from "@/lib/admin-auth";
 
-// Initialize Stripe with the secret key
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2025-05-28.basil" as any,
-});
-
 export async function POST(req: Request) {
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+    apiVersion: "2025-05-28.basil" as any,
+  });
   try {
     const body = await req.json();
     const { plan, amount, currency = "inr", successUrl, cancelUrl } = body;
