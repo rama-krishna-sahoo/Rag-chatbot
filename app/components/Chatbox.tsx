@@ -947,7 +947,12 @@ export function Chatbot({
 
                   <p className="text-[10px] text-neutral-400 font-mono">
                     🔒 Security Gate: Chatbot will not process queries without a valid matching OTP.
-                                 {/* Scrollable Chat Area */}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <>
+                {/* Scrollable Chat Area */}
                 <div
                   ref={scrollRef}
                   className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-3 min-h-0 space-y-4"

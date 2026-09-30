@@ -29,8 +29,26 @@ export async function POST(req: Request) {
       .maybeSingle();
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    // GAP 1 FIX: Automatically trigger document processing pipeline after upload registration.
+    // Fire-and-forget: don't await so the upload response is immediate.
+    if (data?.id && !storagePath.startsWith("http")) {
+      const origin = req.headers.get("origin") || req.headers.get("referer") || "http://localhost:3000";
+      try {
+        const baseUrl = new URL(origin).origin;
+        fetch(`${baseUrl}/api/documents/process`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ documentId: data.id, workspaceId }),
+        }).catch((e) => console.warn("Background document processing failed to start:", e));
+      } catch (e) {
+        console.warn("Could not fire document process request:", e);
+      }
+    }
+
     return NextResponse.json(data);
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
+

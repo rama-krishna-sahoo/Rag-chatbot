@@ -42,9 +42,16 @@ const MOCK_CUSTOMERS: Record<string, string> = {
   "new-parent-john": "Customer Name: John. Profile: First-time parent. Past Purchases: None yet, but recently viewed Anti-Colic Bamboo Feeding Bottle. Preferences: Needs beginner-friendly advice, worried about colic and baby sleep."
 };
 
+// GAP 2: Minimum cosine similarity for a chunk to be considered relevant.
+// Below this threshold the bot returns "I don't know" instead of calling the LLM.
+const RELEVANCE_THRESHOLD = 0.65;
+
 export async function POST(req: Request) {
   try {
-    const { message, customerId, customerEmail, customerName, history, workspaceId, workspaceName: passedWsName, workspaceIndustry: passedWsIndustry, stream: wantStream } = await req.json();
+    const { message, customerId, customerEmail, customerName, history: rawHistory, workspaceId, workspaceName: passedWsName, workspaceIndustry: passedWsIndustry, stream: wantStream } = await req.json();
+
+    // GAP 4: Cap conversation history at the last 10 turns to avoid token overflow
+    const history = Array.isArray(rawHistory) ? rawHistory.slice(-10) : [];
 
     // Secure domain whitelisting check
     const origin = req.headers.get("origin") || req.headers.get("referer");
@@ -243,6 +250,63 @@ export async function POST(req: Request) {
         matches.push(m);
       }
     });
+
+    // GAP 2 FIX: Check relevance threshold before calling the LLM.
+    // If top match similarity is below threshold (or no matches at all), return honest fallback.
+    const topSimilarity: number = matches.length > 0 ? (matches[0].similarity || 0) : 0;
+    const hasRelevantContext = matches.length > 0 && topSimilarity >= RELEVANCE_THRESHOLD;
+
+    if (!hasRelevantContext) {
+      // Log the unanswered question for the admin stretch-goal view
+      try {
+        const logWsId = targetWsId !== "00000000-0000-0000-0000-000000000000" ? targetWsId : null;
+        await supabase.from("unanswered_questions").insert({
+          question_text: message,
+          similarity_score: topSimilarity,
+          workspace_id: logWsId,
+          session_id: `anon-${Date.now().toString(36)}`,
+        });
+      } catch (logErr) {
+        // Non-fatal — unanswered_questions table may not exist yet
+        console.warn("Could not log unanswered question:", logErr);
+      }
+
+      const iDontKnowMsg =
+        `I wasn't able to find a reliable answer to your question in our documentation. ` +
+        `This question has been noted for our team to improve our knowledge base. ` +
+        `You can also create a support ticket and a human agent will follow up with you.`;
+
+      createdTicket = ticketPromise ? await ticketPromise : null;
+      let fullMsg = iDontKnowMsg;
+      if (createdTicket) {
+        fullMsg += `\n\n📌 **Support Ticket Created**: Ticket **${createdTicket.ticket_number}** (${createdTicket.priority.toUpperCase()}) has been raised. Our team will contact you at **${createdTicket.customer_email}**.`;
+      }
+
+      if (wantStream) {
+        const encoder = new TextEncoder();
+        const stream = new ReadableStream({
+          start(controller) {
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: fullMsg, sourceChunks: [], isUnknown: true })}\n\n`));
+            controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
+            controller.close();
+          },
+        });
+        return new Response(stream, {
+          headers: {
+            "Content-Type": "text/event-stream",
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+          },
+        });
+      }
+
+      return NextResponse.json({
+        answer: fullMsg,
+        sourceChunks: [],
+        ticket: createdTicket,
+        isUnknown: true,
+      });
+    }
 
     let contextText = "";
     if (matches.length > 0) {
